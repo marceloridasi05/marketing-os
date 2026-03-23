@@ -408,6 +408,7 @@ export function Budget() {
       cumSavings += monthSavings;
       return {
         name: `${MONTHS[m]} ${y}`,
+        Gasto: monthCost,
         Savings: monthSavings,
         Orçamento: monthBudget,
         'Savings Acum.': cumSavings,
@@ -773,8 +774,9 @@ export function Budget() {
                 data={savingsChartData}
                 xKey="name"
                 lines={[
-                  { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
+                  { dataKey: 'Gasto', color: '#ef4444', name: 'Gasto' },
                   { dataKey: 'Orçamento', color: '#3b82f6', name: 'Orçamento' },
+                  { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
                   { dataKey: 'Savings Acum.', color: '#f59e0b', name: 'Savings Acum.' },
                 ]}
                 page="budget"
