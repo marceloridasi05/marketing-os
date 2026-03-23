@@ -4,6 +4,7 @@ import { Card } from '../components/Card';
 import { api } from '../lib/api';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
+import { CollapsibleCard } from '../components/CollapsibleCard';
 
 // --- Types ---
 interface KPIs {
@@ -240,7 +241,7 @@ export function Dashboard() {
           </div>
 
           {/* Comparison table */}
-          <Card title="Comparação de Períodos" className="mb-6">
+          <CollapsibleCard title="Comparação de Períodos" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -260,10 +261,10 @@ export function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </CollapsibleCard>
 
           {/* Channel summary */}
-          <Card title="Resumo por Canal" className="mb-6">
+          <CollapsibleCard title="Resumo por Canal" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -288,11 +289,11 @@ export function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </CollapsibleCard>
 
           {/* Quick Insights */}
           {insights.length > 0 && (
-            <Card title="Destaques" className="mb-6">
+            <CollapsibleCard title="Destaques" className="mb-6">
               <ul className="space-y-1.5">
                 {insights.map((ins, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
@@ -301,7 +302,7 @@ export function Dashboard() {
                   </li>
                 ))}
               </ul>
-            </Card>
+            </CollapsibleCard>
           )}
 
           {/* Trend Charts */}

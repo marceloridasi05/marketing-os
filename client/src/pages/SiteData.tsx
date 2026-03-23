@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -144,7 +145,6 @@ export function SiteData() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
-  const [showAiTable, setShowAiTable] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -315,12 +315,12 @@ export function SiteData() {
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalUsers)}</p>
             </Card>
             <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Leads</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalLeads)}</p>
-            </Card>
-            <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Novos Usuários</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalNewUsers)}</p>
+            </Card>
+            <Card className="min-w-0">
+              <p className="text-xs font-medium text-gray-500 uppercase">Total Leads</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalLeads)}</p>
             </Card>
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Última Semana</p>
@@ -356,7 +356,7 @@ export function SiteData() {
           </div>
 
           {/* Site Brick + Blog table */}
-          <Card title="Site Brick + Blog" className="mb-6">
+          <CollapsibleCard title="Site Brick + Blog" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -400,10 +400,10 @@ export function SiteData() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </CollapsibleCard>
 
           {/* Blog table */}
-          <Card title="Blog" className="mb-6">
+          <CollapsibleCard title="Blog" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -439,11 +439,11 @@ export function SiteData() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </CollapsibleCard>
 
           {/* Monthly Chart */}
           {monthlyData.length > 1 && (
-            <Card title="Visão Mensal — Sessões e Leads" className="mb-6">
+            <CollapsibleCard title="Visão Mensal — Sessões e Leads" className="mb-6">
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={monthlyChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -456,12 +456,12 @@ export function SiteData() {
                   <Bar dataKey="Leads" fill="#10b981" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </Card>
+            </CollapsibleCard>
           )}
 
           {/* Monthly Table */}
           {monthlyData.length > 1 && (
-            <Card title="Comparativo Mensal">
+            <CollapsibleCard title="Comparativo Mensal">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -535,49 +535,41 @@ export function SiteData() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </CollapsibleCard>
           )}
 
-          {/* Origem IA - collapsible, last */}
-          <Card className="mt-6">
-            <button onClick={() => setShowAiTable(!showAiTable)}
-              className="flex items-center gap-2 w-full text-left">
-              {showAiTable ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
-              <h3 className="text-sm font-medium text-gray-500">Origem IA</h3>
-              <span className="text-xs text-gray-400">({data.filter(r => (r.aiSessions ?? 0) > 0).length} semanas com dados)</span>
-            </button>
-            {showAiTable && (
-              <div className="overflow-x-auto mt-3">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <aiSort.SortHeader k="week" label="Semana" />
-                      <aiSort.SortHeader k="weekStart" label="Início" />
-                      <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
-                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
-                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+          {/* Origem IA - collapsible, closed by default, last */}
+          <CollapsibleCard title="Origem IA" subtitle={`${data.filter(r => (r.aiSessions ?? 0) > 0).length} semanas com dados`} defaultOpen={false} className="mt-6">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <aiSort.SortHeader k="week" label="Semana" />
+                    <aiSort.SortHeader k="weekStart" label="Início" />
+                    <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiSort.sorted.map((r, idx) => {
+                    const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
+                    return (
+                    <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
+                      <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
+                      <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
+                      <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
+                      <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
                     </tr>
-                  </thead>
-                  <tbody>
-                    {aiSort.sorted.map((r, idx) => {
-                      const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
-                      return (
-                      <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
-                        <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                        <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
-                        <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
-                        <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
-                        <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleCard>
         </>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
+import { CollapsibleCard } from '../components/CollapsibleCard';
 import { api } from '../lib/api';
 import { Plus, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
@@ -425,8 +426,7 @@ export function Performance() {
             const months = Object.keys(byMonth).sort();
             if (months.length < 2) return null;
             return (
-              <Card className="mb-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Comparativo Mensal</h3>
+              <CollapsibleCard title="Comparativo Mensal" className="mb-6">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -504,7 +504,7 @@ export function Performance() {
                     </tbody>
                   </table>
                 </div>
-              </Card>
+              </CollapsibleCard>
             );
           })()}
 
@@ -517,7 +517,7 @@ export function Performance() {
 
           {/* Google Ads Tab */}
           {tab === 'google' && (
-            <Card>
+            <CollapsibleCard title="Google Ads — Detalhamento Semanal">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -561,12 +561,12 @@ export function Performance() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </CollapsibleCard>
           )}
 
           {/* LinkedIn Ads Tab */}
           {tab === 'linkedin' && (
-            <Card>
+            <CollapsibleCard title="LinkedIn Ads — Detalhamento por Campanha">
               {/* Filters */}
               <div className="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-gray-200">
                 <div>
@@ -640,12 +640,12 @@ export function Performance() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </CollapsibleCard>
           )}
 
           {/* Manual Tab */}
           {tab === 'manual' && (
-            <Card>
+            <CollapsibleCard title="Registros Manuais">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -687,7 +687,7 @@ export function Performance() {
                   </tbody>
                 </table>
               </div>
-            </Card>
+            </CollapsibleCard>
           )}
         </>
       )}
