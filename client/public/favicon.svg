@@ -1,23 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
   <circle cx="24" cy="24" r="24" fill="#F97316"/>
   <g transform="translate(24,24)">
-    <!-- Fighter jet top-down view pointing up, white on orange -->
-    <g fill="white" transform="scale(0.55) translate(0,-2)">
+    <g fill="white" transform="scale(0.78) translate(0,-1)">
+      <!-- Nose -->
+      <path d="M0,-24 L2,-18 L-2,-18 Z"/>
       <!-- Fuselage -->
-      <path d="M0,-22 L2.5,-14 L2,-2 L3,8 L2,18 L1,22 L-1,22 L-2,18 L-3,8 L-2,-2 L-2.5,-14 Z"/>
-      <!-- Nose cone -->
-      <path d="M0,-26 L1.5,-22 L-1.5,-22 Z"/>
-      <!-- Main wings -->
-      <path d="M2,-2 L18,8 L18,10 L16,10 L3,4 Z"/>
-      <path d="M-2,-2 L-18,8 L-18,10 L-16,10 L-3,4 Z"/>
-      <!-- Tail wings -->
-      <path d="M2,16 L10,22 L10,23.5 L9,23 L1.5,20 Z"/>
-      <path d="M-2,16 L-10,22 L-10,23.5 L-9,23 L-1.5,20 Z"/>
-      <!-- Tail fins -->
-      <path d="M1,18 L4,24 L3,25 L0.5,22 Z"/>
-      <path d="M-1,18 L-4,24 L-3,25 L-0.5,22 Z"/>
-      <!-- Engine exhaust -->
-      <path d="M1.5,22 L2,26 L-2,26 L-1.5,22 Z" opacity="0.7"/>
+      <path d="M2,-18 L3,-10 L3,-2 L3.5,6 L3,14 L2,19 L1,21 L-1,21 L-2,19 L-3,14 L-3.5,6 L-3,-2 L-3,-10 L-2,-18 Z"/>
+      <!-- Cockpit -->
+      <ellipse cx="0" cy="-12" rx="1.5" ry="3" fill="#F97316" opacity="0.6"/>
+      <!-- Main wings - wider and bolder -->
+      <path d="M3,-3 L20,6 L21,9 L19,9.5 L4,3 Z"/>
+      <path d="M-3,-3 L-20,6 L-21,9 L-19,9.5 L-4,3 Z"/>
+      <!-- Wing tips -->
+      <path d="M20,6 L22,5 L21,9 Z"/>
+      <path d="M-20,6 L-22,5 L-21,9 Z"/>
+      <!-- Horizontal stabilizers -->
+      <path d="M2.5,15 L12,20 L12,22 L10,21.5 L2,18 Z"/>
+      <path d="M-2.5,15 L-12,20 L-12,22 L-10,21.5 L-2,18 Z"/>
+      <!-- Vertical tail fins -->
+      <path d="M1.5,16 L3.5,22 L2.5,23 L1,20 Z"/>
+      <path d="M-1.5,16 L-3.5,22 L-2.5,23 L-1,20 Z"/>
+      <!-- Engine nozzle -->
+      <path d="M1.5,21 L1.8,24 L-1.8,24 L-1.5,21 Z" opacity="0.8"/>
+      <!-- Intake details -->
+      <rect x="-4" y="0" width="1.2" height="3" rx="0.5" opacity="0.5"/>
+      <rect x="2.8" y="0" width="1.2" height="3" rx="0.5" opacity="0.5"/>
     </g>
   </g>
 </svg>
