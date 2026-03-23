@@ -36,6 +36,22 @@ const fmtNum = (n: number | null) => n != null ? n.toLocaleString('pt-BR') : '�
 const fmtMoney = (n: number | null) => n != null ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 }) : '—';
 const fmtDate = (d: string) => { const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : d; };
 
+// % change helper
+function pctChange(current: number | null, previous: number | null): string | null {
+  if (current == null || previous == null || previous === 0) return null;
+  const diff = ((current - previous) / previous) * 100;
+  return (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+}
+function pctChangeColor(current: number | null, previous: number | null): string {
+  if (current == null || previous == null || previous === 0) return 'text-gray-300';
+  return current >= previous ? 'text-green-600' : 'text-red-500';
+}
+function PctCell({ current, previous }: { current: number | null; previous: number | null }) {
+  const val = pctChange(current, previous);
+  const color = pctChangeColor(current, previous);
+  return <td className={`py-2 px-1 text-right text-[11px] font-medium ${color} whitespace-nowrap`}>{val ?? '—'}</td>;
+}
+
 const FUNNEL_LABELS: Record<string, string> = { awareness: 'Awareness', interest: 'Interest', decision: 'Decision', other: 'Outros' };
 const FUNNEL_COLORS: Record<string, string> = { awareness: 'info', interest: 'warning', decision: 'success', other: 'default' };
 
@@ -137,10 +153,6 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
 type TimePeriod = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
 const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
   { value: 'all', label: 'Todo o período' },
-  { value: 'today', label: 'Hoje' },
-  { value: 'yesterday', label: 'Ontem' },
-  { value: 'this_week', label: 'Esta semana' },
-  { value: 'last_7', label: 'Últimos 7 dias' },
   { value: 'last_30', label: 'Últimos 30 dias' },
   { value: 'this_month', label: 'Este mês' },
   { value: 'last_month', label: 'Mês passado' },
@@ -407,30 +419,39 @@ export function Performance() {
                       <gaSort.SortHeader k="week" label="Semana" />
                       <gaSort.SortHeader k="weekStart" label="Início" />
                       <gaSort.SortHeader k="gaImpressions" label="Impressões" align="right" />
+                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaClicks" label="Cliques" align="right" />
+                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaCtr" label="CTR" align="right" />
                       <gaSort.SortHeader k="gaCpcAvg" label="CPC Médio" align="right" />
                       <gaSort.SortHeader k="gaCostAvg" label="Custo" align="right" />
                       <gaSort.SortHeader k="gaCvr" label="CVR" align="right" />
                       <gaSort.SortHeader k="gaConversions" label="Conv." align="right" />
+                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaCostPerConversion" label="Custo/Conv." align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {gaSort.sorted.map(r => (
+                    {gaSort.sorted.map((r, idx) => {
+                      const prev = idx > 0 ? gaSort.sorted[idx - 1] : null;
+                      return (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                         <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                         <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.gaImpressions)}</td>
+                        <PctCell current={r.gaImpressions} previous={prev?.gaImpressions ?? null} />
                         <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.gaClicks)}</td>
+                        <PctCell current={r.gaClicks} previous={prev?.gaClicks ?? null} />
                         <td className="py-2 px-2 text-right text-gray-600">{r.gaCtr ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-gray-600">{r.gaCpcAvg ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-gray-900">{r.gaCostAvg ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-green-600">{r.gaCvr ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-green-600 font-medium">{fmtNum(r.gaConversions)}</td>
+                        <PctCell current={r.gaConversions} previous={prev?.gaConversions ?? null} />
                         <td className="py-2 px-2 text-right text-gray-600">{r.gaCostPerConversion ?? '—'}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -480,7 +501,9 @@ export function Performance() {
                       <liSort.SortHeader k="accountType" label="Tipo Conta" />
                       <liSort.SortHeader k="funnelStage" label="Funil" />
                       <liSort.SortHeader k="impressions" label="Impressões" align="right" />
+                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <liSort.SortHeader k="clicks" label="Cliques" align="right" />
+                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <liSort.SortHeader k="ctr" label="CTR" align="right" />
                       <liSort.SortHeader k="cpcAvg" label="CPC" align="right" />
                       <liSort.SortHeader k="cost" label="Custo" align="right" />
@@ -488,8 +511,10 @@ export function Performance() {
                   </thead>
                   <tbody>
                     {liSort.sorted.length === 0 ? (
-                      <tr><td colSpan={10} className="py-8 text-center text-gray-400">Nenhum dado encontrado</td></tr>
-                    ) : liSort.sorted.map(r => (
+                      <tr><td colSpan={12} className="py-8 text-center text-gray-400">Nenhum dado encontrado</td></tr>
+                    ) : liSort.sorted.map((r, idx) => {
+                      const prev = idx > 0 ? liSort.sorted[idx - 1] : null;
+                      return (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                         <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
@@ -497,12 +522,15 @@ export function Performance() {
                         <td className="py-2 px-2"><Badge>{r.accountType}</Badge></td>
                         <td className="py-2 px-2"><Badge variant={(FUNNEL_COLORS[r.funnelStage] ?? 'default') as 'info' | 'warning' | 'success' | 'default'}>{FUNNEL_LABELS[r.funnelStage] ?? r.funnelStage}</Badge></td>
                         <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.impressions)}</td>
+                        <PctCell current={r.impressions} previous={prev?.impressions ?? null} />
                         <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.clicks)}</td>
+                        <PctCell current={r.clicks} previous={prev?.clicks ?? null} />
                         <td className="py-2 px-2 text-right text-gray-600">{r.ctr ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-gray-600">{r.cpcAvg ?? '—'}</td>
                         <td className="py-2 px-2 text-right text-gray-900">{fmtMoney(r.cost)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

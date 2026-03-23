@@ -21,7 +21,8 @@ export function Sidebar() {
   return (
     <aside className="w-56 shrink-0 bg-gray-900 text-gray-300 flex flex-col">
       <div className="px-5 py-5 border-b border-gray-800">
-        <h1 className="text-white text-lg font-semibold tracking-tight">Marketing OS</h1>
+        <h1 className="text-white text-lg font-semibold tracking-tight">Brick Marketing</h1>
+        <p className="text-gray-400 text-xs mt-0.5">Flight Control Center</p>
       </div>
       <nav className="flex-1 py-4 px-3 space-y-1">
         {navItems.map(({ to, label, icon: Icon }) => (
@@ -43,7 +44,7 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="px-5 py-4 border-t border-gray-800 text-xs text-gray-500">
-        Marketing OS v1.0
+        Brick Marketing v1.0
       </div>
     </aside>
   );
