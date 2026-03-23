@@ -380,10 +380,10 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Canal</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Previsto</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Realizado</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Variação</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">% Uso</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Previsto</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Realizado</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Variação</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">% Uso</th>
                     <th className="py-2.5 px-3 w-20"></th>
                   </tr>
                 </thead>
@@ -397,9 +397,9 @@ export function Budget() {
                     return (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2.5 px-3 font-medium text-gray-700">{r.channelName}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(r.plannedBudget)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(r.actualSpent)}</td>
-                        <td className={`py-2.5 px-3 text-right font-medium ${over ? 'text-red-600' : 'text-green-600'}`}>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(r.plannedBudget)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(r.actualSpent)}</td>
+                        <td className={`py-2.5 px-3 text-center font-medium ${over ? 'text-red-600' : 'text-green-600'}`}>
                           {over ? '' : '+'}{fmtMoney(variance)}
                         </td>
                         <td className="py-2.5 px-3 text-right">
@@ -421,12 +421,12 @@ export function Budget() {
                   {budgetRows.length > 0 && (
                     <tr className="bg-gray-50 font-medium">
                       <td className="py-2.5 px-3 text-gray-700">Total</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(totalPlanned)}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(totalSpent)}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(totalPlanned)}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(totalSpent)}</td>
                       <td className={`py-2.5 px-3 text-right ${overBudget ? 'text-red-600' : 'text-green-600'}`}>
                         {overBudget ? '' : '+'}{fmtMoney(remaining)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-gray-700">
+                      <td className="py-2.5 px-3 text-center text-gray-700">
                         {fmtPct(safeDivide(totalSpent, totalPlanned))}
                       </td>
                       <td></td>
@@ -454,7 +454,7 @@ export function Budget() {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Nome</th>
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Categoria</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Custo Mensal</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Custo Mensal</th>
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Início</th>
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Fim</th>
                     <th className="text-center py-2.5 px-3 font-medium text-gray-500">Situação</th>
@@ -470,7 +470,7 @@ export function Budget() {
                       <tr key={fc.id} className={`border-b border-gray-100 hover:bg-gray-50 ${!fc.active ? 'opacity-50' : ''}`}>
                         <td className="py-2.5 px-3 font-medium text-gray-700">{fc.name}</td>
                         <td className="py-2.5 px-3 text-gray-600">{fc.category}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(fc.monthlyCost)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(fc.monthlyCost)}</td>
                         <td className="py-2.5 px-3 text-gray-600">{fc.startDate}</td>
                         <td className="py-2.5 px-3 text-gray-600">{fc.endDate || '—'}</td>
                         <td className="py-2.5 px-3 text-center">
@@ -515,11 +515,11 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-3 font-medium text-gray-500">Mês</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Mídia Prevista</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Mídia Realizada</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Custos Fixos</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Custo Total</th>
-                    <th className="text-right py-2.5 px-3 font-medium text-gray-500">Saldo</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Mídia Prevista</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Mídia Realizada</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Custos Fixos</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Custo Total</th>
+                    <th className="text-center py-2.5 px-3 font-medium text-gray-500">Saldo</th>
                     <th className="text-center py-2.5 px-3 font-medium text-gray-500">Situação</th>
                   </tr>
                 </thead>
@@ -532,11 +532,11 @@ export function Budget() {
                         className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${m.month === month ? 'bg-blue-50' : ''}`}
                         onClick={() => setMonth(m.month)}>
                         <td className="py-2.5 px-3 font-medium text-gray-700">{MONTHS[m.month]} {m.year}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(m.plannedMedia)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(m.actualMedia)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-600">{fmtMoney(m.fixedCosts)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900 font-medium">{fmtMoney(m.totalCost)}</td>
-                        <td className={`py-2.5 px-3 text-right font-medium ${isOver ? 'text-red-600' : 'text-green-600'}`}>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(m.plannedMedia)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(m.actualMedia)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-600">{fmtMoney(m.fixedCosts)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900 font-medium">{fmtMoney(m.totalCost)}</td>
+                        <td className={`py-2.5 px-3 text-center font-medium ${isOver ? 'text-red-600' : 'text-green-600'}`}>
                           {fmtMoney(m.remaining)}
                         </td>
                         <td className="py-2.5 px-3 text-center">
@@ -561,10 +561,10 @@ export function Budget() {
                     return (
                       <tr className="bg-gray-50 font-medium">
                         <td className="py-2.5 px-3 text-gray-700">Total Anual</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(totP)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(totA)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-600">{fmtMoney(totF)}</td>
-                        <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(totC)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(totP)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(totA)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-600">{fmtMoney(totF)}</td>
+                        <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(totC)}</td>
                         <td className={`py-2.5 px-3 text-right ${totR < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totR)}</td>
                         <td></td>
                       </tr>

@@ -105,12 +105,12 @@ function ComparisonRow({ label, current, previous, format }: {
   return (
     <tr className="border-b border-gray-100">
       <td className="py-2.5 px-3 text-sm font-medium text-gray-700">{label}</td>
-      <td className="py-2.5 px-3 text-sm text-gray-900 text-right">{fmt(current)}</td>
-      <td className="py-2.5 px-3 text-sm text-gray-500 text-right">{fmt(previous)}</td>
-      <td className={`py-2.5 px-3 text-sm text-right font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
+      <td className="py-2.5 px-3 text-sm text-gray-900 text-center">{fmt(current)}</td>
+      <td className="py-2.5 px-3 text-sm text-gray-500 text-center">{fmt(previous)}</td>
+      <td className={`py-2.5 px-3 text-sm text-center font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
         {positive ? '+' : ''}{fmt(diff)}
       </td>
-      <td className={`py-2.5 px-3 text-sm text-right font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
+      <td className={`py-2.5 px-3 text-sm text-center font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
         {positive ? '+' : ''}{(pctDiff * 100).toFixed(1)}%
       </td>
     </tr>
@@ -246,10 +246,10 @@ export function Dashboard() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 px-3 font-medium text-gray-500">Métrica</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Atual</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Anterior</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Diferença</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">% Variação</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Atual</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Anterior</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Diferença</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">% Variação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -269,20 +269,20 @@ export function Dashboard() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 px-3 font-medium text-gray-500">Canal</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Investimento</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Leads</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">Sessões</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-500">CPL</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Investimento</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Leads</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">Sessões</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500">CPL</th>
                   </tr>
                 </thead>
                 <tbody>
                   {channelData.map((ch) => (
                     <tr key={ch.channelId} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2.5 px-3 font-medium text-gray-700">{ch.channelName}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoney(ch.spend)}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtNum(ch.leads)}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtNum(ch.sessions)}</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">{fmtMoneyNull(safeDivide(ch.spend, ch.leads))}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoney(ch.spend)}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtNum(ch.leads)}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtNum(ch.sessions)}</td>
+                      <td className="py-2.5 px-3 text-center text-gray-900">{fmtMoneyNull(safeDivide(ch.spend, ch.leads))}</td>
                     </tr>
                   ))}
                 </tbody>

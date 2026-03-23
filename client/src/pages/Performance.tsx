@@ -49,7 +49,7 @@ function pctChangeColor(current: number | null, previous: number | null): string
 function PctCell({ current, previous }: { current: number | null; previous: number | null }) {
   const val = pctChange(current, previous);
   const color = pctChangeColor(current, previous);
-  return <td className={`py-2 px-1 text-right text-[11px] font-medium ${color} whitespace-nowrap`}>{val ?? '—'}</td>;
+  return <td className={`py-2 px-1 text-center text-[11px] font-medium ${color} whitespace-nowrap`}>{val ?? '—'}</td>;
 }
 
 const FUNNEL_LABELS: Record<string, string> = { awareness: 'Awareness', interest: 'Interest', decision: 'Decision', other: 'Outros' };
@@ -74,7 +74,7 @@ function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
     });
   }, [data, sortKey, sortAsc]);
   const SortHeader = ({ k, label, align = 'left' }: { k: string; label: string; align?: 'left' | 'right' }) => (
-    <th className={`${align === 'right' ? 'text-right' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
+    <th className={`${align === 'right' ? 'text-center' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
       onClick={() => handleSort(k)}>
       {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
     </th>
@@ -432,19 +432,19 @@ export function Performance() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-2 px-2 font-medium text-gray-500">Mês</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Impr.</th>
-                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Cliques</th>
-                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Conv.</th>
-                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google CTR</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Custo</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Impr.</th>
-                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Cliques</th>
-                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Custo</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">Google Impr.</th>
+                        <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">Google Cliques</th>
+                        <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">Google Conv.</th>
+                        <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">Google CTR</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">Google Custo</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">LinkedIn Impr.</th>
+                        <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">LinkedIn Cliques</th>
+                        <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500">LinkedIn Custo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -457,19 +457,19 @@ export function Performance() {
                         return (
                           <tr key={key} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.gaImp)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.gaImp)}</td>
                             <PctCell current={m.gaImp} previous={prev?.gaImp ?? null} />
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.gaClicks)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.gaClicks)}</td>
                             <PctCell current={m.gaClicks} previous={prev?.gaClicks ?? null} />
-                            <td className="py-2.5 px-2 text-right text-green-600 font-medium">{fmtNum(m.gaConv)}</td>
+                            <td className="py-2.5 px-2 text-center text-green-600 font-medium">{fmtNum(m.gaConv)}</td>
                             <PctCell current={m.gaConv} previous={prev?.gaConv ?? null} />
-                            <td className="py-2.5 px-2 text-right text-gray-600">{gaCtr}</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(m.gaCost)}</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.liImp)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-600">{gaCtr}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(m.gaCost)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.liImp)}</td>
                             <PctCell current={m.liImp} previous={prev?.liImp ?? null} />
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.liClicks)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.liClicks)}</td>
                             <PctCell current={m.liClicks} previous={prev?.liClicks ?? null} />
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(m.liCost)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(m.liCost)}</td>
                           </tr>
                         );
                       })}
@@ -485,19 +485,19 @@ export function Performance() {
                         return (
                           <tr className="bg-gray-50 font-medium">
                             <td className="py-2.5 px-2 text-gray-700">Total</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.gaImp)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.gaImp)}</td>
                             <td></td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.gaClicks)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.gaClicks)}</td>
                             <td></td>
-                            <td className="py-2.5 px-2 text-right text-green-600">{fmtNum(t.gaConv)}</td>
+                            <td className="py-2.5 px-2 text-center text-green-600">{fmtNum(t.gaConv)}</td>
                             <td></td>
-                            <td className="py-2.5 px-2 text-right text-gray-600">{tGaCtr}</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(t.gaCost)}</td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.liImp)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-600">{tGaCtr}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(t.gaCost)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.liImp)}</td>
                             <td></td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.liClicks)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.liClicks)}</td>
                             <td></td>
-                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(t.liCost)}</td>
+                            <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(t.liCost)}</td>
                           </tr>
                         );
                       })()}
@@ -525,15 +525,15 @@ export function Performance() {
                       <gaSort.SortHeader k="week" label="Semana" />
                       <gaSort.SortHeader k="weekStart" label="Início" />
                       <gaSort.SortHeader k="gaImpressions" label="Impressões" align="right" />
-                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaClicks" label="Cliques" align="right" />
-                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaCtr" label="CTR" align="right" />
                       <gaSort.SortHeader k="gaCpcAvg" label="CPC Médio" align="right" />
                       <gaSort.SortHeader k="gaCostAvg" label="Custo" align="right" />
                       <gaSort.SortHeader k="gaCvr" label="CVR" align="right" />
                       <gaSort.SortHeader k="gaConversions" label="Conv." align="right" />
-                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <gaSort.SortHeader k="gaCostPerConversion" label="Custo/Conv." align="right" />
                     </tr>
                   </thead>
@@ -544,17 +544,17 @@ export function Performance() {
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                         <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.gaImpressions)}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.gaImpressions)}</td>
                         <PctCell current={r.gaImpressions} previous={prev?.gaImpressions ?? null} />
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.gaClicks)}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.gaClicks)}</td>
                         <PctCell current={r.gaClicks} previous={prev?.gaClicks ?? null} />
-                        <td className="py-2 px-2 text-right text-gray-600">{r.gaCtr ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-gray-600">{r.gaCpcAvg ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{r.gaCostAvg ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-green-600">{r.gaCvr ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-green-600 font-medium">{fmtNum(r.gaConversions)}</td>
+                        <td className="py-2 px-2 text-center text-gray-600">{r.gaCtr ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-600">{r.gaCpcAvg ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{r.gaCostAvg ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-green-600">{r.gaCvr ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-green-600 font-medium">{fmtNum(r.gaConversions)}</td>
                         <PctCell current={r.gaConversions} previous={prev?.gaConversions ?? null} />
-                        <td className="py-2 px-2 text-right text-gray-600">{r.gaCostPerConversion ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-600">{r.gaCostPerConversion ?? '—'}</td>
                       </tr>
                       );
                     })}
@@ -607,9 +607,9 @@ export function Performance() {
                       <liSort.SortHeader k="accountType" label="Tipo Conta" />
                       <liSort.SortHeader k="funnelStage" label="Funil" />
                       <liSort.SortHeader k="impressions" label="Impressões" align="right" />
-                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <liSort.SortHeader k="clicks" label="Cliques" align="right" />
-                      <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <liSort.SortHeader k="ctr" label="CTR" align="right" />
                       <liSort.SortHeader k="cpcAvg" label="CPC" align="right" />
                       <liSort.SortHeader k="cost" label="Custo" align="right" />
@@ -627,13 +627,13 @@ export function Performance() {
                         <td className="py-2 px-2 text-gray-700 text-xs max-w-[200px] truncate" title={r.campaignName}>{r.campaignName.replace('Linkedin Ads - ', '')}</td>
                         <td className="py-2 px-2"><Badge>{r.accountType}</Badge></td>
                         <td className="py-2 px-2"><Badge variant={(FUNNEL_COLORS[r.funnelStage] ?? 'default') as 'info' | 'warning' | 'success' | 'default'}>{FUNNEL_LABELS[r.funnelStage] ?? r.funnelStage}</Badge></td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.impressions)}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.impressions)}</td>
                         <PctCell current={r.impressions} previous={prev?.impressions ?? null} />
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.clicks)}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.clicks)}</td>
                         <PctCell current={r.clicks} previous={prev?.clicks ?? null} />
-                        <td className="py-2 px-2 text-right text-gray-600">{r.ctr ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-gray-600">{r.cpcAvg ?? '—'}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtMoney(r.cost)}</td>
+                        <td className="py-2 px-2 text-center text-gray-600">{r.ctr ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-600">{r.cpcAvg ?? '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{fmtMoney(r.cost)}</td>
                       </tr>
                       );
                     })}

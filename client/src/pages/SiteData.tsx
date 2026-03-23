@@ -36,11 +36,11 @@ const fmtDate = (d: string) => {
 
 // Δ% helpers
 function PctCell({ current, previous }: { current: number | null; previous: number | null }) {
-  if (current == null || previous == null || previous === 0) return <td className="py-2 px-1 text-right text-[11px] text-gray-300 whitespace-nowrap">—</td>;
+  if (current == null || previous == null || previous === 0) return <td className="py-2 px-1 text-center text-[11px] text-gray-300 whitespace-nowrap">—</td>;
   const diff = ((current - previous) / previous) * 100;
   const color = diff >= 0 ? 'text-green-600' : 'text-red-500';
   const label = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
-  return <td className={`py-2 px-1 text-right text-[11px] font-medium ${color} whitespace-nowrap`}>{label}</td>;
+  return <td className={`py-2 px-1 text-center text-[11px] font-medium ${color} whitespace-nowrap`}>{label}</td>;
 }
 
 // Conditional formatting: white → green
@@ -67,7 +67,7 @@ function useColumnRange<T>(data: T[], key: keyof T): { min: number; max: number 
 function HeatTd({ value, min, max, className = '' }: { value: number | null; min: number; max: number; className?: string }) {
   const bg = heatBg(value, min, max);
   return (
-    <td className={`py-2 px-2 text-right text-gray-900 ${className}`} style={bg ? { backgroundColor: bg } : undefined}>
+    <td className={`py-2 px-2 text-center text-gray-900 ${className}`} style={bg ? { backgroundColor: bg } : undefined}>
       {fmtNum(value)}
     </td>
   );
@@ -77,7 +77,7 @@ function HeatPctTd({ value, min, max }: { value: string | null; min: number; max
   const parsed = value ? parseFloat(value.replace('%', '').replace(',', '.')) : null;
   const bg = parsed != null ? heatBg(parsed, min, max) : '';
   return (
-    <td className="py-2 px-2 text-right text-gray-600" style={bg ? { backgroundColor: bg } : undefined}>
+    <td className="py-2 px-2 text-center text-gray-600" style={bg ? { backgroundColor: bg } : undefined}>
       {value ?? '—'}
     </td>
   );
@@ -102,7 +102,7 @@ function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
     });
   }, [data, sortKey, sortAsc]);
   const SortHeader = ({ k, label, align = 'left' }: { k: string; label: string; align?: 'left' | 'right' }) => (
-    <th className={`${align === 'right' ? 'text-right' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
+    <th className={`${align === 'right' ? 'text-center' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
       onClick={() => handleSort(k)}>
       {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
     </th>
@@ -358,16 +358,16 @@ export function SiteData() {
                     <mainSort.SortHeader k="week" label="Semana" />
                     <mainSort.SortHeader k="weekStart" label="Início" />
                     <mainSort.SortHeader k="sessions" label="Sessões" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="totalUsers" label="Usuários" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="newUsers" label="Novos Usr." align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="newUsersPct" label="% Novos" align="right" />
                     <mainSort.SortHeader k="leadsGenerated" label="Leads" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="weeklyGains" label="Ganhos" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,9 +384,9 @@ export function SiteData() {
                       <HeatTd value={r.newUsers} min={rNewUsers.min} max={rNewUsers.max} />
                       <PctCell current={r.newUsers} previous={prev?.newUsers ?? null} />
                       <HeatPctTd value={r.newUsersPct} min={pctNovosRange.min} max={pctNovosRange.max} />
-                      <td className="py-2 px-2 text-right text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
+                      <td className="py-2 px-2 text-center text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
                       <PctCell current={r.leadsGenerated} previous={prev?.leadsGenerated ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-600">{fmtNum(r.weeklyGains)}</td>
+                      <td className="py-2 px-2 text-center text-gray-600">{fmtNum(r.weeklyGains)}</td>
                       <PctCell current={r.weeklyGains} previous={prev?.weeklyGains ?? null} />
                     </tr>
                     );
@@ -405,11 +405,11 @@ export function SiteData() {
                     <blogSort.SortHeader k="week" label="Semana" />
                     <blogSort.SortHeader k="weekStart" label="Início" />
                     <blogSort.SortHeader k="blogSessions" label="Sessões" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogTotalUsers" label="Usuários" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogNewUsers" label="Novos Usr." align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogNewUsersPct" label="% Novos" align="right" />
                   </tr>
                 </thead>
@@ -444,9 +444,9 @@ export function SiteData() {
                     <aiSort.SortHeader k="week" label="Semana" />
                     <aiSort.SortHeader k="weekStart" label="Início" />
                     <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
-                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -494,18 +494,18 @@ export function SiteData() {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-2 px-2 font-medium text-gray-500">Mês</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Sessões Site</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Usuários Site</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Novos Usr.</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Leads</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Sessões Blog</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-right py-2 px-2 font-medium text-gray-500">Usr. Blog</th>
-                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Site</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Usuários Site</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Novos Usr.</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Leads</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Blog</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-center py-2 px-2 font-medium text-gray-500">Usr. Blog</th>
+                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -516,17 +516,17 @@ export function SiteData() {
                       return (
                         <tr key={m.key} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.sessions)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.sessions)}</td>
                           <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.totalUsers)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.totalUsers)}</td>
                           <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.newUsers)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.newUsers)}</td>
                           <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
-                          <td className="py-2.5 px-2 text-right text-green-600 font-medium">{fmtNum(m.leads)}</td>
+                          <td className="py-2.5 px-2 text-center text-green-600 font-medium">{fmtNum(m.leads)}</td>
                           <PctCell current={m.leads} previous={prev?.leads ?? null} />
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.blogSessions)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.blogSessions)}</td>
                           <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.blogUsers)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.blogUsers)}</td>
                           <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
                         </tr>
                       );
@@ -541,12 +541,12 @@ export function SiteData() {
                       return (
                         <tr className="bg-gray-50 font-medium">
                           <td className="py-2.5 px-2 text-gray-700">Total</td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.sessions)}</td><td></td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.totalUsers)}</td><td></td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.newUsers)}</td><td></td>
-                          <td className="py-2.5 px-2 text-right text-green-600">{fmtNum(t.leads)}</td><td></td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.blogSessions)}</td><td></td>
-                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.blogUsers)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.sessions)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.totalUsers)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.newUsers)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-green-600">{fmtNum(t.leads)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogSessions)}</td><td></td>
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogUsers)}</td><td></td>
                         </tr>
                       );
                     })()}
