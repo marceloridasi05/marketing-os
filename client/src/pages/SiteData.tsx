@@ -43,6 +43,46 @@ function PctCell({ current, previous }: { current: number | null; previous: numb
   return <td className={`py-2 px-1 text-right text-[11px] font-medium ${color} whitespace-nowrap`}>{label}</td>;
 }
 
+// Conditional formatting: white → green
+function heatBg(value: number | null, min: number, max: number): string {
+  if (value == null || max === min) return '';
+  const ratio = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  // white (0) → light green (1): rgba(34, 197, 94, ratio * 0.25)
+  const alpha = (ratio * 0.28).toFixed(2);
+  return `rgba(34, 197, 94, ${alpha})`;
+}
+
+function useColumnRange<T>(data: T[], key: keyof T): { min: number; max: number } {
+  let min = Infinity, max = -Infinity;
+  for (const row of data) {
+    const v = row[key];
+    if (typeof v === 'number' && v > 0) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+}
+
+function HeatTd({ value, min, max, className = '' }: { value: number | null; min: number; max: number; className?: string }) {
+  const bg = heatBg(value, min, max);
+  return (
+    <td className={`py-2 px-2 text-right text-gray-900 ${className}`} style={bg ? { backgroundColor: bg } : undefined}>
+      {fmtNum(value)}
+    </td>
+  );
+}
+
+function HeatPctTd({ value, min, max }: { value: string | null; min: number; max: number }) {
+  const parsed = value ? parseFloat(value.replace('%', '').replace(',', '.')) : null;
+  const bg = parsed != null ? heatBg(parsed, min, max) : '';
+  return (
+    <td className="py-2 px-2 text-right text-gray-600" style={bg ? { backgroundColor: bg } : undefined}>
+      {value ?? '—'}
+    </td>
+  );
+}
+
 function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
   const [sortKey, setSortKey] = useState(defaultKey);
   const [sortAsc, setSortAsc] = useState(defaultAsc);
@@ -158,6 +198,33 @@ export function SiteData() {
   const blogSort = useSort(data, 'weekStart', true);
   const aiSort = useSort(data, 'weekStart', true);
 
+  // Column ranges for conditional formatting
+  const rSessions = useColumnRange(data, 'sessions');
+  const rTotalUsers = useColumnRange(data, 'totalUsers');
+  const rNewUsers = useColumnRange(data, 'newUsers');
+  const rBlogSessions = useColumnRange(data, 'blogSessions');
+  const rBlogUsers = useColumnRange(data, 'blogTotalUsers');
+  const rBlogNewUsers = useColumnRange(data, 'blogNewUsers');
+  const rAiSessions = useColumnRange(data, 'aiSessions');
+  const rAiUsers = useColumnRange(data, 'aiTotalUsers');
+  // % novos range
+  const pctNovosRange = useMemo(() => {
+    let min = Infinity, max = -Infinity;
+    for (const r of data) {
+      const v = r.newUsersPct ? parseFloat(r.newUsersPct.replace('%', '').replace(',', '.')) : null;
+      if (v != null && v > 0) { if (v < min) min = v; if (v > max) max = v; }
+    }
+    return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+  }, [data]);
+  const blogPctNovosRange = useMemo(() => {
+    let min = Infinity, max = -Infinity;
+    for (const r of data) {
+      const v = r.blogNewUsersPct ? parseFloat(r.blogNewUsersPct.replace('%', '').replace(',', '.')) : null;
+      if (v != null && v > 0) { if (v < min) min = v; if (v > max) max = v; }
+    }
+    return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+  }, [data]);
+
   return (
     <div>
       <PageHeader title="Desempenho do Site" description="Métricas semanais do Site Brick + Blog"
@@ -263,13 +330,13 @@ export function SiteData() {
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.sessions)}</td>
+                      <HeatTd value={r.sessions} min={rSessions.min} max={rSessions.max} />
                       <PctCell current={r.sessions} previous={prev?.sessions ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.totalUsers)}</td>
+                      <HeatTd value={r.totalUsers} min={rTotalUsers.min} max={rTotalUsers.max} />
                       <PctCell current={r.totalUsers} previous={prev?.totalUsers ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.newUsers)}</td>
+                      <HeatTd value={r.newUsers} min={rNewUsers.min} max={rNewUsers.max} />
                       <PctCell current={r.newUsers} previous={prev?.newUsers ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-600">{r.newUsersPct ?? '—'}</td>
+                      <HeatPctTd value={r.newUsersPct} min={pctNovosRange.min} max={pctNovosRange.max} />
                       <td className="py-2 px-2 text-right text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
                       <PctCell current={r.leadsGenerated} previous={prev?.leadsGenerated ?? null} />
                       <td className="py-2 px-2 text-right text-gray-600">{fmtNum(r.weeklyGains)}</td>
@@ -306,13 +373,13 @@ export function SiteData() {
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogSessions)}</td>
+                      <HeatTd value={r.blogSessions} min={rBlogSessions.min} max={rBlogSessions.max} />
                       <PctCell current={r.blogSessions} previous={prev?.blogSessions ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogTotalUsers)}</td>
+                      <HeatTd value={r.blogTotalUsers} min={rBlogUsers.min} max={rBlogUsers.max} />
                       <PctCell current={r.blogTotalUsers} previous={prev?.blogTotalUsers ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogNewUsers)}</td>
+                      <HeatTd value={r.blogNewUsers} min={rBlogNewUsers.min} max={rBlogNewUsers.max} />
                       <PctCell current={r.blogNewUsers} previous={prev?.blogNewUsers ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-600">{r.blogNewUsersPct ?? '—'}</td>
+                      <HeatPctTd value={r.blogNewUsersPct} min={blogPctNovosRange.min} max={blogPctNovosRange.max} />
                     </tr>
                     );
                   })}
@@ -342,9 +409,9 @@ export function SiteData() {
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiSessions)}</td>
+                      <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
                       <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
-                      <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiTotalUsers)}</td>
+                      <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
                       <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
                     </tr>
                     );
