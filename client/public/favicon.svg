@@ -1,11 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
-  <!-- Orange airplane favicon -->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
   <circle cx="24" cy="24" r="24" fill="#F97316"/>
-  <g transform="translate(8, 8)">
-    <!-- Paper airplane shape -->
-    <path d="M4 16L14 13.5V20L4 16Z" fill="white" opacity="0.85"/>
-    <path d="M4 16L28 4L14 13.5L4 16Z" fill="white"/>
-    <path d="M14 13.5L28 4L14 20V13.5Z" fill="white" opacity="0.7"/>
-    <path d="M28 4L14 20L20 28L28 4Z" fill="white" opacity="0.85"/>
+  <g transform="translate(24,24)">
+    <!-- Fighter jet top-down view pointing up, white on orange -->
+    <g fill="white" transform="scale(0.55) translate(0,-2)">
+      <!-- Fuselage -->
+      <path d="M0,-22 L2.5,-14 L2,-2 L3,8 L2,18 L1,22 L-1,22 L-2,18 L-3,8 L-2,-2 L-2.5,-14 Z"/>
+      <!-- Nose cone -->
+      <path d="M0,-26 L1.5,-22 L-1.5,-22 Z"/>
+      <!-- Main wings -->
+      <path d="M2,-2 L18,8 L18,10 L16,10 L3,4 Z"/>
+      <path d="M-2,-2 L-18,8 L-18,10 L-16,10 L-3,4 Z"/>
+      <!-- Tail wings -->
+      <path d="M2,16 L10,22 L10,23.5 L9,23 L1.5,20 Z"/>
+      <path d="M-2,16 L-10,22 L-10,23.5 L-9,23 L-1.5,20 Z"/>
+      <!-- Tail fins -->
+      <path d="M1,18 L4,24 L3,25 L0.5,22 Z"/>
+      <path d="M-1,18 L-4,24 L-3,25 L-0.5,22 Z"/>
+      <!-- Engine exhaust -->
+      <path d="M1.5,22 L2,26 L-2,26 L-1.5,22 Z" opacity="0.7"/>
+    </g>
   </g>
 </svg>
