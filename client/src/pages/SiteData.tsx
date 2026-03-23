@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -144,6 +144,7 @@ export function SiteData() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [showAiTable, setShowAiTable] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -173,6 +174,7 @@ export function SiteData() {
   const withData = data.filter(r => r.sessions != null && r.sessions > 0);
   const latest = withData.length > 0 ? withData[withData.length - 1] : null;
   const totalSessions = withData.reduce((s, r) => s + (r.sessions ?? 0), 0);
+  const totalUsers = withData.reduce((s, r) => s + (r.totalUsers ?? 0), 0);
   const totalLeads = withData.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
   const totalNewUsers = withData.reduce((s, r) => s + (r.newUsers ?? 0), 0);
 
@@ -303,10 +305,14 @@ export function SiteData() {
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Sessões</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalSessions)}</p>
+            </Card>
+            <Card className="min-w-0">
+              <p className="text-xs font-medium text-gray-500 uppercase">Total Usuários</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalUsers)}</p>
             </Card>
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Leads</p>
@@ -435,39 +441,6 @@ export function SiteData() {
             </div>
           </Card>
 
-          {/* Origem IA table */}
-          <Card title="Origem IA" className="mb-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <aiSort.SortHeader k="week" label="Semana" />
-                    <aiSort.SortHeader k="weekStart" label="Início" />
-                    <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {aiSort.sorted.map((r, idx) => {
-                    const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
-                    return (
-                    <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
-                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
-                      <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
-                      <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
-                      <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
           {/* Monthly Chart */}
           {monthlyData.length > 1 && (
             <Card title="Visão Mensal — Sessões e Leads" className="mb-6">
@@ -509,28 +482,37 @@ export function SiteData() {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyData.map((m, idx) => {
-                      const prev = idx > 0 ? monthlyData[idx - 1] : null;
-                      const [yr, mo] = m.key.split('-');
-                      const label = `${MONTH_NAMES[parseInt(mo) - 1]} ${yr}`;
-                      return (
-                        <tr key={m.key} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.sessions)}</td>
-                          <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.totalUsers)}</td>
-                          <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.newUsers)}</td>
-                          <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
-                          <td className="py-2.5 px-2 text-center text-green-600 font-medium">{fmtNum(m.leads)}</td>
-                          <PctCell current={m.leads} previous={prev?.leads ?? null} />
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.blogSessions)}</td>
-                          <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(m.blogUsers)}</td>
-                          <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
-                        </tr>
-                      );
-                    })}
+                    {(() => {
+                      // Compute ranges for heat cells
+                      const rng = (key: keyof typeof monthlyData[0]) => {
+                        let min = Infinity, max = -Infinity;
+                        for (const m of monthlyData) { const v = m[key] as number; if (v > 0) { if (v < min) min = v; if (v > max) max = v; } }
+                        return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+                      };
+                      const mR = { sessions: rng('sessions'), totalUsers: rng('totalUsers'), newUsers: rng('newUsers'), leads: rng('leads'), blogSessions: rng('blogSessions'), blogUsers: rng('blogUsers') };
+                      return monthlyData.map((m, idx) => {
+                        const prev = idx > 0 ? monthlyData[idx - 1] : null;
+                        const [yr, mo] = m.key.split('-');
+                        const label = `${MONTH_NAMES[parseInt(mo) - 1]} ${yr}`;
+                        return (
+                          <tr key={m.key} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
+                            <HeatTd value={m.sessions} min={mR.sessions.min} max={mR.sessions.max} className="text-center" />
+                            <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
+                            <HeatTd value={m.totalUsers} min={mR.totalUsers.min} max={mR.totalUsers.max} className="text-center" />
+                            <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
+                            <HeatTd value={m.newUsers} min={mR.newUsers.min} max={mR.newUsers.max} className="text-center" />
+                            <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
+                            <HeatTd value={m.leads} min={mR.leads.min} max={mR.leads.max} className="text-center font-medium" />
+                            <PctCell current={m.leads} previous={prev?.leads ?? null} />
+                            <HeatTd value={m.blogSessions} min={mR.blogSessions.min} max={mR.blogSessions.max} className="text-center" />
+                            <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
+                            <HeatTd value={m.blogUsers} min={mR.blogUsers.min} max={mR.blogUsers.max} className="text-center" />
+                            <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
+                          </tr>
+                        );
+                      });
+                    })()}
                     {/* Total row */}
                     {(() => {
                       const t = monthlyData.reduce((acc, m) => ({
@@ -555,6 +537,47 @@ export function SiteData() {
               </div>
             </Card>
           )}
+
+          {/* Origem IA - collapsible, last */}
+          <Card className="mt-6">
+            <button onClick={() => setShowAiTable(!showAiTable)}
+              className="flex items-center gap-2 w-full text-left">
+              {showAiTable ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
+              <h3 className="text-sm font-medium text-gray-500">Origem IA</h3>
+              <span className="text-xs text-gray-400">({data.filter(r => (r.aiSessions ?? 0) > 0).length} semanas com dados)</span>
+            </button>
+            {showAiTable && (
+              <div className="overflow-x-auto mt-3">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <aiSort.SortHeader k="week" label="Semana" />
+                      <aiSort.SortHeader k="weekStart" label="Início" />
+                      <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
+                      <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiSort.sorted.map((r, idx) => {
+                      const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
+                      return (
+                      <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                        <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
+                        <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
+                        <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
+                        <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
+                        <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </>
       )}
     </div>
