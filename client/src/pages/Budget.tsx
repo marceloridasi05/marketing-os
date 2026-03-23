@@ -251,6 +251,35 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
   );
 }
 
+// --- Editable Cell ---
+function EditableCell({ value, options, onSave, align = 'center', bold = false }: {
+  value: string; options: string[]; onSave: (v: string) => void; align?: 'left' | 'center'; bold?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  if (editing) {
+    return (
+      <td className={`py-1 px-1 ${align === 'left' ? 'text-left' : 'text-center'}`}>
+        <ComboInput value={draft} onChange={setDraft} options={options} placeholder="Digite..." />
+        <div className="flex gap-1 mt-1 justify-center">
+          <button onClick={() => { onSave(draft); setEditing(false); }}
+            className="text-[10px] px-1.5 py-0.5 bg-gray-900 text-white rounded">OK</button>
+          <button onClick={() => { setDraft(value); setEditing(false); }}
+            className="text-[10px] px-1.5 py-0.5 border border-gray-300 rounded text-gray-600">✕</button>
+        </div>
+      </td>
+    );
+  }
+
+  return (
+    <td className={`py-2 px-2 ${align === 'left' ? 'text-left' : 'text-center'} ${bold ? 'font-medium text-gray-700' : 'text-gray-600'} whitespace-nowrap cursor-pointer hover:bg-blue-50 group`}
+      onClick={() => { setDraft(value); setEditing(true); }}>
+      <span className="group-hover:underline group-hover:decoration-dotted">{value || '—'}</span>
+    </td>
+  );
+}
+
 // --- Main Page ---
 export function Budget() {
   const [allData, setAllData] = useState<BudgetItem[]>([]);
@@ -549,6 +578,15 @@ export function Budget() {
   const openCreate = () => { setEditItem(null); setShowForm(true); };
   const onSaved = () => { setShowForm(false); setEditItem(null); fetchData(); };
 
+  // Inline edit: update all entries for a given item name+section
+  const updateItemMeta = async (oldName: string, oldSection: string, field: 'name' | 'section' | 'strategy' | 'expenseType', newValue: string) => {
+    const itemsToUpdate = allData.filter(d => d.name === oldName && d.section === oldSection);
+    for (const item of itemsToUpdate) {
+      await api.put(`/budget-items/${item.id}`, { ...item, [field]: newValue || null });
+    }
+    fetchData();
+  };
+
   // Budget months for editor: generate Jan-Dec for 2025 and 2026
   const budgetMonthsForEditor = useMemo(() => {
     const months: { year: number; month: number; key: string; label: string; item: BudgetItem | null }[] = [];
@@ -649,58 +687,6 @@ export function Budget() {
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase"># Items ativos</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(activeItems)}</p>
-            </Card>
-          </div>
-
-          {/* Breakdown Tiles */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* By Section */}
-            <Card className="min-w-0">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Seção</h3>
-              <div className="space-y-2">
-                {bySection.map(item => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTION_COLORS[item.name] || '#999' }} />
-                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
-                  </div>
-                ))}
-                {bySection.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
-              </div>
-            </Card>
-            {/* By Strategy */}
-            <Card className="min-w-0">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Estratégia</h3>
-              <div className="space-y-2">
-                {byStrategy.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STRATEGY_COLORS[i % STRATEGY_COLORS.length] }} />
-                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
-                  </div>
-                ))}
-                {byStrategy.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
-              </div>
-            </Card>
-            {/* By Expense Type */}
-            <Card className="min-w-0">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Tipo</h3>
-              <div className="space-y-2">
-                {byExpenseType.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[i % TYPE_COLORS.length] }} />
-                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
-                  </div>
-                ))}
-                {byExpenseType.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
-              </div>
             </Card>
           </div>
 
@@ -900,6 +886,87 @@ export function Budget() {
             </Card>
           </div>
 
+          {/* Breakdown Tiles */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Seção</h3>
+              <div className="space-y-2">
+                {bySection.map(item => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTION_COLORS[item.name] || '#999' }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {bySection.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Estratégia</h3>
+              <div className="space-y-2">
+                {byStrategy.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STRATEGY_COLORS[i % STRATEGY_COLORS.length] }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {byStrategy.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Tipo</h3>
+              <div className="space-y-2">
+                {byExpenseType.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[i % TYPE_COLORS.length] }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {byExpenseType.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+          </div>
+
+          {/* Filters before detail table */}
+          <div className="flex items-end gap-3 mb-4 p-3 bg-white rounded-lg border border-gray-200">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Seção</label>
+              <select value={filterSection} onChange={e => setFilterSection(e.target.value)} className={inputCls}>
+                <option value="Todos">Todos</option>
+                {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Estratégia</label>
+              <select value={filterStrategy} onChange={e => setFilterStrategy(e.target.value)} className={inputCls}>
+                <option value="Todos">Todos</option>
+                {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Gasto</label>
+              <select value={filterExpenseType} onChange={e => setFilterExpenseType(e.target.value)} className={inputCls}>
+                <option value="Todos">Todos</option>
+                {expenseTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Custo com</label>
+              <select value={filterName} onChange={e => setFilterName(e.target.value)} className={inputCls}>
+                <option value="Todos">Todos</option>
+                {itemNames.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
           {/* Detail Table */}
           <CollapsibleCard title="Detalhamento por Item" className="mb-6"
             actions={
@@ -940,20 +1007,20 @@ export function Budget() {
                     const prevTotal = ri > 0 ? itemRows[ri - 1].total : 0;
                     return (
                       <tr key={`${r.section}-${r.name}`} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">{r.name}</td>
-                        <td className="py-2 px-2 text-center text-gray-600 whitespace-nowrap">{r.section}</td>
-                        <td className="py-2 px-2 text-center text-gray-600 whitespace-nowrap">{r.strategy || '—'}</td>
-                        <td className="py-2 px-2 text-center text-gray-600 whitespace-nowrap">{r.expenseType || '—'}</td>
+                        <EditableCell value={r.name} options={itemNames} onSave={v => updateItemMeta(r.name, r.section, 'name', v)} align="left" bold />
+                        <EditableCell value={r.section} options={SECTIONS} onSave={v => updateItemMeta(r.name, r.section, 'section', v)} />
+                        <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} />
+                        <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} />
                         {monthVals.map((v, mi) => (
                           <td key={monthKeys[mi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap"
-                            style={condStyle(v, 0, detailColMinMax.max)}>
+>
                             {v > 0 ? fmtMoney(v) : '—'}
                           </td>
                         ))}
                         {monthKeys.length > 1 && (
                           <>
                             <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap"
-                              style={condStyle(r.total, detailColMinMax.min, detailColMinMax.max)}>
+>
                               {fmtMoney(r.total)}
                             </td>
                             <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
@@ -1000,12 +1067,12 @@ export function Budget() {
                         </td>
                         {monthKeys.map(mk => (
                           <td key={mk} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap"
-                            style={condStyle(r.months[mk] || 0, 0, sectionMax)}>
+>
                             {(r.months[mk] || 0) > 0 ? fmtMoney(r.months[mk]) : '—'}
                           </td>
                         ))}
                         <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap"
-                          style={condStyle(r.total, 0, sectionMax)}>
+>
                           {fmtMoney(r.total)}
                         </td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
