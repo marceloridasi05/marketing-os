@@ -141,6 +141,21 @@ export const liCampaignKpis = sqliteTable('li_campaign_kpis', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const linkedinPage = sqliteTable('linkedin_page', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  weekStart: text('week_start').notNull(),
+  followers: integer('followers'),
+  followersGained: integer('followers_gained'),
+  followersLost: integer('followers_lost'),
+  impressions: integer('impressions'),
+  reactions: integer('reactions'),
+  comments: integer('comments'),
+  shares: integer('shares'),
+  pageViews: integer('page_views'),
+  uniqueVisitors: integer('unique_visitors'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   year: integer('year').notNull(),

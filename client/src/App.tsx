@@ -6,6 +6,7 @@ import { Budget } from './pages/Budget';
 import { Plan } from './pages/Plan';
 import { SettingsPage } from './pages/SettingsPage';
 import { SiteData } from './pages/SiteData';
+import { LinkedinPage } from './pages/LinkedinPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/budget" element={<Budget />} />
           <Route path="/plan" element={<Plan />} />
           <Route path="/site-data" element={<SiteData />} />
+          <Route path="/linkedin-page" element={<LinkedinPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

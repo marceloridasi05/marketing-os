@@ -14,6 +14,7 @@ import dashboardRouter from './routes/dashboard.js';
 import referenceItemsRouter from './routes/referenceItems.js';
 import siteDataRouter from './routes/siteData.js';
 import adsKpisRouter from './routes/adsKpis.js';
+import linkedinPageRouter from './routes/linkedinPage.js';
 import chartAnnotationsRouter from './routes/chartAnnotations.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,7 @@ app.use('/api/goals', goalsRouter);
 app.use('/api/reference-items', referenceItemsRouter);
 app.use('/api/site-data', siteDataRouter);
 app.use('/api/ads-kpis', adsKpisRouter);
+app.use('/api/linkedin-page', linkedinPageRouter);
 app.use('/api/chart-annotations', chartAnnotationsRouter);
 
 app.get('/api/health', (_req, res) => {
