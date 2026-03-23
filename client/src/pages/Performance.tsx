@@ -570,13 +570,6 @@ export function Performance() {
               {/* Filters */}
               <div className="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-gray-200">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Conta</label>
-                  <select value={liAccountFilter} onChange={e => setLiAccountFilter(e.target.value)} className={inputCls}>
-                    <option value="">Todas</option>
-                    {liAccountTypes.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Estágio do Funil</label>
                   <select value={liFunnelFilter} onChange={e => setLiFunnelFilter(e.target.value)} className={inputCls}>
                     <option value="">Todos</option>
@@ -604,12 +597,12 @@ export function Performance() {
                       <liSort.SortHeader k="week" label="Semana" />
                       <liSort.SortHeader k="weekStart" label="Início" />
                       <liSort.SortHeader k="campaignName" label="Campanha" />
-                      <liSort.SortHeader k="accountType" label="Tipo Conta" />
                       <liSort.SortHeader k="funnelStage" label="Funil" />
                       <liSort.SortHeader k="impressions" label="Impressões" align="right" />
                       <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                       <liSort.SortHeader k="clicks" label="Cliques" align="right" />
                       <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <liSort.SortHeader k="frequency" label="Frequência" align="right" />
                       <liSort.SortHeader k="ctr" label="CTR" align="right" />
                       <liSort.SortHeader k="cpcAvg" label="CPC" align="right" />
                       <liSort.SortHeader k="cost" label="Custo" align="right" />
@@ -617,7 +610,7 @@ export function Performance() {
                   </thead>
                   <tbody>
                     {liSort.sorted.length === 0 ? (
-                      <tr><td colSpan={12} className="py-8 text-center text-gray-400">Nenhum dado encontrado</td></tr>
+                      <tr><td colSpan={13} className="py-8 text-center text-gray-400">Nenhum dado encontrado</td></tr>
                     ) : liSort.sorted.map((r, idx) => {
                       const prev = idx > 0 ? liSort.sorted[idx - 1] : null;
                       return (
@@ -625,12 +618,12 @@ export function Performance() {
                         <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                         <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                         <td className="py-2 px-2 text-gray-700 text-xs max-w-[200px] truncate" title={r.campaignName}>{r.campaignName.replace('Linkedin Ads - ', '')}</td>
-                        <td className="py-2 px-2"><Badge>{r.accountType}</Badge></td>
                         <td className="py-2 px-2"><Badge variant={(FUNNEL_COLORS[r.funnelStage] ?? 'default') as 'info' | 'warning' | 'success' | 'default'}>{FUNNEL_LABELS[r.funnelStage] ?? r.funnelStage}</Badge></td>
                         <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.impressions)}</td>
                         <PctCell current={r.impressions} previous={prev?.impressions ?? null} />
                         <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.clicks)}</td>
                         <PctCell current={r.clicks} previous={prev?.clicks ?? null} />
+                        <td className="py-2 px-2 text-center text-gray-600">{r.frequency ?? '—'}</td>
                         <td className="py-2 px-2 text-center text-gray-600">{r.ctr ?? '—'}</td>
                         <td className="py-2 px-2 text-center text-gray-600">{r.cpcAvg ?? '—'}</td>
                         <td className="py-2 px-2 text-center text-gray-900">{fmtMoney(r.cost)}</td>
