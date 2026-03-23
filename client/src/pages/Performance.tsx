@@ -3,10 +3,8 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { api } from '../lib/api';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import { Plus, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
+import { AnnotatedChart } from '../components/AnnotatedChart';
 
 // --- Types ---
 interface AdsRow {
@@ -266,29 +264,25 @@ export function Performance() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card title="Cliques por Semana" className="min-h-48">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="Google Cliques" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} />
-                  <Line type="monotone" dataKey="LinkedIn Cliques" stroke="#0a66c2" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-            <Card title="Conversões Google Ads" className="min-h-48">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="Conversões" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
+            <AnnotatedChart
+              title="Cliques por Semana"
+              data={chartData}
+              xKey="week"
+              lines={[
+                { dataKey: 'Google Cliques', color: '#10b981', name: 'Google Cliques' },
+                { dataKey: 'LinkedIn Cliques', color: '#0a66c2', name: 'LinkedIn Cliques' },
+              ]}
+              page="ads_kpis"
+              chartKey="clicks"
+            />
+            <AnnotatedChart
+              title="Conversões Google Ads"
+              data={chartData}
+              xKey="week"
+              lines={[{ dataKey: 'Conversões', color: '#10b981', name: 'Conversões' }]}
+              page="ads_kpis"
+              chartKey="conversions"
+            />
           </div>
 
           {/* Tabs */}

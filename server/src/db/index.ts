@@ -126,6 +126,14 @@ sqlite.exec(`
     cost REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS chart_annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    page TEXT NOT NULL,
+    chart_key TEXT NOT NULL,
+    x_value TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS ads_kpis (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     week TEXT NOT NULL,

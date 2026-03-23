@@ -151,3 +151,12 @@ export const goals = sqliteTable('goals', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+export const chartAnnotations = sqliteTable('chart_annotations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  page: text('page').notNull(),
+  chartKey: text('chart_key').notNull(),
+  xValue: text('x_value').notNull(),
+  comment: text('comment').notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});

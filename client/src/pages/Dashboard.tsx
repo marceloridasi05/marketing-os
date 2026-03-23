@@ -2,10 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { AnnotatedChart } from '../components/AnnotatedChart';
 
 // --- Types ---
 interface KPIs {
@@ -119,27 +117,6 @@ function ComparisonRow({ label, current, previous, format }: {
   );
 }
 
-function MiniChart({ data, dataKey, color, label }: {
-  data: TrendRow[]; dataKey: string; color: string; label: string;
-}) {
-  return (
-    <Card title={label} className="min-h-48">
-      {data.length > 1 ? (
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} width={50} />
-            <Tooltip />
-            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      ) : (
-        <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes para o gráfico</p>
-      )}
-    </Card>
-  );
-}
 
 function generateInsights(kpis: KPIs, prevKpis: KPIs | null, channelData: ChannelRow[]) {
   const insights: string[] = [];
@@ -329,9 +306,15 @@ export function Dashboard() {
 
           {/* Trend Charts */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <MiniChart data={trends} dataKey="spend" color="#3b82f6" label="Tendência de Investimento" />
-            <MiniChart data={trends} dataKey="leads" color="#10b981" label="Tendência de Leads" />
-            <MiniChart data={trends} dataKey="sessions" color="#8b5cf6" label="Tendência de Sessões" />
+            <AnnotatedChart title="Tendência de Investimento" data={trends} xKey="date"
+              lines={[{ dataKey: 'spend', color: '#3b82f6', name: 'Investimento' }]}
+              page="dashboard" chartKey="spend" height={180} />
+            <AnnotatedChart title="Tendência de Leads" data={trends} xKey="date"
+              lines={[{ dataKey: 'leads', color: '#10b981', name: 'Leads' }]}
+              page="dashboard" chartKey="leads" height={180} />
+            <AnnotatedChart title="Tendência de Sessões" data={trends} xKey="date"
+              lines={[{ dataKey: 'sessions', color: '#8b5cf6', name: 'Sessões' }]}
+              page="dashboard" chartKey="sessions" height={180} />
           </div>
         </>
       )}

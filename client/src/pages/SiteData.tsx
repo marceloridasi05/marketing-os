@@ -3,9 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
+import { AnnotatedChart } from '../components/AnnotatedChart';
 
 interface SiteRow {
   id: number;
@@ -164,28 +162,12 @@ export function SiteData() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card title="Sessões por Semana" className="min-h-48">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="Sessões" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-            <Card title="Leads por Semana" className="min-h-48">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="Leads" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
+            <AnnotatedChart title="Sessões por Semana" data={chartData} xKey="week"
+              lines={[{ dataKey: 'Sessões', color: '#3b82f6', name: 'Sessões' }]}
+              page="site_data" chartKey="sessions" />
+            <AnnotatedChart title="Leads por Semana" data={chartData} xKey="week"
+              lines={[{ dataKey: 'Leads', color: '#10b981', name: 'Leads' }]}
+              page="site_data" chartKey="leads" />
           </div>
 
           {/* Site Brick + Blog table */}
