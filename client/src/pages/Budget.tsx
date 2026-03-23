@@ -133,10 +133,32 @@ const emptyForm: FormData = {
   planned: '', actual: '',
 };
 
-function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, expenseTypes }: {
+function ComboInput({ value, onChange, options, placeholder }: {
+  value: string; onChange: (v: string) => void; options: string[]; placeholder?: string;
+}) {
+  const [showList, setShowList] = useState(false);
+  const filtered = options.filter(o => !value || o.toLowerCase().includes(value.toLowerCase()));
+  return (
+    <div className="relative">
+      <input value={value} onChange={e => { onChange(e.target.value); setShowList(true); }}
+        onFocus={() => setShowList(true)} onBlur={() => setTimeout(() => setShowList(false), 200)}
+        className={inputCls} placeholder={placeholder || 'Digite ou selecione...'} />
+      {showList && filtered.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+          {filtered.map(o => (
+            <button key={o} type="button" onMouseDown={() => { onChange(o); setShowList(false); }}
+              className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100">{o}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, expenseTypes, itemNames }: {
   initial: FormData; editId: number | null;
   onClose: () => void; onSaved: () => void;
-  strategies: string[]; expenseTypes: string[];
+  strategies: string[]; expenseTypes: string[]; itemNames: string[];
 }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -164,8 +186,8 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-16">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-16 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mb-16">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">{editId ? 'Editar Item' : 'Novo Item de Custo'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
@@ -179,23 +201,17 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Nome / Item *</label>
-            <input required value={form.name} onChange={set('name')} className={inputCls} />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Custo com (Item) *</label>
+            <ComboInput value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} options={itemNames} placeholder="Digite ou selecione item..." />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Estratégia</label>
-              <select value={form.strategy} onChange={set('strategy')} className={inputCls}>
-                <option value="">—</option>
-                {strategies.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <ComboInput value={form.strategy} onChange={v => setForm(f => ({ ...f, strategy: v }))} options={strategies} placeholder="Digite ou selecione..." />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Gasto</label>
-              <select value={form.expenseType} onChange={set('expenseType')} className={inputCls}>
-                <option value="">—</option>
-                {expenseTypes.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <ComboInput value={form.expenseType} onChange={v => setForm(f => ({ ...f, expenseType: v }))} options={expenseTypes} placeholder="Digite ou selecione..." />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -282,6 +298,14 @@ export function Budget() {
     return [...set].sort();
   }, [allData]);
 
+  const itemNames = useMemo(() => {
+    const set = new Set<string>();
+    allData.forEach(d => { if (d.name) set.add(d.name); });
+    return [...set].sort();
+  }, [allData]);
+
+  const [filterName, setFilterName] = useState<string>('Todos');
+
   // Filter data
   const monthRange = useMemo(() => getMonthRange(timePeriod), [timePeriod]);
 
@@ -301,9 +325,10 @@ export function Budget() {
     if (filterSection !== 'Todos') items = items.filter(d => d.section === filterSection);
     if (filterStrategy !== 'Todos') items = items.filter(d => d.strategy === filterStrategy);
     if (filterExpenseType !== 'Todos') items = items.filter(d => d.expenseType === filterExpenseType);
+    if (filterName !== 'Todos') items = items.filter(d => d.name === filterName);
     if (activeTab !== 'Todos') items = items.filter(d => d.section === activeTab);
     return items;
-  }, [costItems, monthRange, filterSection, filterStrategy, filterExpenseType, activeTab]);
+  }, [costItems, monthRange, filterSection, filterStrategy, filterExpenseType, filterName, activeTab]);
 
   const filteredBudget = useMemo(() => {
     let items = budgetLineItems;
@@ -572,6 +597,13 @@ export function Budget() {
               <select value={filterExpenseType} onChange={e => setFilterExpenseType(e.target.value)} className={inputCls}>
                 <option value="Todos">Todos</option>
                 {expenseTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Custo com</label>
+              <select value={filterName} onChange={e => setFilterName(e.target.value)} className={inputCls}>
+                <option value="Todos">Todos</option>
+                {itemNames.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
@@ -867,6 +899,7 @@ export function Budget() {
           onSaved={onSaved}
           strategies={strategies}
           expenseTypes={expenseTypes}
+          itemNames={itemNames}
         />
       )}
     </div>
