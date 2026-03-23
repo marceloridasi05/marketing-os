@@ -4,6 +4,7 @@ import {
   BarChart3,
   DollarSign,
   CalendarRange,
+  Globe,
   Settings,
 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ const navItems = [
   { to: '/performance', label: 'Desempenho', icon: BarChart3 },
   { to: '/budget', label: 'Orçamento', icon: DollarSign },
   { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+  { to: '/site-data', label: 'Dados do Site', icon: Globe },
   { to: '/settings', label: 'Configurações', icon: Settings },
 ];
 

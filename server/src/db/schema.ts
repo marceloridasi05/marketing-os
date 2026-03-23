@@ -80,6 +80,30 @@ export const referenceItems = sqliteTable('reference_items', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const siteData = sqliteTable('site_data', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  week: text('week').notNull(),
+  weekStart: text('week_start').notNull(),
+  // Site Brick + Blog
+  sessions: integer('sessions'),
+  totalUsers: integer('total_users'),
+  paidClicks: integer('paid_clicks'),
+  unpaidSessions: integer('unpaid_sessions'),
+  newUsers: integer('new_users'),
+  newUsersPct: text('new_users_pct'),
+  leadsGenerated: integer('leads_generated'),
+  weeklyGains: integer('weekly_gains'),
+  // Blog
+  blogSessions: integer('blog_sessions'),
+  blogTotalUsers: integer('blog_total_users'),
+  blogNewUsers: integer('blog_new_users'),
+  blogNewUsersPct: text('blog_new_users_pct'),
+  // Origem IA
+  aiSessions: integer('ai_sessions'),
+  aiTotalUsers: integer('ai_total_users'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   year: integer('year').notNull(),
