@@ -133,6 +133,75 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
   );
 }
 
+// --- Time period helpers ---
+type TimePeriod = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
+const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
+  { value: 'all', label: 'Todo o período' },
+  { value: 'today', label: 'Hoje' },
+  { value: 'yesterday', label: 'Ontem' },
+  { value: 'this_week', label: 'Esta semana' },
+  { value: 'last_7', label: 'Últimos 7 dias' },
+  { value: 'last_30', label: 'Últimos 30 dias' },
+  { value: 'this_month', label: 'Este mês' },
+  { value: 'last_month', label: 'Mês passado' },
+  { value: 'this_year', label: 'Este ano' },
+];
+
+function getDateRange(period: TimePeriod): { start: string; end: string } | null {
+  if (period === 'all') return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  let start: Date, end: Date;
+
+  switch (period) {
+    case 'today':
+      start = end = today;
+      break;
+    case 'yesterday': {
+      const y = new Date(today); y.setDate(y.getDate() - 1);
+      start = end = y;
+      break;
+    }
+    case 'this_week': {
+      const day = today.getDay();
+      start = new Date(today); start.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+      end = today;
+      break;
+    }
+    case 'last_7':
+      start = new Date(today); start.setDate(today.getDate() - 6);
+      end = today;
+      break;
+    case 'last_30':
+      start = new Date(today); start.setDate(today.getDate() - 29);
+      end = today;
+      break;
+    case 'this_month':
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      end = today;
+      break;
+    case 'last_month': {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0);
+      break;
+    }
+    case 'this_year':
+      start = new Date(today.getFullYear(), 0, 1);
+      end = today;
+      break;
+    default:
+      return null;
+  }
+  return { start: fmt(start), end: fmt(end) };
+}
+
+function parsePct(s: string | null): number | null {
+  if (!s) return null;
+  const n = Number(s.replace('%', '').replace(',', '.').trim());
+  return isNaN(n) ? null : n;
+}
+
 // --- Main ---
 export function Performance() {
   const [adsData, setAdsData] = useState<AdsRow[]>([]);
@@ -145,6 +214,9 @@ export function Performance() {
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<PerfEntry | null>(null);
   const [tab, setTab] = useState<'google' | 'linkedin' | 'manual'>('google');
+
+  // Time period filter
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
 
   // LinkedIn filters
   const [liAccountFilter, setLiAccountFilter] = useState('');
@@ -193,23 +265,40 @@ export function Performance() {
   const liFunnelStages = useMemo(() => [...new Set(liData.map(r => r.funnelStage))].sort(), [liData]);
   const liCampaigns = useMemo(() => [...new Set(liData.map(r => r.campaignName))].sort(), [liData]);
 
-  // Filtered LinkedIn data
+  // Time-filtered data
+  const dateRange = useMemo(() => getDateRange(timePeriod), [timePeriod]);
+
+  const timeFilteredAds = useMemo(() => {
+    if (!dateRange) return adsData;
+    return adsData.filter(r => r.weekStart >= dateRange.start && r.weekStart <= dateRange.end);
+  }, [adsData, dateRange]);
+
+  const timeFilteredLi = useMemo(() => {
+    if (!dateRange) return liData;
+    return liData.filter(r => r.weekStart >= dateRange.start && r.weekStart <= dateRange.end);
+  }, [liData, dateRange]);
+
+  // Filtered LinkedIn data (time + campaign filters)
   const filteredLi = useMemo(() => {
-    return liData.filter(r => {
+    return timeFilteredLi.filter(r => {
       if (liAccountFilter && r.accountType !== liAccountFilter) return false;
       if (liFunnelFilter && r.funnelStage !== liFunnelFilter) return false;
       if (liCampaignFilter && r.campaignName !== liCampaignFilter) return false;
       return true;
     });
-  }, [liData, liAccountFilter, liFunnelFilter, liCampaignFilter]);
+  }, [timeFilteredLi, liAccountFilter, liFunnelFilter, liCampaignFilter]);
 
-  // Ads KPIs summary
-  const withData = adsData.filter(r => r.gaImpressions != null || r.liImpressions != null);
+  // Ads KPIs summary (time-filtered)
+  const withData = timeFilteredAds.filter(r => r.gaImpressions != null || r.liImpressions != null);
   const totalGaClicks = withData.reduce((s, r) => s + (r.gaClicks ?? 0), 0);
   const totalGaConv = withData.reduce((s, r) => s + (r.gaConversions ?? 0), 0);
   const totalGaImp = withData.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
   const totalLiImp = withData.reduce((s, r) => s + (r.liImpressions ?? 0), 0);
   const totalLiClicks = withData.reduce((s, r) => s + (r.liClicks ?? 0), 0);
+
+  // Average CTR per channel (weighted: totalClicks/totalImpressions)
+  const avgGaCtr = totalGaImp > 0 ? ((totalGaClicks / totalGaImp) * 100).toFixed(2) + '%' : '—';
+  const avgLiCtr = totalLiImp > 0 ? ((totalLiClicks / totalLiImp) * 100).toFixed(2) + '%' : '—';
 
   // Filtered LinkedIn KPIs
   const fLiImp = filteredLi.reduce((s, r) => s + (r.impressions ?? 0), 0);
@@ -223,7 +312,7 @@ export function Performance() {
     'Conversões': r.gaConversions ?? 0,
   }));
 
-  const gaSort = useSort(adsData, 'weekStart', true);
+  const gaSort = useSort(timeFilteredAds, 'weekStart', true);
   const liSort = useSort(filteredLi, 'weekStart', true);
   const manualSort = useSort(manualData, 'date', true);
 
@@ -249,17 +338,33 @@ export function Performance() {
         }
       />
 
+      {/* Time period selector */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {PERIOD_OPTIONS.map(p => (
+          <button key={p.value} onClick={() => setTimePeriod(p.value)}
+            className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+              timePeriod === p.value
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+            }`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="py-12 text-center text-gray-400">Carregando...</div>
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Google Impressões</p><p className="text-xl font-semibold text-gray-900 mt-1">{fmtNum(totalGaImp)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Google Cliques</p><p className="text-xl font-semibold text-gray-900 mt-1">{fmtNum(totalGaClicks)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Google Conversões</p><p className="text-xl font-semibold text-gray-900 mt-1">{fmtNum(totalGaConv)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">LinkedIn Impressões</p><p className="text-xl font-semibold text-gray-900 mt-1">{fmtNum(totalLiImp)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">LinkedIn Cliques</p><p className="text-xl font-semibold text-gray-900 mt-1">{fmtNum(totalLiClicks)}</p></Card>
+            <Card className="min-w-0 border-l-4 border-l-green-500"><p className="text-xs font-medium text-gray-500 uppercase">CTR Google Ads</p><p className="text-xl font-semibold text-green-700 mt-1">{avgGaCtr}</p></Card>
+            <Card className="min-w-0 border-l-4 border-l-blue-600"><p className="text-xs font-medium text-gray-500 uppercase">CTR LinkedIn Ads</p><p className="text-xl font-semibold text-blue-700 mt-1">{avgLiCtr}</p></Card>
           </div>
 
           {/* Charts */}
