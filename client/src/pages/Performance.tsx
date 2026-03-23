@@ -330,7 +330,7 @@ export function Performance() {
   const manualSort = useSort(manualData, 'date', true);
 
   const inputCls = "border border-gray-300 rounded px-3 py-1.5 text-sm";
-  const tabCls = (t: string) => `px-4 py-2 text-sm font-medium rounded-t-md ${tab === t ? 'bg-white text-gray-900 border border-b-0 border-gray-200' : 'text-gray-500 hover:text-gray-700'}`;
+  const tabCls = (t: string) => `px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all ${tab === t ? 'bg-white text-gray-900 border border-b-0 border-gray-200 shadow-sm' : 'bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200'}`;
 
   return (
     <div>
@@ -509,10 +509,25 @@ export function Performance() {
           })()}
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-0">
-            <button className={tabCls('google')} onClick={() => setTab('google')}>Google Ads</button>
-            <button className={tabCls('linkedin')} onClick={() => setTab('linkedin')}>LinkedIn Ads</button>
-            <button className={tabCls('manual')} onClick={() => setTab('manual')}>Registros Manuais ({manualData.length})</button>
+          <div className="flex gap-1.5 mb-0">
+            <button className={tabCls('google')} onClick={() => setTab('google')}>
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                Google Ads
+              </span>
+            </button>
+            <button className={tabCls('linkedin')} onClick={() => setTab('linkedin')}>
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" />
+                LinkedIn Ads
+              </span>
+            </button>
+            <button className={tabCls('manual')} onClick={() => setTab('manual')}>
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block" />
+                Registros Manuais ({manualData.length})
+              </span>
+            </button>
           </div>
 
           {/* Google Ads Tab */}
