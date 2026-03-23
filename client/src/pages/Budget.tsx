@@ -6,7 +6,7 @@ import { AnnotatedChart } from '../components/AnnotatedChart';
 import { api } from '../lib/api';
 import { RefreshCw, Plus, Pencil, Trash2, X } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
 
 // --- Types ---
@@ -392,6 +392,28 @@ export function Budget() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
   }, [filtered]);
 
+  // Breakdown tiles: by section, strategy, expense type
+  const bySection = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + d.actual));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  const byStrategy = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + d.actual); });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  const byExpenseType = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(d => { const k = d.expenseType || 'Sem tipo'; map.set(k, (map.get(k) || 0) + d.actual); });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  const STRATEGY_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
+  const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
+
   // Savings line chart data (only from SAVINGS_START)
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
@@ -630,6 +652,58 @@ export function Budget() {
             </Card>
           </div>
 
+          {/* Breakdown Tiles */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* By Section */}
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Seção</h3>
+              <div className="space-y-2">
+                {bySection.map(item => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTION_COLORS[item.name] || '#999' }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {bySection.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+            {/* By Strategy */}
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Estratégia</h3>
+              <div className="space-y-2">
+                {byStrategy.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STRATEGY_COLORS[i % STRATEGY_COLORS.length] }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {byStrategy.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+            {/* By Expense Type */}
+            <Card className="min-w-0">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Tipo</h3>
+              <div className="space-y-2">
+                {byExpenseType.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TYPE_COLORS[i % TYPE_COLORS.length] }} />
+                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
+                  </div>
+                ))}
+                {byExpenseType.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
+              </div>
+            </Card>
+          </div>
+
           {/* Monthly Budget Editor */}
           <CollapsibleCard title="Orçamento Mensal" subtitle="Defina o orçamento disponível mês a mês" className="mb-6"
             actions={
@@ -784,6 +858,46 @@ export function Budget() {
                 height={250}
               />
             )}
+          </div>
+
+          {/* Charts row 2: by strategy and by type */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card className="min-h-48">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por Estratégia</h3>
+              {byStrategy.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={byStrategy} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => fmtMoney(v)} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
+                    <Tooltip formatter={(value) => fmtMoney(Number(value))} />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+                      {byStrategy.map((_, i) => (
+                        <Cell key={i} fill={STRATEGY_COLORS[i % STRATEGY_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes</p>}
+            </Card>
+            <Card className="min-h-48">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por Tipo de Gasto</h3>
+              {byExpenseType.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={byExpenseType} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => fmtMoney(v)} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={140} />
+                    <Tooltip formatter={(value) => fmtMoney(Number(value))} />
+                    <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
+                      {byExpenseType.map((_, i) => (
+                        <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes</p>}
+            </Card>
           </div>
 
           {/* Detail Table */}
