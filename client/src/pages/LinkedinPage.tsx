@@ -275,6 +275,7 @@ export function LinkedinPage() {
                   <tr className="border-b border-gray-200">
                     <SH k="weekStart" label="Semana" />
                     <SH k="followers" label="Seguidores" />
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs">Δ%</th>
                     <SH k="followersGained" label="Novos" />
                     <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs">Δ%</th>
                     <SH k="impressions" label="Impressões" />
@@ -291,13 +292,14 @@ export function LinkedinPage() {
                 </thead>
                 <tbody>
                   {sorted.length === 0 ? (
-                    <tr><td colSpan={14} className="py-8 text-center text-gray-400">Sem dados</td></tr>
+                    <tr><td colSpan={15} className="py-8 text-center text-gray-400">Sem dados</td></tr>
                   ) : sorted.map((r, i) => {
                     const prev = i > 0 ? sorted[i - 1] : null;
                     return (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                         <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.followers)}</td>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.followers, prev?.followers ?? null)}`}>{delta(r.followers, prev?.followers ?? null)}</td>
                         <td className="py-2 px-2 text-center text-green-600 font-medium">{r.followersGained != null ? `+${r.followersGained}` : '—'}</td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.followersGained, prev?.followersGained ?? null)}`}>{delta(r.followersGained, prev?.followersGained ?? null)}</td>
                         <td className="py-2 px-2 text-center text-gray-900" style={condStyle(r.impressions, colMinMax.impressions.min, colMinMax.impressions.max)}>{fmtNum(r.impressions)}</td>
@@ -326,6 +328,7 @@ export function LinkedinPage() {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-2 font-medium text-gray-500">Mês</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Seguidores</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs">Δ%</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Novos Seg.</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs">Δ%</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Impressões</th>
@@ -345,6 +348,7 @@ export function LinkedinPage() {
                       <tr key={r.sortKey} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">{r.label}</td>
                         <td className="py-2 px-2 text-center text-gray-900">{fmtNum(r.followers)}</td>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.followers, prev?.followers ?? null)}`}>{delta(r.followers, prev?.followers ?? null)}</td>
                         <td className="py-2 px-2 text-center text-green-600 font-medium" style={condStyle(r.followersGained, monthMinMax.impressions?.min ?? 0, monthMinMax.impressions?.max ?? 0)}>+{fmtNum(r.followersGained)}</td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.followersGained, prev?.followersGained ?? null)}`}>{delta(r.followersGained, prev?.followersGained ?? null)}</td>
                         <td className="py-2 px-2 text-center text-gray-900" style={condStyle(r.impressions, monthMinMax.impressions?.min ?? 0, monthMinMax.impressions?.max ?? 0)}>{fmtNum(r.impressions)}</td>
