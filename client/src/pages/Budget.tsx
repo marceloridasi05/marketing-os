@@ -40,6 +40,31 @@ const SECTION_COLORS: Record<string, string> = {
   'Terceiros': '#06b6d4',
 };
 
+// Color badges for tags
+const TAG_PALETTES = {
+  section: SECTION_COLORS,
+  strategy: {} as Record<string, string>,
+  type: {} as Record<string, string>,
+};
+const STRAT_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
+const TYPE_PALETTE = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
+
+function getTagColor(value: string, kind: 'section' | 'strategy' | 'type', allValues: string[]): string {
+  if (kind === 'section') return SECTION_COLORS[value] || '#9ca3af';
+  const palette = kind === 'strategy' ? STRAT_PALETTE : TYPE_PALETTE;
+  const idx = allValues.indexOf(value);
+  return idx >= 0 ? palette[idx % palette.length] : '#9ca3af';
+}
+
+function TagBadge({ value, color }: { value: string; color: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
+      style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}30` }}>
+      {value}
+    </span>
+  );
+}
+
 function delta(curr: number, prev: number): string {
   if (prev === 0) return '';
   const pct = ((curr - prev) / prev) * 100;
@@ -252,8 +277,8 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
 }
 
 // --- Editable Cell ---
-function EditableCell({ value, options, onSave, align = 'center', bold = false }: {
-  value: string; options: string[]; onSave: (v: string) => void; align?: 'left' | 'center'; bold?: boolean;
+function EditableCell({ value, options, onSave, align = 'center', bold = false, tagColor }: {
+  value: string; options: string[]; onSave: (v: string) => void; align?: 'left' | 'center'; bold?: boolean; tagColor?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -273,9 +298,13 @@ function EditableCell({ value, options, onSave, align = 'center', bold = false }
   }
 
   return (
-    <td className={`py-2 px-2 ${align === 'left' ? 'text-left' : 'text-center'} ${bold ? 'font-medium text-gray-700' : 'text-gray-600'} whitespace-nowrap cursor-pointer hover:bg-blue-50 group`}
+    <td className={`py-2 px-2 ${align === 'left' ? 'text-left' : 'text-center'} whitespace-nowrap cursor-pointer hover:bg-blue-50 group`}
       onClick={() => { setDraft(value); setEditing(true); }}>
-      <span className="group-hover:underline group-hover:decoration-dotted">{value || '—'}</span>
+      {tagColor && value ? (
+        <TagBadge value={value} color={tagColor} />
+      ) : (
+        <span className={`group-hover:underline group-hover:decoration-dotted ${bold ? 'font-medium text-gray-700' : 'text-gray-600'}`}>{value || '—'}</span>
+      )}
     </td>
   );
 }
@@ -1008,9 +1037,9 @@ export function Budget() {
                     return (
                       <tr key={`${r.section}-${r.name}`} className="border-b border-gray-100 hover:bg-gray-50">
                         <EditableCell value={r.name} options={itemNames} onSave={v => updateItemMeta(r.name, r.section, 'name', v)} align="left" bold />
-                        <EditableCell value={r.section} options={SECTIONS} onSave={v => updateItemMeta(r.name, r.section, 'section', v)} />
-                        <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} />
-                        <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} />
+                        <EditableCell value={r.section} options={SECTIONS} onSave={v => updateItemMeta(r.name, r.section, 'section', v)} tagColor={getTagColor(r.section, 'section', SECTIONS)} />
+                        <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} tagColor={r.strategy ? getTagColor(r.strategy, 'strategy', strategies) : undefined} />
+                        <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} tagColor={r.expenseType ? getTagColor(r.expenseType, 'type', expenseTypes) : undefined} />
                         {monthVals.map((v, mi) => (
                           <td key={monthKeys[mi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap"
 >
@@ -1166,9 +1195,9 @@ export function Budget() {
                   ) : filtered.slice(0, 100).map(d => (
                     <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 text-left font-medium text-gray-700">{d.name}</td>
-                      <td className="py-2 px-2 text-center text-gray-600">{d.section}</td>
-                      <td className="py-2 px-2 text-center text-gray-600">{d.strategy || '—'}</td>
-                      <td className="py-2 px-2 text-center text-gray-600">{d.expenseType || '—'}</td>
+                      <td className="py-2 px-2 text-center">{d.section ? <TagBadge value={d.section} color={getTagColor(d.section, 'section', SECTIONS)} /> : '—'}</td>
+                      <td className="py-2 px-2 text-center">{d.strategy ? <TagBadge value={d.strategy} color={getTagColor(d.strategy, 'strategy', strategies)} /> : '—'}</td>
+                      <td className="py-2 px-2 text-center">{d.expenseType ? <TagBadge value={d.expenseType} color={getTagColor(d.expenseType, 'type', expenseTypes)} /> : '—'}</td>
                       <td className="py-2 px-2 text-center text-gray-600">{d.year}</td>
                       <td className="py-2 px-2 text-center text-gray-600">{MONTHS[d.month]}</td>
                       <td className="py-2 px-2 text-center text-gray-900">{fmtMoney(d.planned)}</td>
