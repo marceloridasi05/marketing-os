@@ -436,7 +436,7 @@ export function Dashboard() {
     <div>
       <PageHeader
         title="Painel"
-        description="Consciencia situacional e tomada de decisao"
+        description="Consciência situacional e tomada de decisão"
         actions={
           <button
             onClick={handleAiAnalysis}
