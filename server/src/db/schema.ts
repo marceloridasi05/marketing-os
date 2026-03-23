@@ -104,6 +104,27 @@ export const siteData = sqliteTable('site_data', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const adsKpis = sqliteTable('ads_kpis', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  week: text('week').notNull(),
+  weekStart: text('week_start').notNull(),
+  // Google Ads
+  gaImpressions: integer('ga_impressions'),
+  gaClicks: integer('ga_clicks'),
+  gaCtr: text('ga_ctr'),
+  gaCpcAvg: text('ga_cpc_avg'),
+  gaCpmAvg: text('ga_cpm_avg'),
+  gaCostAvg: text('ga_cost_avg'),
+  gaCvr: text('ga_cvr'),
+  gaConversions: integer('ga_conversions'),
+  gaCostPerConversion: text('ga_cost_per_conversion'),
+  // LinkedIn Ads (aggregated)
+  liImpressions: integer('li_impressions'),
+  liClicks: integer('li_clicks'),
+  liCost: real('li_cost'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   year: integer('year').notNull(),

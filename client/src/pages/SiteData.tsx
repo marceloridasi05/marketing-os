@@ -113,7 +113,7 @@ export function SiteData() {
 
   return (
     <div>
-      <PageHeader title="Dados do Site" description="Métricas semanais do Site Brick + Blog"
+      <PageHeader title="Desempenho do Site" description="Métricas semanais do Site Brick + Blog"
         actions={
           <div className="flex items-center gap-3">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}

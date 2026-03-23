@@ -10,8 +10,8 @@ import {
 
 const navItems = [
   { to: '/', label: 'Painel', icon: LayoutDashboard },
-  { to: '/site-data', label: 'Dados do Site', icon: Globe },
-  { to: '/performance', label: 'Desempenho', icon: BarChart3 },
+  { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
+  { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
   { to: '/budget', label: 'Orçamento', icon: DollarSign },
   { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
   { to: '/settings', label: 'Configurações', icon: Settings },

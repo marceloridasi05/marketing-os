@@ -13,6 +13,7 @@ import goalsRouter from './routes/goals.js';
 import dashboardRouter from './routes/dashboard.js';
 import referenceItemsRouter from './routes/referenceItems.js';
 import siteDataRouter from './routes/siteData.js';
+import adsKpisRouter from './routes/adsKpis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/initiatives', initiativesRouter);
 app.use('/api/goals', goalsRouter);
 app.use('/api/reference-items', referenceItemsRouter);
 app.use('/api/site-data', siteDataRouter);
+app.use('/api/ads-kpis', adsKpisRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
