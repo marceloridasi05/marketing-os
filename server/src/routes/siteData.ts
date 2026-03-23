@@ -14,6 +14,14 @@ function parseNum(v: string): number | null {
   return isNaN(n) ? null : n;
 }
 
+// Convert dd/mm/yyyy to yyyy-mm-dd for proper sorting
+function parseDate(v: string): string {
+  const trimmed = v.trim();
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  return trimmed;
+}
+
 // GET / — list all site data
 router.get('/', async (_req, res) => {
   const rows = await db.select().from(siteData).orderBy(siteData.weekStart);
@@ -44,7 +52,16 @@ router.post('/sync', async (_req, res) => {
     // Row 0 = group headers (Site Brick + Blog, Blog, Origem IA, etc)
     // Row 1 = column headers
     // Row 2+ = data
-    const dataRows = lines.slice(2).filter(row => row[0] && row[0].trim() !== '' && row[1] && row[1].trim() !== '');
+    const dataRows = lines.slice(2).filter(row => {
+      const week = row[0]?.trim();
+      const date = row[1]?.trim();
+      if (!week || !date) return false;
+      // Skip summary rows like "Total", empty weeks, or non-Semana rows
+      if (!week.startsWith('Semana')) return false;
+      // Skip rows without a valid date (dd/mm/yyyy)
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(date)) return false;
+      return true;
+    });
 
     let imported = 0;
     for (const row of dataRows) {
@@ -57,7 +74,7 @@ router.post('/sync', async (_req, res) => {
 
       const record = {
         week,
-        weekStart,
+        weekStart: parseDate(weekStart),
         sessions: parseNum(row[2] ?? ''),
         totalUsers: parseNum(row[3] ?? ''),
         paidClicks: parseNum(row[4] ?? ''),

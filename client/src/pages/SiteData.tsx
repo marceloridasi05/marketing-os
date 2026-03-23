@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
@@ -28,6 +28,42 @@ interface SiteRow {
 }
 
 const fmtNum = (n: number | null) => n != null ? n.toLocaleString('pt-BR') : '—';
+const fmtDate = (d: string) => {
+  // yyyy-mm-dd → dd/mm/yyyy
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
+};
+
+function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortAsc, setSortAsc] = useState(defaultAsc);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(true); }
+  };
+
+  const sorted = useMemo(() => {
+    return [...data].sort((a, b) => {
+      const av = (a as Record<string, unknown>)[sortKey];
+      const bv = (b as Record<string, unknown>)[sortKey];
+      const an = av == null ? '' : typeof av === 'number' ? av : String(av);
+      const bn = bv == null ? '' : typeof bv === 'number' ? bv : String(bv);
+      if (an < bn) return sortAsc ? -1 : 1;
+      if (an > bn) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }, [data, sortKey, sortAsc]);
+
+  const SortHeader = ({ k, label, align = 'left' }: { k: string; label: string; align?: 'left' | 'right' }) => (
+    <th className={`${align === 'right' ? 'text-right' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
+      onClick={() => handleSort(k)}>
+      {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
+    </th>
+  );
+
+  return { sorted, SortHeader, sortKey, sortAsc };
+}
 
 export function SiteData() {
   const [data, setData] = useState<SiteRow[]>([]);
@@ -56,19 +92,24 @@ export function SiteData() {
     setSyncing(false);
   };
 
-  // KPIs from latest row with data
-  const latest = [...data].reverse().find(r => r.sessions != null && r.sessions > 0);
-  const totalSessions = data.reduce((s, r) => s + (r.sessions ?? 0), 0);
-  const totalLeads = data.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
-  const totalNewUsers = data.reduce((s, r) => s + (r.newUsers ?? 0), 0);
+  // Only rows with actual data for KPIs
+  const withData = data.filter(r => r.sessions != null && r.sessions > 0);
+  const latest = withData.length > 0 ? withData[withData.length - 1] : null;
+  const totalSessions = withData.reduce((s, r) => s + (r.sessions ?? 0), 0);
+  const totalLeads = withData.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
+  const totalNewUsers = withData.reduce((s, r) => s + (r.newUsers ?? 0), 0);
 
-  // Chart data (last 20 weeks)
-  const chartData = data.slice(-20).map(r => ({
+  // Chart data: only rows with sessions, last 20
+  const chartData = withData.slice(-20).map(r => ({
     week: r.week.replace('Semana ', 'S'),
     Sessões: r.sessions ?? 0,
     Leads: r.leadsGenerated ?? 0,
-    'Novos Usuários': r.newUsers ?? 0,
   }));
+
+  // Sort hooks for each table
+  const mainSort = useSort(data, 'weekStart', true);
+  const blogSort = useSort(data, 'weekStart', true);
+  const aiSort = useSort(data, 'weekStart', true);
 
   return (
     <div>
@@ -117,7 +158,7 @@ export function SiteData() {
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Última Semana</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{latest?.week ?? '—'}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{latest?.weekStart ?? ''}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{latest ? fmtDate(latest.weekStart) : ''}</p>
             </Card>
           </div>
 
@@ -153,22 +194,22 @@ export function SiteData() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2.5 px-2 font-medium text-gray-500">Semana</th>
-                    <th className="text-left py-2.5 px-2 font-medium text-gray-500">Início</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Sessões</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Usuários</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Cliq. Pagos</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Novos Usr.</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">% Novos</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Leads</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Ganhos</th>
+                    <mainSort.SortHeader k="week" label="Semana" />
+                    <mainSort.SortHeader k="weekStart" label="Início" />
+                    <mainSort.SortHeader k="sessions" label="Sessões" align="right" />
+                    <mainSort.SortHeader k="totalUsers" label="Usuários" align="right" />
+                    <mainSort.SortHeader k="paidClicks" label="Cliq. Pagos" align="right" />
+                    <mainSort.SortHeader k="newUsers" label="Novos Usr." align="right" />
+                    <mainSort.SortHeader k="newUsersPct" label="% Novos" align="right" />
+                    <mainSort.SortHeader k="leadsGenerated" label="Leads" align="right" />
+                    <mainSort.SortHeader k="weeklyGains" label="Ganhos" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data].reverse().map(r => (
+                  {mainSort.sorted.map(r => (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
-                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{r.weekStart}</td>
+                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.sessions)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.totalUsers)}</td>
                       <td className="py-2 px-2 text-right text-gray-600">{fmtNum(r.paidClicks)}</td>
@@ -189,17 +230,19 @@ export function SiteData() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2.5 px-2 font-medium text-gray-500">Semana</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Sessões</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Usuários</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Novos Usr.</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">% Novos</th>
+                    <blogSort.SortHeader k="week" label="Semana" />
+                    <blogSort.SortHeader k="weekStart" label="Início" />
+                    <blogSort.SortHeader k="blogSessions" label="Sessões" align="right" />
+                    <blogSort.SortHeader k="blogTotalUsers" label="Usuários" align="right" />
+                    <blogSort.SortHeader k="blogNewUsers" label="Novos Usr." align="right" />
+                    <blogSort.SortHeader k="blogNewUsersPct" label="% Novos" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data].reverse().map(r => (
+                  {blogSort.sorted.map(r => (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogSessions)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogTotalUsers)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogNewUsers)}</td>
@@ -217,15 +260,17 @@ export function SiteData() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2.5 px-2 font-medium text-gray-500">Semana</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Sessões</th>
-                    <th className="text-right py-2.5 px-2 font-medium text-gray-500">Usuários</th>
+                    <aiSort.SortHeader k="week" label="Semana" />
+                    <aiSort.SortHeader k="weekStart" label="Início" />
+                    <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
+                    <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data].reverse().map(r => (
+                  {aiSort.sorted.map(r => (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiSessions)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiTotalUsers)}</td>
                     </tr>
