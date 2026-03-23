@@ -16,6 +16,7 @@ import siteDataRouter from './routes/siteData.js';
 import adsKpisRouter from './routes/adsKpis.js';
 import linkedinPageRouter from './routes/linkedinPage.js';
 import chartAnnotationsRouter from './routes/chartAnnotations.js';
+import budgetItemsRouter from './routes/budgetItems.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/site-data', siteDataRouter);
 app.use('/api/ads-kpis', adsKpisRouter);
 app.use('/api/linkedin-page', linkedinPageRouter);
 app.use('/api/chart-annotations', chartAnnotationsRouter);
+app.use('/api/budget-items', budgetItemsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

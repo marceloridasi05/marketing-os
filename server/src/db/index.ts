@@ -134,6 +134,19 @@ sqlite.exec(`
     comment TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS budget_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    section TEXT NOT NULL,
+    strategy TEXT,
+    expense_type TEXT,
+    name TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    planned REAL NOT NULL DEFAULT 0,
+    actual REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS ads_kpis (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     week TEXT NOT NULL,

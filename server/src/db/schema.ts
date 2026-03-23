@@ -167,6 +167,20 @@ export const goals = sqliteTable('goals', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const budgetItems = sqliteTable('budget_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  section: text('section').notNull(),
+  strategy: text('strategy'),
+  expenseType: text('expense_type'),
+  name: text('name').notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  planned: real('planned').default(0).notNull(),
+  actual: real('actual').default(0).notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const chartAnnotations = sqliteTable('chart_annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   page: text('page').notNull(),
