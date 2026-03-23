@@ -240,7 +240,7 @@ export function LinkedinPage() {
         <>
           {/* KPI Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Seguidores</p><p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(currentFollowers)}</p></Card>
+            <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Seguidores Hoje</p><p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(currentFollowers)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Novos Seguidores</p><p className="text-2xl font-semibold text-green-600 mt-1">+{fmtNum(totalFollowersGained)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Impressões</p><p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalImpressions)}</p></Card>
             <Card className="min-w-0"><p className="text-xs font-medium text-gray-500 uppercase">Reações</p><p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(totalReactions)}</p></Card>
