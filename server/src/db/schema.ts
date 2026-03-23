@@ -125,6 +125,22 @@ export const adsKpis = sqliteTable('ads_kpis', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const liCampaignKpis = sqliteTable('li_campaign_kpis', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  week: text('week').notNull(),
+  weekStart: text('week_start').notNull(),
+  campaignName: text('campaign_name').notNull(),
+  accountType: text('account_type').notNull(),
+  funnelStage: text('funnel_stage').notNull(),
+  impressions: integer('impressions'),
+  clicks: integer('clicks'),
+  ctr: text('ctr'),
+  frequency: text('frequency'),
+  cpcAvg: text('cpc_avg'),
+  cost: real('cost'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   year: integer('year').notNull(),

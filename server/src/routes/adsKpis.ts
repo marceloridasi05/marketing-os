@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { adsKpis } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { adsKpis, liCampaignKpis } from '../db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -33,9 +33,36 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-// GET /
+// Map campaign names to account type + funnel stage
+interface CampaignMeta { accountType: string; funnelStage: string; }
+function classifyCampaign(name: string): CampaignMeta {
+  const n = name.toLowerCase();
+  let accountType = 'Outros';
+  let funnelStage = 'other';
+
+  if (n.includes('100% frias')) accountType = '100% Frias';
+  else if (n.includes('esfriaram') || n.includes('hipr')) accountType = 'Esfriaram (HiPr)';
+  else if (n.includes('seguradora')) accountType = 'Seguradoras + Cargos';
+  else if (n.includes('localiza')) accountType = 'Localiza + Cargos';
+  else if (n.includes('porto vida') || n.includes('abm')) accountType = 'ABM Porto Vida';
+
+  if (n.includes('awareness')) funnelStage = 'awareness';
+  else if (n.includes('interest')) funnelStage = 'interest';
+  else if (n.includes('decision')) funnelStage = 'decision';
+  else funnelStage = 'other';
+
+  return { accountType, funnelStage };
+}
+
+// GET / - all ads kpis
 router.get('/', async (_req, res) => {
   const rows = await db.select().from(adsKpis).orderBy(adsKpis.weekStart);
+  res.json(rows);
+});
+
+// GET /linkedin - all linkedin campaign kpis
+router.get('/linkedin', async (_req, res) => {
+  const rows = await db.select().from(liCampaignKpis).orderBy(liCampaignKpis.weekStart);
   res.json(rows);
 });
 
@@ -47,23 +74,47 @@ router.post('/sync', async (_req, res) => {
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    // Row 0 = group headers, Row 1 = column headers, Row 2+ = data
-    // Google Ads cols: 0=Cohort, 1=Início, 2=Impressões, 3=Cliques, 4=CTR, 5=CPC, 6=CPM, 7=Custo, 8=CVR, 9=Conversões, 10=Custo/Conv
-    // Col 11 = empty separator
-    // LinkedIn campaigns start at col 12, each block has varying widths
-    // We'll aggregate LinkedIn: sum impressions, clicks, cost across all campaigns
-
-    // Identify LinkedIn column blocks from row 0 (group headers)
     const groupHeaders = lines[0];
     const colHeaders = lines[1];
 
-    // Find LinkedIn campaign blocks: they start after col 11
-    // Each LinkedIn block has: [ID/empty], Impressões, Cliques, CTR, [Frequência], CPC Médio, Custo
-    // We need to find columns with header "Impressões", "Cliques", "Custo" in LinkedIn range
+    // Identify LinkedIn campaign blocks from group headers
+    // Each campaign has a name in the group header row, spanning multiple columns
+    interface CampaignBlock {
+      name: string;
+      meta: CampaignMeta;
+      impCol: number | null;
+      clickCol: number | null;
+      ctrCol: number | null;
+      freqCol: number | null;
+      cpcCol: number | null;
+      costCol: number | null;
+    }
+
+    const campaigns: CampaignBlock[] = [];
+    let currentCampaign: CampaignBlock | null = null;
+
+    for (let i = 12; i < groupHeaders.length; i++) {
+      const gh = groupHeaders[i]?.trim();
+      if (gh && gh.toLowerCase().includes('linkedin')) {
+        if (currentCampaign) campaigns.push(currentCampaign);
+        currentCampaign = { name: gh, meta: classifyCampaign(gh), impCol: null, clickCol: null, ctrCol: null, freqCol: null, cpcCol: null, costCol: null };
+      }
+      if (currentCampaign) {
+        const ch = colHeaders[i]?.trim();
+        if (ch === 'Impressões' && currentCampaign.impCol === null) currentCampaign.impCol = i;
+        else if (ch === 'Cliques' && currentCampaign.clickCol === null) currentCampaign.clickCol = i;
+        else if (ch === 'CTR' && currentCampaign.ctrCol === null) currentCampaign.ctrCol = i;
+        else if (ch === 'Frequência' && currentCampaign.freqCol === null) currentCampaign.freqCol = i;
+        else if (ch?.includes('CPC') && currentCampaign.cpcCol === null) currentCampaign.cpcCol = i;
+        else if (ch === 'Custo' && currentCampaign.costCol === null) currentCampaign.costCol = i;
+      }
+    }
+    if (currentCampaign) campaigns.push(currentCampaign);
+
+    // Also find LinkedIn aggregate cols for the main adsKpis table
     const liImpCols: number[] = [];
     const liClickCols: number[] = [];
     const liCostCols: number[] = [];
-
     for (let i = 12; i < colHeaders.length; i++) {
       const h = colHeaders[i]?.trim();
       if (h === 'Impressões') liImpCols.push(i);
@@ -74,10 +125,7 @@ router.post('/sync', async (_req, res) => {
     const dataRows = lines.slice(2).filter(row => {
       const week = row[0]?.trim();
       const date = row[1]?.trim();
-      if (!week || !date) return false;
-      if (!week.startsWith('Semana')) return false;
-      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(date)) return false;
-      return true;
+      return week?.startsWith('Semana') && /^\d{2}\/\d{2}\/\d{4}$/.test(date || '');
     });
 
     let imported = 0;
@@ -85,15 +133,15 @@ router.post('/sync', async (_req, res) => {
       const week = row[0].trim();
       const weekStart = parseDate(row[1]);
 
-      // Aggregate LinkedIn
+      // LinkedIn aggregated
       let liImp = 0, liClick = 0, liCostTotal = 0;
-      for (const c of liImpCols) { liImp += parseNum(row[c] ?? '') ?? 0; }
-      for (const c of liClickCols) { liClick += parseNum(row[c] ?? '') ?? 0; }
-      for (const c of liCostCols) { liCostTotal += parseNum(row[c] ?? '') ?? 0; }
+      for (const c of liImpCols) liImp += parseNum(row[c] ?? '') ?? 0;
+      for (const c of liClickCols) liClick += parseNum(row[c] ?? '') ?? 0;
+      for (const c of liCostCols) liCostTotal += parseNum(row[c] ?? '') ?? 0;
 
-      const record = {
-        week,
-        weekStart,
+      // Upsert Google Ads + LinkedIn aggregated
+      const gaRecord = {
+        week, weekStart,
         gaImpressions: parseNum(row[2] ?? ''),
         gaClicks: parseNum(row[3] ?? ''),
         gaCtr: row[4]?.trim() || null,
@@ -110,14 +158,42 @@ router.post('/sync', async (_req, res) => {
 
       const existing = await db.select().from(adsKpis).where(eq(adsKpis.week, week)).limit(1);
       if (existing.length > 0) {
-        await db.update(adsKpis).set(record).where(eq(adsKpis.id, existing[0].id));
+        await db.update(adsKpis).set(gaRecord).where(eq(adsKpis.id, existing[0].id));
       } else {
-        await db.insert(adsKpis).values(record);
+        await db.insert(adsKpis).values(gaRecord);
       }
+
+      // Upsert each LinkedIn campaign
+      for (const camp of campaigns) {
+        const imp = parseNum(row[camp.impCol ?? -1] ?? '');
+        const clicks = parseNum(row[camp.clickCol ?? -1] ?? '');
+        const ctr = camp.ctrCol != null ? row[camp.ctrCol]?.trim() || null : null;
+        const freq = camp.freqCol != null ? row[camp.freqCol]?.trim() || null : null;
+        const cpc = camp.cpcCol != null ? row[camp.cpcCol]?.trim() || null : null;
+        const cost = parseNum(row[camp.costCol ?? -1] ?? '');
+
+        const liRecord = {
+          week, weekStart,
+          campaignName: camp.name,
+          accountType: camp.meta.accountType,
+          funnelStage: camp.meta.funnelStage,
+          impressions: imp, clicks, ctr, frequency: freq, cpcAvg: cpc, cost,
+        };
+
+        const existingLi = await db.select().from(liCampaignKpis)
+          .where(and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name)))
+          .limit(1);
+        if (existingLi.length > 0) {
+          await db.update(liCampaignKpis).set(liRecord).where(eq(liCampaignKpis.id, existingLi[0].id));
+        } else {
+          await db.insert(liCampaignKpis).values(liRecord);
+        }
+      }
+
       imported++;
     }
 
-    res.json({ success: true, imported });
+    res.json({ success: true, imported, campaigns: campaigns.map(c => c.name) });
   } catch (err) {
     console.error('Ads sync error:', err);
     res.status(500).json({ error: String(err) });

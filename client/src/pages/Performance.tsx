@@ -10,40 +10,26 @@ import { Plus, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
 
 // --- Types ---
 interface AdsRow {
-  id: number;
-  week: string;
-  weekStart: string;
-  gaImpressions: number | null;
-  gaClicks: number | null;
-  gaCtr: string | null;
-  gaCpcAvg: string | null;
-  gaCpmAvg: string | null;
-  gaCostAvg: string | null;
-  gaCvr: string | null;
-  gaConversions: number | null;
-  gaCostPerConversion: string | null;
-  liImpressions: number | null;
-  liClicks: number | null;
-  liCost: number | null;
+  id: number; week: string; weekStart: string;
+  gaImpressions: number | null; gaClicks: number | null; gaCtr: string | null;
+  gaCpcAvg: string | null; gaCpmAvg: string | null; gaCostAvg: string | null;
+  gaCvr: string | null; gaConversions: number | null; gaCostPerConversion: string | null;
+  liImpressions: number | null; liClicks: number | null; liCost: number | null;
+}
+
+interface LiCampaignRow {
+  id: number; week: string; weekStart: string;
+  campaignName: string; accountType: string; funnelStage: string;
+  impressions: number | null; clicks: number | null; ctr: string | null;
+  frequency: string | null; cpcAvg: string | null; cost: number | null;
 }
 
 interface PerfEntry {
-  id: number;
-  date: string;
-  periodType: string;
-  channelId: number;
-  channelName: string;
-  campaignName: string | null;
-  campaignType: string | null;
-  impressions: number | null;
-  clicks: number | null;
-  sessions: number | null;
-  users: number | null;
-  newUsers: number | null;
-  leads: number | null;
-  conversions: number | null;
-  cost: number | null;
-  notes: string | null;
+  id: number; date: string; periodType: string; channelId: number; channelName: string;
+  campaignName: string | null; campaignType: string | null;
+  impressions: number | null; clicks: number | null; sessions: number | null;
+  users: number | null; newUsers: number | null; leads: number | null;
+  conversions: number | null; cost: number | null; notes: string | null;
 }
 interface Channel { id: number; name: string; }
 
@@ -51,6 +37,9 @@ interface Channel { id: number; name: string; }
 const fmtNum = (n: number | null) => n != null ? n.toLocaleString('pt-BR') : '—';
 const fmtMoney = (n: number | null) => n != null ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 }) : '—';
 const fmtDate = (d: string) => { const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : d; };
+
+const FUNNEL_LABELS: Record<string, string> = { awareness: 'Awareness', interest: 'Interest', decision: 'Decision', other: 'Outros' };
+const FUNNEL_COLORS: Record<string, string> = { awareness: 'info', interest: 'warning', decision: 'success', other: 'default' };
 
 function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
   const [sortKey, setSortKey] = useState(defaultKey);
@@ -149,6 +138,7 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
 // --- Main ---
 export function Performance() {
   const [adsData, setAdsData] = useState<AdsRow[]>([]);
+  const [liData, setLiData] = useState<LiCampaignRow[]>([]);
   const [manualData, setManualData] = useState<PerfEntry[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,15 +148,22 @@ export function Performance() {
   const [editEntry, setEditEntry] = useState<PerfEntry | null>(null);
   const [tab, setTab] = useState<'google' | 'linkedin' | 'manual'>('google');
 
+  // LinkedIn filters
+  const [liAccountFilter, setLiAccountFilter] = useState('');
+  const [liFunnelFilter, setLiFunnelFilter] = useState('');
+  const [liCampaignFilter, setLiCampaignFilter] = useState('');
+
   useEffect(() => { api.get<Channel[]>('/channels').then(setChannels); }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [ads, manual] = await Promise.all([
+    const [ads, li, manual] = await Promise.all([
       api.get<AdsRow[]>('/ads-kpis'),
+      api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
       api.get<PerfEntry[]>('/performance'),
     ]);
     setAdsData(ads);
+    setLiData(li);
     setManualData(manual);
     setLoading(false);
   }, []);
@@ -177,7 +174,7 @@ export function Performance() {
     setSyncing(true);
     try {
       const result = await api.post<{ success: boolean; imported: number }>('/ads-kpis/sync', {});
-      setLastSync(`${result.imported} registros sincronizados`);
+      setLastSync(`${result.imported} semanas sincronizadas`);
       await fetchData();
     } catch (err) { setLastSync(`Erro: ${err}`); }
     setSyncing(false);
@@ -193,13 +190,33 @@ export function Performance() {
   const openCreate = () => { setEditEntry(null); setShowForm(true); };
   const handleSaved = () => { setShowForm(false); setEditEntry(null); fetchData(); };
 
-  // Ads with data
+  // LinkedIn unique values for filters
+  const liAccountTypes = useMemo(() => [...new Set(liData.map(r => r.accountType))].sort(), [liData]);
+  const liFunnelStages = useMemo(() => [...new Set(liData.map(r => r.funnelStage))].sort(), [liData]);
+  const liCampaigns = useMemo(() => [...new Set(liData.map(r => r.campaignName))].sort(), [liData]);
+
+  // Filtered LinkedIn data
+  const filteredLi = useMemo(() => {
+    return liData.filter(r => {
+      if (liAccountFilter && r.accountType !== liAccountFilter) return false;
+      if (liFunnelFilter && r.funnelStage !== liFunnelFilter) return false;
+      if (liCampaignFilter && r.campaignName !== liCampaignFilter) return false;
+      return true;
+    });
+  }, [liData, liAccountFilter, liFunnelFilter, liCampaignFilter]);
+
+  // Ads KPIs summary
   const withData = adsData.filter(r => r.gaImpressions != null || r.liImpressions != null);
   const totalGaClicks = withData.reduce((s, r) => s + (r.gaClicks ?? 0), 0);
   const totalGaConv = withData.reduce((s, r) => s + (r.gaConversions ?? 0), 0);
-  const totalLiClicks = withData.reduce((s, r) => s + (r.liClicks ?? 0), 0);
   const totalGaImp = withData.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
   const totalLiImp = withData.reduce((s, r) => s + (r.liImpressions ?? 0), 0);
+  const totalLiClicks = withData.reduce((s, r) => s + (r.liClicks ?? 0), 0);
+
+  // Filtered LinkedIn KPIs
+  const fLiImp = filteredLi.reduce((s, r) => s + (r.impressions ?? 0), 0);
+  const fLiClicks = filteredLi.reduce((s, r) => s + (r.clicks ?? 0), 0);
+  const fLiCost = filteredLi.reduce((s, r) => s + (r.cost ?? 0), 0);
 
   const chartData = withData.slice(-20).map(r => ({
     week: r.week.replace('Semana ', 'S'),
@@ -209,9 +226,10 @@ export function Performance() {
   }));
 
   const gaSort = useSort(adsData, 'weekStart', true);
-  const liSort = useSort(adsData, 'weekStart', true);
+  const liSort = useSort(filteredLi, 'weekStart', true);
   const manualSort = useSort(manualData, 'date', true);
 
+  const inputCls = "border border-gray-300 rounded px-3 py-1.5 text-sm";
   const tabCls = (t: string) => `px-4 py-2 text-sm font-medium rounded-t-md ${tab === t ? 'bg-white text-gray-900 border border-b-0 border-gray-200' : 'text-gray-500 hover:text-gray-700'}`;
 
   return (
@@ -280,6 +298,7 @@ export function Performance() {
             <button className={tabCls('manual')} onClick={() => setTab('manual')}>Registros Manuais ({manualData.length})</button>
           </div>
 
+          {/* Google Ads Tab */}
           {tab === 'google' && (
             <Card>
               <div className="overflow-x-auto">
@@ -319,27 +338,70 @@ export function Performance() {
             </Card>
           )}
 
+          {/* LinkedIn Ads Tab */}
           {tab === 'linkedin' && (
             <Card>
+              {/* Filters */}
+              <div className="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-gray-200">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Conta</label>
+                  <select value={liAccountFilter} onChange={e => setLiAccountFilter(e.target.value)} className={inputCls}>
+                    <option value="">Todas</option>
+                    {liAccountTypes.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Estágio do Funil</label>
+                  <select value={liFunnelFilter} onChange={e => setLiFunnelFilter(e.target.value)} className={inputCls}>
+                    <option value="">Todos</option>
+                    {liFunnelStages.map(s => <option key={s} value={s}>{FUNNEL_LABELS[s] ?? s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Campanha</label>
+                  <select value={liCampaignFilter} onChange={e => setLiCampaignFilter(e.target.value)} className={inputCls}>
+                    <option value="">Todas</option>
+                    {liCampaigns.map(c => <option key={c} value={c}>{c.replace('Linkedin Ads - ', '')}</option>)}
+                  </select>
+                </div>
+                <div className="ml-auto flex gap-3 text-sm">
+                  <span className="text-gray-500">Impr: <strong>{fmtNum(fLiImp)}</strong></span>
+                  <span className="text-gray-500">Cliques: <strong>{fmtNum(fLiClicks)}</strong></span>
+                  <span className="text-gray-500">Custo: <strong>{fmtMoney(fLiCost)}</strong></span>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200">
                       <liSort.SortHeader k="week" label="Semana" />
                       <liSort.SortHeader k="weekStart" label="Início" />
-                      <liSort.SortHeader k="liImpressions" label="Impressões" align="right" />
-                      <liSort.SortHeader k="liClicks" label="Cliques" align="right" />
-                      <liSort.SortHeader k="liCost" label="Custo Total" align="right" />
+                      <liSort.SortHeader k="campaignName" label="Campanha" />
+                      <liSort.SortHeader k="accountType" label="Tipo Conta" />
+                      <liSort.SortHeader k="funnelStage" label="Funil" />
+                      <liSort.SortHeader k="impressions" label="Impressões" align="right" />
+                      <liSort.SortHeader k="clicks" label="Cliques" align="right" />
+                      <liSort.SortHeader k="ctr" label="CTR" align="right" />
+                      <liSort.SortHeader k="cpcAvg" label="CPC" align="right" />
+                      <liSort.SortHeader k="cost" label="Custo" align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {liSort.sorted.map(r => (
+                    {liSort.sorted.length === 0 ? (
+                      <tr><td colSpan={10} className="py-8 text-center text-gray-400">Nenhum dado encontrado</td></tr>
+                    ) : liSort.sorted.map(r => (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                         <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.liImpressions)}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.liClicks)}</td>
-                        <td className="py-2 px-2 text-right text-gray-900">{fmtMoney(r.liCost)}</td>
+                        <td className="py-2 px-2 text-gray-700 text-xs max-w-[200px] truncate" title={r.campaignName}>{r.campaignName.replace('Linkedin Ads - ', '')}</td>
+                        <td className="py-2 px-2"><Badge>{r.accountType}</Badge></td>
+                        <td className="py-2 px-2"><Badge variant={(FUNNEL_COLORS[r.funnelStage] ?? 'default') as 'info' | 'warning' | 'success' | 'default'}>{FUNNEL_LABELS[r.funnelStage] ?? r.funnelStage}</Badge></td>
+                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.impressions)}</td>
+                        <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.clicks)}</td>
+                        <td className="py-2 px-2 text-right text-gray-600">{r.ctr ?? '—'}</td>
+                        <td className="py-2 px-2 text-right text-gray-600">{r.cpcAvg ?? '—'}</td>
+                        <td className="py-2 px-2 text-right text-gray-900">{fmtMoney(r.cost)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -348,6 +410,7 @@ export function Performance() {
             </Card>
           )}
 
+          {/* Manual Tab */}
           {tab === 'manual' && (
             <Card>
               <div className="overflow-x-auto">
