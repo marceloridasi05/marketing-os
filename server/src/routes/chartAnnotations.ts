@@ -21,11 +21,36 @@ router.get('/', async (req, res) => {
 });
 
 // POST /
+// If replicateToAll=true, creates annotation for all known chartKeys on the page
 router.post('/', async (req, res) => {
-  const { page, chartKey, xValue, comment } = req.body;
+  const { page, chartKey, xValue, comment, replicateToAll } = req.body;
   if (!page || !chartKey || !xValue || !comment) {
     return res.status(400).json({ error: 'page, chartKey, xValue, comment são obrigatórios' });
   }
+
+  if (replicateToAll) {
+    // Get all distinct chartKeys for this page
+    const existing = await db.select({ chartKey: chartAnnotations.chartKey })
+      .from(chartAnnotations).where(eq(chartAnnotations.page, page));
+    const keys = new Set(existing.map(r => r.chartKey));
+    keys.add(chartKey); // always include current
+
+    // Also add known chart keys per page
+    const PAGE_CHARTS: Record<string, string[]> = {
+      ads_kpis: ['clicks', 'conversions'],
+      site_data: ['sessions', 'leads', 'site_sessions_users', 'blog_sessions_users'],
+      dashboard: ['spend', 'leads', 'sessions'],
+    };
+    (PAGE_CHARTS[page] || []).forEach(k => keys.add(k));
+
+    const rows = [];
+    for (const key of keys) {
+      const [row] = await db.insert(chartAnnotations).values({ page, chartKey: key, xValue, comment }).returning();
+      rows.push(row);
+    }
+    return res.status(201).json(rows);
+  }
+
   const [row] = await db.insert(chartAnnotations).values({ page, chartKey, xValue, comment }).returning();
   res.status(201).json(row);
 });

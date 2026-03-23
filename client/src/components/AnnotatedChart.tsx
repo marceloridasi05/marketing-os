@@ -37,6 +37,7 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(false);
+  const [replicateToAll, setReplicateToAll] = useState(true);
 
   const fetchAnnotations = useCallback(async () => {
     const rows = await api.get<Annotation[]>(`/chart-annotations?page=${page}&chartKey=${chartKey}`);
@@ -48,13 +49,17 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
   const handleXClick = (xValue: string) => {
     setSelectedX(xValue);
     setComment('');
+    setReplicateToAll(true);
     setShowForm(true);
   };
 
   const handleSave = async () => {
     if (!comment.trim() || !selectedX) return;
     setSaving(true);
-    await api.post('/chart-annotations', { page, chartKey, xValue: selectedX, comment: comment.trim() });
+    await api.post('/chart-annotations', {
+      page, chartKey, xValue: selectedX, comment: comment.trim(),
+      replicateToAll,
+    });
     await fetchAnnotations();
     setSaving(false);
     setShowForm(false);
@@ -129,7 +134,7 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
               </span>
             </button>
           )}
-          <button onClick={() => { setSelectedX(xValues[xValues.length - 1] || ''); setComment(''); setShowForm(true); }}
+          <button onClick={() => { setSelectedX(xValues[xValues.length - 1] || ''); setComment(''); setReplicateToAll(true); setShowForm(true); }}
             className="p-1 text-gray-400 hover:text-blue-600" title="Adicionar comentário">
             <MessageSquarePlus size={16} />
           </button>
@@ -194,6 +199,14 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
                 <textarea value={comment} onChange={e => setComment(e.target.value)}
                   className="border border-gray-300 rounded px-3 py-1.5 text-sm w-full" rows={2}
                   placeholder="Ex: Campanha pausada nesta semana..." autoFocus />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="replicate-all" checked={replicateToAll}
+                  onChange={e => setReplicateToAll(e.target.checked)}
+                  className="rounded border-gray-300" />
+                <label htmlFor="replicate-all" className="text-xs text-gray-600">
+                  Replicar para todos os gráficos desta seção
+                </label>
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50">Cancelar</button>
