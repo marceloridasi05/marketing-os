@@ -265,6 +265,8 @@ export function Budget() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<BudgetItem | null>(null);
+  const [showBudgetEditor, setShowBudgetEditor] = useState(false);
+  const [budgetEdits, setBudgetEdits] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -520,6 +522,46 @@ export function Budget() {
   const openCreate = () => { setEditItem(null); setShowForm(true); };
   const onSaved = () => { setShowForm(false); setEditItem(null); fetchData(); };
 
+  // Budget months for editor: generate Jan-Dec for 2025 and 2026
+  const budgetMonthsForEditor = useMemo(() => {
+    const months: { year: number; month: number; key: string; label: string; item: BudgetItem | null }[] = [];
+    for (const y of [2025, 2026]) {
+      for (let m = 1; m <= 12; m++) {
+        const item = budgetLineItems.find(d => d.year === y && d.month === m) || null;
+        months.push({ year: y, month: m, key: `${y}-${m}`, label: `${MONTHS[m]} ${y}`, item });
+      }
+    }
+    return months;
+  }, [budgetLineItems]);
+
+  const openBudgetEditor = () => {
+    const edits: Record<string, string> = {};
+    budgetMonthsForEditor.forEach(bm => {
+      edits[bm.key] = bm.item ? String(bm.item.planned) : '';
+    });
+    setBudgetEdits(edits);
+    setShowBudgetEditor(true);
+  };
+
+  const saveBudgetEdits = async () => {
+    for (const bm of budgetMonthsForEditor) {
+      const val = parseFloat(budgetEdits[bm.key] || '0') || 0;
+      if (bm.item) {
+        if (bm.item.planned !== val) {
+          await api.put(`/budget-items/${bm.item.id}`, { ...bm.item, planned: val });
+        }
+      } else if (val > 0) {
+        await api.post('/budget-items', {
+          section: 'Budget', strategy: null, expenseType: null,
+          name: 'Total Budget', year: bm.year, month: bm.month,
+          planned: val, actual: 0,
+        });
+      }
+    }
+    setShowBudgetEditor(false);
+    fetchData();
+  };
+
   // Tab labels
   const tabLabels = ['Todos', ...SECTIONS];
 
@@ -575,6 +617,59 @@ export function Budget() {
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(activeItems)}</p>
             </Card>
           </div>
+
+          {/* Monthly Budget Editor */}
+          <CollapsibleCard title="Orçamento Mensal" subtitle="Defina o orçamento disponível mês a mês" className="mb-6"
+            actions={
+              !showBudgetEditor ? (
+                <button onClick={openBudgetEditor}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
+                  <Pencil size={14} /> Editar
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={() => setShowBudgetEditor(false)}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
+                  <button onClick={saveBudgetEdits}
+                    className="px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">Salvar</button>
+                </div>
+              )
+            }>
+            <div className="overflow-x-auto">
+              {[2025, 2026].map(yr => (
+                <div key={yr} className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{yr}</h4>
+                  <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+                    {budgetMonthsForEditor.filter(bm => bm.year === yr).map(bm => (
+                      <div key={bm.key} className="text-center">
+                        <p className="text-[10px] font-medium text-gray-400 mb-1">{MONTHS[bm.month]}</p>
+                        {showBudgetEditor ? (
+                          <input type="number" step="1000" min="0"
+                            value={budgetEdits[bm.key] || ''}
+                            onChange={e => setBudgetEdits(prev => ({ ...prev, [bm.key]: e.target.value }))}
+                            placeholder="0"
+                            className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs text-center" />
+                        ) : (
+                          <p className={`text-sm font-semibold ${bm.item && bm.item.planned > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                            {bm.item && bm.item.planned > 0 ? fmtMoney(bm.item.planned) : '—'}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-xs text-gray-500">Total {yr}: </span>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {fmtMoney(budgetMonthsForEditor.filter(bm => bm.year === yr).reduce((s, bm) => {
+                        if (showBudgetEditor) return s + (parseFloat(budgetEdits[bm.key] || '0') || 0);
+                        return s + (bm.item?.planned ?? 0);
+                      }, 0))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CollapsibleCard>
 
           {/* Filters */}
           <div className="flex items-end gap-3 mb-6 p-4 bg-white rounded-lg border border-gray-200">
