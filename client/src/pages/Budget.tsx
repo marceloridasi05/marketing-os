@@ -29,6 +29,7 @@ const MONTHS = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
 const SECTIONS = ['Headcount', 'Ferramentas', 'Eventos', 'Mídia', 'Viagens', 'Brindes & Promo', 'Terceiros'];
+const SAVINGS_START = '2025-09'; // Savings only count from Sep 2025 onwards
 const SECTION_COLORS: Record<string, string> = {
   'Headcount': '#3b82f6',
   'Ferramentas': '#10b981',
@@ -267,6 +268,7 @@ export function Budget() {
   const [editItem, setEditItem] = useState<BudgetItem | null>(null);
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
   const [budgetEdits, setBudgetEdits] = useState<Record<string, string>>({});
+  const [showPrevYears, setShowPrevYears] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -347,17 +349,19 @@ export function Budget() {
 
   // KPIs
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
-  const totalOrcamento = filteredBudget.reduce((s, d) => s + d.planned, 0);
-  const savings = totalOrcamento - totalGasto;
+  // Only count budget from SAVINGS_START onwards
+  const totalOrcamento = filteredBudget.filter(d => `${d.year}-${String(d.month).padStart(2, '0')}` >= SAVINGS_START).reduce((s, d) => s + d.planned, 0);
+  // Savings: only sum cost from months >= SAVINGS_START
+  const gastoFromSavingsStart = filtered.filter(d => `${d.year}-${String(d.month).padStart(2, '0')}` >= SAVINGS_START).reduce((s, d) => s + d.actual, 0);
+  const savings = totalOrcamento - gastoFromSavingsStart;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
-  // Savings acumulado: compute running total over all months
+  // Savings acumulado: compute running total over months from SAVINGS_START
   const savingsAcumulado = useMemo(() => {
-    // Get all months that exist in cost or budget items
     const allMonths = new Set<string>();
     costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort();
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     for (const ym of sortedMonths) {
@@ -388,12 +392,12 @@ export function Budget() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
   }, [filtered]);
 
-  // Savings line chart data
+  // Savings line chart data (only from SAVINGS_START)
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
     costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort();
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     return sortedMonths.map(ym => {
@@ -483,7 +487,7 @@ export function Budget() {
     const allMonths = new Set<string>();
     costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort();
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     return sortedMonths.map(ym => {
@@ -595,23 +599,30 @@ export function Budget() {
       ) : (
         <>
           {/* KPI Tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          <div className={`grid grid-cols-2 md:grid-cols-3 ${activeTab === 'Todos' ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-3 mb-6`}>
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Gasto</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalGasto)}</p>
             </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Savings</p>
-              <p className={`text-2xl font-semibold mt-1 ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savings)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Savings Acumulado</p>
-              <p className={`text-2xl font-semibold mt-1 ${savingsAcumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumulado)}</p>
-            </Card>
+            {activeTab === 'Todos' && (
+              <>
+                <Card className="min-w-0">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
+                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
+                </Card>
+                <Card className="min-w-0">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Savings</p>
+                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className={`text-2xl font-semibold mt-1 ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savings)}</p>
+                </Card>
+                <Card className="min-w-0">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Savings Acumulado</p>
+                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className={`text-2xl font-semibold mt-1 ${savingsAcumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumulado)}</p>
+                </Card>
+              </>
+            )}
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase"># Items ativos</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtNum(activeItems)}</p>
@@ -636,38 +647,57 @@ export function Budget() {
               )
             }>
             <div className="overflow-x-auto">
-              {[2025, 2026].map(yr => (
-                <div key={yr} className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{yr}</h4>
-                  <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                    {budgetMonthsForEditor.filter(bm => bm.year === yr).map(bm => (
-                      <div key={bm.key} className="text-center">
-                        <p className="text-[10px] font-medium text-gray-400 mb-1">{MONTHS[bm.month]}</p>
-                        {showBudgetEditor ? (
-                          <input type="number" step="1000" min="0"
-                            value={budgetEdits[bm.key] || ''}
-                            onChange={e => setBudgetEdits(prev => ({ ...prev, [bm.key]: e.target.value }))}
-                            placeholder="0"
-                            className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs text-center" />
-                        ) : (
-                          <p className={`text-sm font-semibold ${bm.item && bm.item.planned > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
-                            {bm.item && bm.item.planned > 0 ? fmtMoney(bm.item.planned) : '—'}
-                          </p>
-                        )}
+              {/* Current year */}
+              {(() => {
+                const currentYear = new Date().getFullYear();
+                const renderYear = (yr: number) => (
+                  <div key={yr} className="mb-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{yr}</h4>
+                    <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+                      {budgetMonthsForEditor.filter(bm => bm.year === yr).map(bm => (
+                        <div key={bm.key} className="text-center">
+                          <p className="text-[10px] font-medium text-gray-400 mb-1">{MONTHS[bm.month]}</p>
+                          {showBudgetEditor ? (
+                            <input type="number" step="1000" min="0"
+                              value={budgetEdits[bm.key] || ''}
+                              onChange={e => setBudgetEdits(prev => ({ ...prev, [bm.key]: e.target.value }))}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs text-center" />
+                          ) : (
+                            <p className={`text-sm font-semibold ${bm.item && bm.item.planned > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                              {bm.item && bm.item.planned > 0 ? fmtMoney(bm.item.planned) : '—'}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-right">
+                      <span className="text-xs text-gray-500">Total {yr}: </span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {fmtMoney(budgetMonthsForEditor.filter(bm => bm.year === yr).reduce((s, bm) => {
+                          if (showBudgetEditor) return s + (parseFloat(budgetEdits[bm.key] || '0') || 0);
+                          return s + (bm.item?.planned ?? 0);
+                        }, 0))}
+                      </span>
+                    </div>
+                  </div>
+                );
+                const prevYears = [2025].filter(y => y < currentYear);
+                return (
+                  <>
+                    {renderYear(currentYear)}
+                    {prevYears.length > 0 && (
+                      <div className="border-t border-gray-200 pt-3 mt-3">
+                        <button onClick={() => setShowPrevYears(!showPrevYears)}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                          {showPrevYears ? '▾' : '▸'} Anos anteriores ({prevYears.join(', ')})
+                        </button>
+                        {showPrevYears && prevYears.map(yr => renderYear(yr))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-xs text-gray-500">Total {yr}: </span>
-                    <span className="text-sm font-semibold text-gray-700">
-                      {fmtMoney(budgetMonthsForEditor.filter(bm => bm.year === yr).reduce((s, bm) => {
-                        if (showBudgetEditor) return s + (parseFloat(budgetEdits[bm.key] || '0') || 0);
-                        return s + (bm.item?.planned ?? 0);
-                      }, 0))}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </CollapsibleCard>
 
@@ -736,20 +766,22 @@ export function Budget() {
               )}
             </Card>
 
-            {/* Savings line chart */}
-            <AnnotatedChart
-              title="Savings Mensal"
-              data={savingsChartData}
-              xKey="name"
-              lines={[
-                { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
-                { dataKey: 'Orçamento', color: '#3b82f6', name: 'Orçamento' },
-                { dataKey: 'Savings Acum.', color: '#f59e0b', name: 'Savings Acum.' },
-              ]}
-              page="budget"
-              chartKey="savings"
-              height={250}
-            />
+            {/* Savings line chart - only when Todos */}
+            {activeTab === 'Todos' && (
+              <AnnotatedChart
+                title="Savings Mensal (a partir de Set/2025)"
+                data={savingsChartData}
+                xKey="name"
+                lines={[
+                  { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
+                  { dataKey: 'Orçamento', color: '#3b82f6', name: 'Orçamento' },
+                  { dataKey: 'Savings Acum.', color: '#f59e0b', name: 'Savings Acum.' },
+                ]}
+                page="budget"
+                chartKey="savings"
+                height={250}
+              />
+            )}
           </div>
 
           {/* Detail Table */}
@@ -885,8 +917,8 @@ export function Budget() {
             </div>
           </CollapsibleCard>
 
-          {/* Savings Table */}
-          <CollapsibleCard title="Savings por Mês" className="mb-6">
+          {/* Savings Table - only when Todos */}
+          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (a partir de Set/2025)" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -920,7 +952,7 @@ export function Budget() {
                 </tbody>
               </table>
             </div>
-          </CollapsibleCard>
+          </CollapsibleCard>}
 
           {/* Individual items CRUD table */}
           <CollapsibleCard title="Itens Individuais (CRUD)" className="mb-6" defaultOpen={false}
