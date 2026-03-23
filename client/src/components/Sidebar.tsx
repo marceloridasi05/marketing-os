@@ -7,12 +7,14 @@ import {
   Globe,
   Linkedin,
   Settings,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Painel', icon: LayoutDashboard },
   { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
   { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
+  { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
   { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
   { to: '/budget', label: 'Orçamento', icon: DollarSign },
   { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },

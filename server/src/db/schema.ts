@@ -181,6 +181,20 @@ export const budgetItems = sqliteTable('budget_items', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const adsBudgets = sqliteTable('ads_budgets', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(), // 1-12, or 0 for "Disponível" row
+  dailyGoogle: real('daily_google'),
+  monthlyGoogle: real('monthly_google'),
+  dailyLinkedin: real('daily_linkedin'),
+  monthlyLinkedin: real('monthly_linkedin'),
+  dailyTotal: real('daily_total'),
+  monthlyTotalUsed: real('monthly_total_used'),
+  monthlyAvailable: real('monthly_available'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const chartAnnotations = sqliteTable('chart_annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   page: text('page').notNull(),

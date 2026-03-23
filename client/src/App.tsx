@@ -7,6 +7,7 @@ import { Plan } from './pages/Plan';
 import { SettingsPage } from './pages/SettingsPage';
 import { SiteData } from './pages/SiteData';
 import { LinkedinPage } from './pages/LinkedinPage';
+import { AdsBudgets } from './pages/AdsBudgets';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/performance" element={<Performance />} />
+          <Route path="/ads-budgets" element={<AdsBudgets />} />
           <Route path="/budget" element={<Budget />} />
           <Route path="/plan" element={<Plan />} />
           <Route path="/site-data" element={<SiteData />} />
