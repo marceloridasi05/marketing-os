@@ -4,6 +4,9 @@ import { Card } from '../components/Card';
 import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 
 interface SiteRow {
   id: number;
@@ -27,20 +30,26 @@ interface SiteRow {
 
 const fmtNum = (n: number | null) => n != null ? n.toLocaleString('pt-BR') : '—';
 const fmtDate = (d: string) => {
-  // yyyy-mm-dd → dd/mm/yyyy
   const m = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
 };
 
+// Δ% helpers
+function PctCell({ current, previous }: { current: number | null; previous: number | null }) {
+  if (current == null || previous == null || previous === 0) return <td className="py-2 px-1 text-right text-[11px] text-gray-300 whitespace-nowrap">—</td>;
+  const diff = ((current - previous) / previous) * 100;
+  const color = diff >= 0 ? 'text-green-600' : 'text-red-500';
+  const label = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+  return <td className={`py-2 px-1 text-right text-[11px] font-medium ${color} whitespace-nowrap`}>{label}</td>;
+}
+
 function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
   const [sortKey, setSortKey] = useState(defaultKey);
   const [sortAsc, setSortAsc] = useState(defaultAsc);
-
   const handleSort = (key: string) => {
     if (sortKey === key) setSortAsc(!sortAsc);
     else { setSortKey(key); setSortAsc(true); }
   };
-
   const sorted = useMemo(() => {
     return [...data].sort((a, b) => {
       const av = (a as Record<string, unknown>)[sortKey];
@@ -52,16 +61,16 @@ function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
       return 0;
     });
   }, [data, sortKey, sortAsc]);
-
   const SortHeader = ({ k, label, align = 'left' }: { k: string; label: string; align?: 'left' | 'right' }) => (
     <th className={`${align === 'right' ? 'text-right' : 'text-left'} py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm`}
       onClick={() => handleSort(k)}>
       {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
     </th>
   );
-
-  return { sorted, SortHeader, sortKey, sortAsc };
+  return { sorted, SortHeader };
 }
+
+const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function SiteData() {
   const [data, setData] = useState<SiteRow[]>([]);
@@ -84,27 +93,67 @@ export function SiteData() {
       const result = await api.post<{ success: boolean; imported: number }>('/site-data/sync', {});
       setLastSync(`${result.imported} registros sincronizados`);
       await fetchData();
-    } catch (err) {
-      setLastSync(`Erro: ${err}`);
-    }
+    } catch (err) { setLastSync(`Erro: ${err}`); }
     setSyncing(false);
   };
 
-  // Only rows with actual data for KPIs
   const withData = data.filter(r => r.sessions != null && r.sessions > 0);
   const latest = withData.length > 0 ? withData[withData.length - 1] : null;
   const totalSessions = withData.reduce((s, r) => s + (r.sessions ?? 0), 0);
   const totalLeads = withData.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
   const totalNewUsers = withData.reduce((s, r) => s + (r.newUsers ?? 0), 0);
 
-  // Chart data: only rows with sessions, last 20
+  // Chart data
   const chartData = withData.slice(-20).map(r => ({
     week: r.week.replace('Semana ', 'S'),
     Sessões: r.sessions ?? 0,
     Leads: r.leadsGenerated ?? 0,
   }));
 
-  // Sort hooks for each table
+  const siteChartData = withData.slice(-20).map(r => ({
+    week: r.week.replace('Semana ', 'S'),
+    'Sessões Site': r.sessions ?? 0,
+    'Usuários Site': r.totalUsers ?? 0,
+  }));
+
+  const blogChartData = withData.slice(-20).map(r => ({
+    week: r.week.replace('Semana ', 'S'),
+    'Sessões Blog': r.blogSessions ?? 0,
+    'Usuários Blog': r.blogTotalUsers ?? 0,
+  }));
+
+  // Monthly aggregation
+  interface MonthAgg {
+    sessions: number; totalUsers: number; newUsers: number; leads: number; gains: number;
+    blogSessions: number; blogUsers: number; blogNewUsers: number;
+    aiSessions: number; aiUsers: number;
+  }
+  const monthlyData = useMemo(() => {
+    const byMonth: Record<string, MonthAgg> = {};
+    for (const r of withData) {
+      const key = r.weekStart.slice(0, 7);
+      if (!byMonth[key]) byMonth[key] = { sessions: 0, totalUsers: 0, newUsers: 0, leads: 0, gains: 0, blogSessions: 0, blogUsers: 0, blogNewUsers: 0, aiSessions: 0, aiUsers: 0 };
+      const m = byMonth[key];
+      m.sessions += r.sessions ?? 0;
+      m.totalUsers += r.totalUsers ?? 0;
+      m.newUsers += r.newUsers ?? 0;
+      m.leads += r.leadsGenerated ?? 0;
+      m.gains += r.weeklyGains ?? 0;
+      m.blogSessions += r.blogSessions ?? 0;
+      m.blogUsers += r.blogTotalUsers ?? 0;
+      m.blogNewUsers += r.blogNewUsers ?? 0;
+      m.aiSessions += r.aiSessions ?? 0;
+      m.aiUsers += r.aiTotalUsers ?? 0;
+    }
+    return Object.keys(byMonth).sort().map(key => ({ key, ...byMonth[key] }));
+  }, [withData]);
+
+  const monthlyChartData = monthlyData.map(m => {
+    const [yr, mo] = m.key.split('-');
+    return { name: `${MONTH_NAMES[parseInt(mo) - 1]} ${yr}`, 'Sessões Site': m.sessions, 'Sessões Blog': m.blogSessions, Leads: m.leads };
+  });
+
+  // Sort hooks
   const mainSort = useSort(data, 'weekStart', true);
   const blogSort = useSort(data, 'weekStart', true);
   const aiSort = useSort(data, 'weekStart', true);
@@ -160,14 +209,30 @@ export function SiteData() {
             </Card>
           </div>
 
-          {/* Charts */}
+          {/* Charts Row 1 - All traffic + Leads */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <AnnotatedChart title="Sessões por Semana" data={chartData} xKey="week"
+            <AnnotatedChart title="Sessões por Semana — Todas as fontes de tráfego" data={chartData} xKey="week"
               lines={[{ dataKey: 'Sessões', color: '#3b82f6', name: 'Sessões' }]}
               page="site_data" chartKey="sessions" />
-            <AnnotatedChart title="Leads por Semana" data={chartData} xKey="week"
+            <AnnotatedChart title="Leads por Semana — Inbound" data={chartData} xKey="week"
               lines={[{ dataKey: 'Leads', color: '#10b981', name: 'Leads' }]}
               page="site_data" chartKey="leads" />
+          </div>
+
+          {/* Charts Row 2 - Site vs Blog */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <AnnotatedChart title="Sessões vs Usuários — Site" data={siteChartData} xKey="week"
+              lines={[
+                { dataKey: 'Sessões Site', color: '#3b82f6', name: 'Sessões' },
+                { dataKey: 'Usuários Site', color: '#f59e0b', name: 'Usuários' },
+              ]}
+              page="site_data" chartKey="site_sessions_users" />
+            <AnnotatedChart title="Sessões vs Usuários — Blog" data={blogChartData} xKey="week"
+              lines={[
+                { dataKey: 'Sessões Blog', color: '#8b5cf6', name: 'Sessões' },
+                { dataKey: 'Usuários Blog', color: '#ec4899', name: 'Usuários' },
+              ]}
+              page="site_data" chartKey="blog_sessions_users" />
           </div>
 
           {/* Site Brick + Blog table */}
@@ -179,28 +244,39 @@ export function SiteData() {
                     <mainSort.SortHeader k="week" label="Semana" />
                     <mainSort.SortHeader k="weekStart" label="Início" />
                     <mainSort.SortHeader k="sessions" label="Sessões" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="totalUsers" label="Usuários" align="right" />
-                    <mainSort.SortHeader k="paidClicks" label="Cliq. Pagos" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="newUsers" label="Novos Usr." align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="newUsersPct" label="% Novos" align="right" />
                     <mainSort.SortHeader k="leadsGenerated" label="Leads" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <mainSort.SortHeader k="weeklyGains" label="Ganhos" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {mainSort.sorted.map(r => (
+                  {mainSort.sorted.map((r, idx) => {
+                    const prev = idx > 0 ? mainSort.sorted[idx - 1] : null;
+                    return (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.sessions)}</td>
+                      <PctCell current={r.sessions} previous={prev?.sessions ?? null} />
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.totalUsers)}</td>
-                      <td className="py-2 px-2 text-right text-gray-600">{fmtNum(r.paidClicks)}</td>
+                      <PctCell current={r.totalUsers} previous={prev?.totalUsers ?? null} />
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.newUsers)}</td>
+                      <PctCell current={r.newUsers} previous={prev?.newUsers ?? null} />
                       <td className="py-2 px-2 text-right text-gray-600">{r.newUsersPct ?? '—'}</td>
                       <td className="py-2 px-2 text-right text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
+                      <PctCell current={r.leadsGenerated} previous={prev?.leadsGenerated ?? null} />
                       <td className="py-2 px-2 text-right text-gray-600">{fmtNum(r.weeklyGains)}</td>
+                      <PctCell current={r.weeklyGains} previous={prev?.weeklyGains ?? null} />
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -215,29 +291,38 @@ export function SiteData() {
                     <blogSort.SortHeader k="week" label="Semana" />
                     <blogSort.SortHeader k="weekStart" label="Início" />
                     <blogSort.SortHeader k="blogSessions" label="Sessões" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogTotalUsers" label="Usuários" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogNewUsers" label="Novos Usr." align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <blogSort.SortHeader k="blogNewUsersPct" label="% Novos" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {blogSort.sorted.map(r => (
+                  {blogSort.sorted.map((r, idx) => {
+                    const prev = idx > 0 ? blogSort.sorted[idx - 1] : null;
+                    return (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogSessions)}</td>
+                      <PctCell current={r.blogSessions} previous={prev?.blogSessions ?? null} />
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogTotalUsers)}</td>
+                      <PctCell current={r.blogTotalUsers} previous={prev?.blogTotalUsers ?? null} />
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.blogNewUsers)}</td>
+                      <PctCell current={r.blogNewUsers} previous={prev?.blogNewUsers ?? null} />
                       <td className="py-2 px-2 text-right text-gray-600">{r.blogNewUsersPct ?? '—'}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </Card>
 
           {/* Origem IA table */}
-          <Card title="Origem IA">
+          <Card title="Origem IA" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -245,22 +330,117 @@ export function SiteData() {
                     <aiSort.SortHeader k="week" label="Semana" />
                     <aiSort.SortHeader k="weekStart" label="Início" />
                     <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                     <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
+                    <th className="text-right py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {aiSort.sorted.map(r => (
+                  {aiSort.sorted.map((r, idx) => {
+                    const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
+                    return (
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiSessions)}</td>
+                      <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
                       <td className="py-2 px-2 text-right text-gray-900">{fmtNum(r.aiTotalUsers)}</td>
+                      <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </Card>
+
+          {/* Monthly Chart */}
+          {monthlyData.length > 1 && (
+            <Card title="Visão Mensal — Sessões e Leads" className="mb-6">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} width={55} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Sessões Site" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="Sessões Blog" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="Leads" fill="#10b981" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {/* Monthly Table */}
+          {monthlyData.length > 1 && (
+            <Card title="Comparativo Mensal">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 px-2 font-medium text-gray-500">Mês</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Sessões Site</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Usuários Site</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Novos Usr.</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Leads</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Sessões Blog</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      <th className="text-right py-2 px-2 font-medium text-gray-500">Usr. Blog</th>
+                      <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyData.map((m, idx) => {
+                      const prev = idx > 0 ? monthlyData[idx - 1] : null;
+                      const [yr, mo] = m.key.split('-');
+                      const label = `${MONTH_NAMES[parseInt(mo) - 1]} ${yr}`;
+                      return (
+                        <tr key={m.key} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.sessions)}</td>
+                          <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.totalUsers)}</td>
+                          <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.newUsers)}</td>
+                          <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
+                          <td className="py-2.5 px-2 text-right text-green-600 font-medium">{fmtNum(m.leads)}</td>
+                          <PctCell current={m.leads} previous={prev?.leads ?? null} />
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.blogSessions)}</td>
+                          <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.blogUsers)}</td>
+                          <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
+                        </tr>
+                      );
+                    })}
+                    {/* Total row */}
+                    {(() => {
+                      const t = monthlyData.reduce((acc, m) => ({
+                        sessions: acc.sessions + m.sessions, totalUsers: acc.totalUsers + m.totalUsers,
+                        newUsers: acc.newUsers + m.newUsers, leads: acc.leads + m.leads,
+                        blogSessions: acc.blogSessions + m.blogSessions, blogUsers: acc.blogUsers + m.blogUsers,
+                      }), { sessions: 0, totalUsers: 0, newUsers: 0, leads: 0, blogSessions: 0, blogUsers: 0 });
+                      return (
+                        <tr className="bg-gray-50 font-medium">
+                          <td className="py-2.5 px-2 text-gray-700">Total</td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.sessions)}</td><td></td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.totalUsers)}</td><td></td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.newUsers)}</td><td></td>
+                          <td className="py-2.5 px-2 text-right text-green-600">{fmtNum(t.leads)}</td><td></td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.blogSessions)}</td><td></td>
+                          <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.blogUsers)}</td><td></td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>
