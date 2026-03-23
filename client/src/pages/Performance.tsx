@@ -402,6 +402,112 @@ export function Performance() {
             />
           </div>
 
+          {/* Monthly Comparison */}
+          {(() => {
+            const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            interface MonthAgg { gaImp: number; gaClicks: number; gaConv: number; gaCost: number; liImp: number; liClicks: number; liCost: number; }
+            const byMonth: Record<string, MonthAgg> = {};
+            for (const r of withData) {
+              const d = r.weekStart;
+              const key = d.slice(0, 7); // YYYY-MM
+              if (!byMonth[key]) byMonth[key] = { gaImp: 0, gaClicks: 0, gaConv: 0, gaCost: 0, liImp: 0, liClicks: 0, liCost: 0 };
+              const m = byMonth[key];
+              m.gaImp += r.gaImpressions ?? 0;
+              m.gaClicks += r.gaClicks ?? 0;
+              m.gaConv += r.gaConversions ?? 0;
+              // parse gaCostAvg
+              const costStr = r.gaCostAvg?.replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.') ?? '0';
+              m.gaCost += parseFloat(costStr) || 0;
+              m.liImp += r.liImpressions ?? 0;
+              m.liClicks += r.liClicks ?? 0;
+              m.liCost += r.liCost ?? 0;
+            }
+            const months = Object.keys(byMonth).sort();
+            if (months.length < 2) return null;
+            return (
+              <Card className="mb-6">
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Comparativo Mensal</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-2 font-medium text-gray-500">Mês</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Impr.</th>
+                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Cliques</th>
+                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Conv.</th>
+                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google CTR</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">Google Custo</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Impr.</th>
+                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Cliques</th>
+                        <th className="text-right py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500">LinkedIn Custo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {months.map((key, idx) => {
+                        const m = byMonth[key];
+                        const prev = idx > 0 ? byMonth[months[idx - 1]] : null;
+                        const [yr, mo] = key.split('-');
+                        const label = `${MONTH_NAMES[parseInt(mo) - 1]} ${yr}`;
+                        const gaCtr = m.gaImp > 0 ? ((m.gaClicks / m.gaImp) * 100).toFixed(2) + '%' : '—';
+                        return (
+                          <tr key={key} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.gaImp)}</td>
+                            <PctCell current={m.gaImp} previous={prev?.gaImp ?? null} />
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.gaClicks)}</td>
+                            <PctCell current={m.gaClicks} previous={prev?.gaClicks ?? null} />
+                            <td className="py-2.5 px-2 text-right text-green-600 font-medium">{fmtNum(m.gaConv)}</td>
+                            <PctCell current={m.gaConv} previous={prev?.gaConv ?? null} />
+                            <td className="py-2.5 px-2 text-right text-gray-600">{gaCtr}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(m.gaCost)}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.liImp)}</td>
+                            <PctCell current={m.liImp} previous={prev?.liImp ?? null} />
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(m.liClicks)}</td>
+                            <PctCell current={m.liClicks} previous={prev?.liClicks ?? null} />
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(m.liCost)}</td>
+                          </tr>
+                        );
+                      })}
+                      {/* Totals */}
+                      {(() => {
+                        const t = months.reduce((acc, k) => {
+                          const m = byMonth[k];
+                          acc.gaImp += m.gaImp; acc.gaClicks += m.gaClicks; acc.gaConv += m.gaConv; acc.gaCost += m.gaCost;
+                          acc.liImp += m.liImp; acc.liClicks += m.liClicks; acc.liCost += m.liCost;
+                          return acc;
+                        }, { gaImp: 0, gaClicks: 0, gaConv: 0, gaCost: 0, liImp: 0, liClicks: 0, liCost: 0 });
+                        const tGaCtr = t.gaImp > 0 ? ((t.gaClicks / t.gaImp) * 100).toFixed(2) + '%' : '—';
+                        return (
+                          <tr className="bg-gray-50 font-medium">
+                            <td className="py-2.5 px-2 text-gray-700">Total</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.gaImp)}</td>
+                            <td></td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.gaClicks)}</td>
+                            <td></td>
+                            <td className="py-2.5 px-2 text-right text-green-600">{fmtNum(t.gaConv)}</td>
+                            <td></td>
+                            <td className="py-2.5 px-2 text-right text-gray-600">{tGaCtr}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(t.gaCost)}</td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.liImp)}</td>
+                            <td></td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtNum(t.liClicks)}</td>
+                            <td></td>
+                            <td className="py-2.5 px-2 text-right text-gray-900">{fmtMoney(t.liCost)}</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })()}
+
           {/* Tabs */}
           <div className="flex gap-1 mb-0">
             <button className={tabCls('google')} onClick={() => setTab('google')}>Google Ads</button>
