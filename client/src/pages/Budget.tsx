@@ -447,6 +447,28 @@ export function Budget() {
   // Detail filtered by year (used by charts, tables, breakdowns)
   const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
 
+  // Budget & savings per month for detailYear (excl Headcount, from SAVINGS_START)
+  const monthBudgetSavings = useMemo(() => {
+    const result: Record<string, { budget: number; gasto: number; savings: number; savingsAcum: number }> = {};
+    // Compute cumulative savings from SAVINGS_START up to start of detailYear
+    let cumSavings = 0;
+    const allMonths = new Set<string>();
+    costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
+    budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
+    const sorted = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    for (const ym of sorted) {
+      const [y, m] = ym.split('-').map(Number);
+      const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const mb = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
+      const ms = mb - mc;
+      cumSavings += ms;
+      if (y === detailYear) {
+        result[ym] = { budget: mb, gasto: mc, savings: ms, savingsAcum: cumSavings };
+      }
+    }
+    return result;
+  }, [costItemsExclHC, budgetLineItems, detailYear]);
+
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
     const map = new Map<string, Record<string, number>>();
@@ -1117,30 +1139,91 @@ export function Budget() {
                     );
                   })}
                   {/* Total row */}
-                  {itemRows.length > 0 && (
-                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-                      <td className="py-2.5 px-2 text-left text-gray-800">Total</td>
-                      <td className="py-2.5 px-2"></td>
-                      <td className="py-2.5 px-2"></td>
-                      <td className="py-2.5 px-2"></td>
-                      {monthKeys.map(mk => {
-                        const monthTotal = itemRows.reduce((s, r) => s + (r.months[mk] || 0), 0);
-                        return (
-                          <td key={mk} className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
-                            {monthTotal > 0 ? fmtMoney(monthTotal) : '—'}
-                          </td>
-                        );
-                      })}
-                      {monthKeys.length > 1 && (
-                        <>
-                          <td className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
-                            {fmtMoney(itemRows.reduce((s, r) => s + r.total, 0))}
-                          </td>
-                          <td className="py-2.5 px-2"></td>
-                        </>
-                      )}
-                    </tr>
-                  )}
+                  {itemRows.length > 0 && (() => {
+                    const grandTotal = itemRows.reduce((s, r) => s + r.total, 0);
+                    const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
+                    const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
+                    const lastMk = monthKeys.filter(mk => monthBudgetSavings[mk]).pop();
+                    const savingsAcumTotal = lastMk ? (monthBudgetSavings[lastMk]?.savingsAcum ?? 0) : 0;
+                    return (
+                      <>
+                        <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                          <td className="py-2.5 px-2 text-left text-gray-800">Grand Total Mkt</td>
+                          <td className="py-2.5 px-2" colSpan={3}></td>
+                          {monthKeys.map(mk => {
+                            const monthTotal = itemRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + (r.months[mk] || 0), 0);
+                            return (
+                              <td key={mk} className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
+                                {monthTotal > 0 ? fmtMoney(monthTotal) : '—'}
+                              </td>
+                            );
+                          })}
+                          {monthKeys.length > 1 && (
+                            <>
+                              <td className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
+                                {fmtMoney(itemRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + r.total, 0))}
+                              </td>
+                              <td className="py-2.5 px-2"></td>
+                            </>
+                          )}
+                        </tr>
+                        <tr className="bg-blue-50 font-medium">
+                          <td className="py-2 px-2 text-left text-blue-800">Budget</td>
+                          <td className="py-2 px-2" colSpan={3}></td>
+                          {monthKeys.map(mk => {
+                            const b = monthBudgetSavings[mk]?.budget ?? 0;
+                            return (
+                              <td key={mk} className="py-2 px-2 text-center text-blue-800 whitespace-nowrap">
+                                {b > 0 ? fmtMoney(b) : '—'}
+                              </td>
+                            );
+                          })}
+                          {monthKeys.length > 1 && (
+                            <>
+                              <td className="py-2 px-2 text-center text-blue-800 whitespace-nowrap">{budgetTotal > 0 ? fmtMoney(budgetTotal) : '—'}</td>
+                              <td className="py-2 px-2"></td>
+                            </>
+                          )}
+                        </tr>
+                        <tr className="bg-green-50 font-medium">
+                          <td className="py-2 px-2 text-left text-green-800">Budget Savings</td>
+                          <td className="py-2 px-2" colSpan={3}></td>
+                          {monthKeys.map(mk => {
+                            const sv = monthBudgetSavings[mk]?.savings;
+                            return (
+                              <td key={mk} className={`py-2 px-2 text-center whitespace-nowrap font-medium ${sv != null ? (sv >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>
+                                {sv != null ? fmtMoney(sv) : '—'}
+                              </td>
+                            );
+                          })}
+                          {monthKeys.length > 1 && (
+                            <>
+                              <td className={`py-2 px-2 text-center whitespace-nowrap font-medium ${savingsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsTotal)}</td>
+                              <td className="py-2 px-2"></td>
+                            </>
+                          )}
+                        </tr>
+                        <tr className="bg-yellow-50 font-medium">
+                          <td className="py-2 px-2 text-left text-yellow-800">Savings Acumulado</td>
+                          <td className="py-2 px-2" colSpan={3}></td>
+                          {monthKeys.map(mk => {
+                            const sa = monthBudgetSavings[mk]?.savingsAcum;
+                            return (
+                              <td key={mk} className={`py-2 px-2 text-center whitespace-nowrap font-medium ${sa != null ? (sa >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>
+                                {sa != null ? fmtMoney(sa) : '—'}
+                              </td>
+                            );
+                          })}
+                          {monthKeys.length > 1 && (
+                            <>
+                              <td className={`py-2 px-2 text-center whitespace-nowrap font-medium ${savingsAcumTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumTotal)}</td>
+                              <td className="py-2 px-2"></td>
+                            </>
+                          )}
+                        </tr>
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -1201,20 +1284,54 @@ export function Budget() {
                       </tr>
                     );
                   })}
-                  {/* Grand total */}
-                  {sectionRows.length > 0 && (
-                    <tr className="bg-gray-50 font-medium">
-                      <td className="py-2.5 px-2 text-left text-gray-700">Total Geral</td>
-                      {monthKeys.map(mk => {
-                        const total = sectionRows.reduce((s, r) => s + (r.months[mk] || 0), 0);
-                        return (
-                          <td key={mk} className="py-2.5 px-2 text-center text-gray-900">{total > 0 ? fmtMoney(total) : '—'}</td>
-                        );
-                      })}
-                      <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(totalGasto)}</td>
-                      <td></td>
-                    </tr>
-                  )}
+                  {/* Grand Total Mkt + Budget + Savings rows */}
+                  {sectionRows.length > 0 && (() => {
+                    const grandTotalExclHC = sectionRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + r.total, 0);
+                    const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
+                    const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
+                    const lastMk = monthKeys.filter(mk => monthBudgetSavings[mk]).pop();
+                    const savingsAcumTotal = lastMk ? (monthBudgetSavings[lastMk]?.savingsAcum ?? 0) : 0;
+                    return (
+                      <>
+                        <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                          <td className="py-2.5 px-2 text-left text-gray-800">Grand Total Mkt</td>
+                          {monthKeys.map(mk => {
+                            const total = sectionRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + (r.months[mk] || 0), 0);
+                            return <td key={mk} className="py-2.5 px-2 text-center text-gray-900">{total > 0 ? fmtMoney(total) : '—'}</td>;
+                          })}
+                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(grandTotalExclHC)}</td>
+                          <td></td>
+                        </tr>
+                        <tr className="bg-blue-50 font-medium">
+                          <td className="py-2 px-2 text-left text-blue-800">Budget</td>
+                          {monthKeys.map(mk => {
+                            const b = monthBudgetSavings[mk]?.budget ?? 0;
+                            return <td key={mk} className="py-2 px-2 text-center text-blue-800">{b > 0 ? fmtMoney(b) : '—'}</td>;
+                          })}
+                          <td className="py-2 px-2 text-center text-blue-800">{budgetTotal > 0 ? fmtMoney(budgetTotal) : '—'}</td>
+                          <td></td>
+                        </tr>
+                        <tr className="bg-green-50 font-medium">
+                          <td className="py-2 px-2 text-left text-green-800">Budget Savings</td>
+                          {monthKeys.map(mk => {
+                            const sv = monthBudgetSavings[mk]?.savings;
+                            return <td key={mk} className={`py-2 px-2 text-center font-medium ${sv != null ? (sv >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>{sv != null ? fmtMoney(sv) : '—'}</td>;
+                          })}
+                          <td className={`py-2 px-2 text-center font-medium ${savingsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsTotal)}</td>
+                          <td></td>
+                        </tr>
+                        <tr className="bg-yellow-50 font-medium">
+                          <td className="py-2 px-2 text-left text-yellow-800">Savings Acumulado</td>
+                          {monthKeys.map(mk => {
+                            const sa = monthBudgetSavings[mk]?.savingsAcum;
+                            return <td key={mk} className={`py-2 px-2 text-center font-medium ${sa != null ? (sa >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>{sa != null ? fmtMoney(sa) : '—'}</td>;
+                          })}
+                          <td className={`py-2 px-2 text-center font-medium ${savingsAcumTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumTotal)}</td>
+                          <td></td>
+                        </tr>
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
