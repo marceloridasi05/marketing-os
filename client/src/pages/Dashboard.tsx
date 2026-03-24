@@ -263,14 +263,19 @@ export function Dashboard() {
   const totalLiImpressions = fLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
   const latestFollowers = fLiPage.length > 0 ? (fLiPage[fLiPage.length - 1].followers ?? 0) : 0;
   const totalAdsSpend = fAdsBudgets.reduce((s, r) => s + (r.monthlyTotalUsed ?? 0), 0);
-  const totalMktgSpend = fBudget.filter(r => r.section !== 'Budget').reduce((s, r) => s + r.actual, 0);
+  const totalMktgSpend = fBudget.filter(r => r.section !== 'Budget' && r.section !== 'Headcount').reduce((s, r) => s + r.actual, 0);
 
-  // Savings: only from 2025-09 onwards
+  // Savings: only from 2025-09 onwards, excluding Headcount (matches spreadsheet Grand Total Mkt)
   const savingsBudget = fBudget.filter(r => {
     const ym = r.year * 100 + r.month;
-    return ym >= 202509 && r.section !== 'Budget';
+    return ym >= 202509 && r.section !== 'Budget' && r.section !== 'Headcount';
   });
-  const totalSavings = savingsBudget.reduce((s, r) => s + (r.planned - r.actual), 0);
+  // Budget limits from 2025-09 onwards
+  const budgetLimits = fBudget.filter(r => {
+    const ym = r.year * 100 + r.month;
+    return ym >= 202509 && r.section === 'Budget';
+  });
+  const totalSavings = budgetLimits.reduce((s, r) => s + r.planned, 0) - savingsBudget.reduce((s, r) => s + r.actual, 0);
 
   // --- Chart data ---
   const siteChartData = useMemo(() => {

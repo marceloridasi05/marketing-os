@@ -160,20 +160,20 @@ router.post('/sync', async (_req, res) => {
       const strategy = row[0]?.trim() || null;
       const expenseType = row[1]?.trim() || null;
 
-      // Process 2025 months (cols 3-14)
+      // Process 2025 months (cols 3-14) - values are actual spend
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[3 + m] ?? '');
         if (val !== 0) {
-          await upsertBudgetItem(section, strategy, expenseType, name, 2025, m + 1, val, val);
+          await upsertBudgetItem(section, strategy, expenseType, name, 2025, m + 1, 0, val);
           imported++;
         }
       }
 
-      // Process 2026 months (cols 16-27)
+      // Process 2026 months (cols 16-27) - values are actual spend
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[16 + m] ?? '');
         if (val !== 0) {
-          await upsertBudgetItem(section, strategy, expenseType, name, 2026, m + 1, val, val);
+          await upsertBudgetItem(section, strategy, expenseType, name, 2026, m + 1, 0, val);
           imported++;
         }
       }

@@ -372,6 +372,7 @@ export function Budget() {
   const monthRange = useMemo(() => getMonthRange(timePeriod), [timePeriod]);
 
   const costItems = useMemo(() => allData.filter(d => d.section !== 'Budget'), [allData]);
+  const costItemsExclHC = useMemo(() => allData.filter(d => d.section !== 'Budget' && d.section !== 'Headcount'), [allData]);
   const budgetLineItems = useMemo(() => allData.filter(d => d.section === 'Budget'), [allData]);
 
   const filtered = useMemo(() => {
@@ -409,27 +410,30 @@ export function Budget() {
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
   // Only count budget from SAVINGS_START onwards
   const totalOrcamento = filteredBudget.filter(d => `${d.year}-${String(d.month).padStart(2, '0')}` >= SAVINGS_START).reduce((s, d) => s + d.planned, 0);
-  // Savings: only sum cost from months >= SAVINGS_START
-  const gastoFromSavingsStart = filtered.filter(d => `${d.year}-${String(d.month).padStart(2, '0')}` >= SAVINGS_START).reduce((s, d) => s + d.actual, 0);
+  // Savings: only sum cost from months >= SAVINGS_START, excluding Headcount (matches spreadsheet Grand Total Mkt)
+  const gastoFromSavingsStart = costItemsExclHC.filter(d => {
+    const ym = `${d.year}-${String(d.month).padStart(2, '0')}`;
+    return ym >= SAVINGS_START && (!monthRange || (d.year * 100 + d.month >= monthRange.startYear * 100 + monthRange.startMonth && d.year * 100 + d.month <= monthRange.endYear * 100 + monthRange.endMonth));
+  }).reduce((s, d) => s + d.actual, 0);
   const savings = totalOrcamento - gastoFromSavingsStart;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
-  // Savings acumulado: compute running total over months from SAVINGS_START
+  // Savings acumulado: compute running total over months from SAVINGS_START (excl Headcount)
   const savingsAcumulado = useMemo(() => {
     const allMonths = new Set<string>();
-    costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
+    costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     for (const ym of sortedMonths) {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       cumSavings += (monthBudget - monthCost);
     }
     return cumSavings;
-  }, [costItems, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems]);
 
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
@@ -472,17 +476,17 @@ export function Budget() {
   const STRATEGY_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
 
-  // Savings line chart data (only from SAVINGS_START)
+  // Savings line chart data (only from SAVINGS_START, excl Headcount)
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
-    costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
+    costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
@@ -494,7 +498,7 @@ export function Budget() {
         'Savings Acum.': cumSavings,
       };
     });
-  }, [costItems, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems]);
 
   // Aggregated: by item across months (for detail table)
   interface ItemRow {
@@ -566,14 +570,14 @@ export function Budget() {
   }
   const savingsTableData = useMemo(() => {
     const allMonths = new Set<string>();
-    costItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
+    costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
 
     let cumSavings = 0;
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
@@ -586,7 +590,7 @@ export function Budget() {
         savingsAcum: cumSavings,
       };
     });
-  }, [costItems, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems]);
 
   const { sorted: sortedSavings, SH: SavSH } = useSort<SavingsRow>(savingsTableData, 'sortKey');
 
@@ -1060,6 +1064,31 @@ export function Budget() {
                       </tr>
                     );
                   })}
+                  {/* Total row */}
+                  {itemRows.length > 0 && (
+                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                      <td className="py-2.5 px-2 text-left text-gray-800">Total</td>
+                      <td className="py-2.5 px-2"></td>
+                      <td className="py-2.5 px-2"></td>
+                      <td className="py-2.5 px-2"></td>
+                      {monthKeys.map(mk => {
+                        const monthTotal = itemRows.reduce((s, r) => s + (r.months[mk] || 0), 0);
+                        return (
+                          <td key={mk} className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
+                            {monthTotal > 0 ? fmtMoney(monthTotal) : '—'}
+                          </td>
+                        );
+                      })}
+                      {monthKeys.length > 1 && (
+                        <>
+                          <td className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
+                            {fmtMoney(itemRows.reduce((s, r) => s + r.total, 0))}
+                          </td>
+                          <td className="py-2.5 px-2"></td>
+                        </>
+                      )}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1161,6 +1190,18 @@ export function Budget() {
                       </tr>
                     );
                   })}
+                  {/* Total row */}
+                  {sortedSavings.length > 0 && (
+                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                      <td className="py-2.5 px-2 text-left text-gray-800">Total</td>
+                      <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(sortedSavings.reduce((s, r) => s + r.budget, 0))}</td>
+                      <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(sortedSavings.reduce((s, r) => s + r.gasto, 0))}</td>
+                      <td className={`py-2.5 px-2 text-center font-semibold ${sortedSavings.reduce((s, r) => s + r.savings, 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {fmtMoney(sortedSavings.reduce((s, r) => s + r.savings, 0))}
+                      </td>
+                      <td className="py-2.5 px-2 text-center text-gray-400">—</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1212,6 +1253,17 @@ export function Budget() {
                   ))}
                   {filtered.length > 100 && (
                     <tr><td colSpan={9} className="py-2 text-center text-gray-400 text-xs">Mostrando 100 de {filtered.length} itens. Use filtros para refinar.</td></tr>
+                  )}
+                  {/* Total row */}
+                  {filtered.length > 0 && (
+                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                      <td className="py-2.5 px-2 text-left text-gray-800">Total ({filtered.length} itens)</td>
+                      <td className="py-2.5 px-2" colSpan={4}></td>
+                      <td className="py-2.5 px-2"></td>
+                      <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(filtered.reduce((s, d) => s + d.planned, 0))}</td>
+                      <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(filtered.reduce((s, d) => s + d.actual, 0))}</td>
+                      <td className="py-2.5 px-2"></td>
+                    </tr>
                   )}
                 </tbody>
               </table>
