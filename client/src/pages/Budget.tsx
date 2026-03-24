@@ -420,6 +420,15 @@ export function Budget() {
   const savings = totalOrcamento - gastoFromSavingsStart;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
+  // Detail table: year selector (must be before savingsAcumulado which depends on it)
+  const currentYear = new Date().getFullYear();
+  const [detailYear, setDetailYear] = useState(currentYear);
+  const availableYears = useMemo(() => {
+    const set = new Set<number>();
+    filtered.forEach(d => set.add(d.year));
+    return [...set].sort();
+  }, [filtered]);
+
   // Savings acumulado: resets each year — shows accumulated for detailYear only
   const savingsAcumulado = useMemo(() => {
     const allMonths = new Set<string>();
@@ -438,15 +447,6 @@ export function Budget() {
     }
     return cumSavings;
   }, [costItemsExclHC, budgetLineItems, detailYear]);
-
-  // Detail table: year selector
-  const currentYear = new Date().getFullYear();
-  const [detailYear, setDetailYear] = useState(currentYear);
-  const availableYears = useMemo(() => {
-    const set = new Set<number>();
-    filtered.forEach(d => set.add(d.year));
-    return [...set].sort();
-  }, [filtered]);
 
   // Detail filtered by year (used by charts, tables, breakdowns)
   const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
