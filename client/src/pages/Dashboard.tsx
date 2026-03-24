@@ -232,7 +232,7 @@ export function Dashboard() {
     abmUrl: string;
   } | null>(null);
   const [abmLoading, setAbmLoading] = useState(false);
-  const [showAccountNames, setShowAccountNames] = useState(false);
+  const [showChannelNames, setShowChannelNames] = useState(false);
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -808,7 +808,15 @@ export function Dashboard() {
           {/* Row 3: Quick tables */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Top Canais por Gasto */}
-            <CollapsibleCard title="Top Canais por Gasto" defaultOpen={true}>
+            <CollapsibleCard title="Top Canais por Gasto" defaultOpen={true}
+              actions={
+                <button onClick={() => setShowChannelNames(!showChannelNames)}
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                  title={showChannelNames ? 'Ocultar valores' : 'Revelar valores'}>
+                  {showChannelNames ? <EyeOff size={10} /> : <Eye size={10} />}
+                  {showChannelNames ? 'Ocultar' : 'Revelar'}
+                </button>
+              }>
               {topChannels.length === 0 ? (
                 <p className="text-sm text-gray-400 py-4 text-center">Sem dados</p>
               ) : (
@@ -817,7 +825,11 @@ export function Dashboard() {
                     <div key={i}>
                       <div className="flex items-center justify-between text-xs mb-0.5">
                         <span className="text-gray-700 truncate mr-2">{ch.name}</span>
-                        <span className="text-gray-900 font-medium whitespace-nowrap">{fmtMoneyFull(ch.spend)}</span>
+                        {showChannelNames ? (
+                          <span className="text-gray-900 font-medium whitespace-nowrap">{fmtMoneyFull(ch.spend)}</span>
+                        ) : (
+                          <span className="text-gray-400 select-none" style={{ filter: 'blur(5px)' }}>R$ ••••••</span>
+                        )}
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
                         <div
@@ -1000,18 +1012,10 @@ export function Dashboard() {
                   </div>
                 )}
 
-                {/* Top Accounts Table (compact, masked by default) */}
+                {/* Top Accounts Table (compact) */}
                 {abmData.topAccounts.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top Contas por Visitas</h4>
-                      <button onClick={() => setShowAccountNames(!showAccountNames)}
-                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 rounded border border-gray-200 hover:border-gray-300 transition-colors"
-                        title={showAccountNames ? 'Ocultar nomes' : 'Revelar nomes'}>
-                        {showAccountNames ? <EyeOff size={10} /> : <Eye size={10} />}
-                        {showAccountNames ? 'Ocultar' : 'Revelar'}
-                      </button>
-                    </div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Contas por Visitas</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -1027,13 +1031,7 @@ export function Dashboard() {
                         <tbody>
                           {abmData.topAccounts.map((a, i) => (
                             <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">
-                                {showAccountNames ? a.name : (
-                                  <span className="inline-flex items-center gap-1">
-                                    <span className="bg-gray-200 rounded px-2 py-0.5 text-gray-400 select-none" style={{ filter: 'blur(4px)' }}>{a.name}</span>
-                                  </span>
-                                )}
-                              </td>
+                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">{a.name}</td>
                               <td className="py-1.5 px-2 text-center text-gray-900 text-xs">{a.visits}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.sessions}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.pages}</td>
