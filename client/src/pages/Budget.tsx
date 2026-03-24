@@ -508,6 +508,19 @@ export function Budget() {
 
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
+    if (tableView === 'quarterly') {
+      // Aggregate by quarter
+      return quarterKeys.map(qk => {
+        const row: Record<string, unknown> = { name: `${qk} ${detailYear}` };
+        SECTIONS.forEach(s => {
+          const qMonths = quarterMonths[qk] || [];
+          (row as Record<string, number>)[s] = detailFiltered
+            .filter(d => { const mk = `${d.year}-${String(d.month).padStart(2, '0')}`; return qMonths.includes(mk) && d.section === s; })
+            .reduce((sum, d) => sum + d.actual, 0);
+        });
+        return row;
+      });
+    }
     const map = new Map<string, Record<string, number>>();
     detailFiltered.forEach(d => {
       const key = `${MONTHS[d.month]} ${d.year}`;
@@ -523,7 +536,7 @@ export function Budget() {
       row[d.section] = (row[d.section] || 0) + d.actual;
     });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
-  }, [detailFiltered]);
+  }, [detailFiltered, tableView, detailYear, quarterKeys, quarterMonths]);
 
   // Breakdown tiles: by section, strategy, expense type — uses detailYear
   const bySection = useMemo(() => {
@@ -548,31 +561,38 @@ export function Budget() {
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
 
   // Savings line chart data (only from SAVINGS_START, excl Headcount, filtered by detailYear)
-  // Savings chart: cumulative resets each year
+  // Savings chart: cumulative resets each year — supports monthly/quarterly view
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
-    // No carry-over: cumulative starts at 0 for each year
+    // Build monthly first
     let cumSavings = 0;
-
-    return sortedMonths.map(ym => {
+    const monthlyPoints = sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
       const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
-      return {
-        name: `${MONTHS[m]} ${y}`,
-        Gasto: monthCost,
-        Savings: monthSavings,
-        Orçamento: monthBudget,
-        'Savings Acum.': cumSavings,
-      };
+      return { ym, name: `${MONTHS[m]} ${y}`, Gasto: monthCost, Savings: monthSavings, Orçamento: monthBudget, 'Savings Acum.': cumSavings };
     });
-  }, [costItemsExclHC, budgetLineItems, detailYear]);
+
+    if (tableView === 'quarterly') {
+      return quarterKeys.map(qk => {
+        const qms = quarterMonths[qk] || [];
+        const points = monthlyPoints.filter(p => qms.includes(p.ym));
+        const gasto = points.reduce((s, p) => s + p.Gasto, 0);
+        const orc = points.reduce((s, p) => s + p.Orçamento, 0);
+        const savings = orc - gasto;
+        const lastPoint = points[points.length - 1];
+        return { name: `${qk} ${detailYear}`, Gasto: gasto, Savings: savings, Orçamento: orc, 'Savings Acum.': lastPoint?.['Savings Acum.'] ?? 0 };
+      });
+    }
+
+    return monthlyPoints;
+  }, [costItemsExclHC, budgetLineItems, detailYear, tableView, quarterKeys, quarterMonths]);
 
   // Aggregated: by item across months (for detail table) — filtered by detailYear
   interface ItemRow {
