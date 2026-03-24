@@ -34,13 +34,13 @@ function parseMoney(v: string): number {
 
 // Section detection based on row ranges
 const SECTIONS = [
-  { name: 'Headcount', startRow: 7, endRow: 9, totalRow: 10 },
-  { name: 'Ferramentas', startRow: 12, endRow: 26, totalRow: 27 },
-  { name: 'Eventos', startRow: 29, endRow: 45, totalRow: 46 },
-  { name: 'Mídia', startRow: 48, endRow: 56, totalRow: 57 },
-  { name: 'Viagens', startRow: 59, endRow: 64, totalRow: 65 },
-  { name: 'Brindes & Promo', startRow: 67, endRow: 72, totalRow: 73 },
-  { name: 'Terceiros', startRow: 75, endRow: 81, totalRow: 82 },
+  { name: 'Headcount', startRow: 8, endRow: 9, totalRow: 10 },
+  { name: 'Ferramentas', startRow: 13, endRow: 26, totalRow: 27 },
+  { name: 'Eventos', startRow: 31, endRow: 47, totalRow: 48 },
+  { name: 'Mídia', startRow: 51, endRow: 58, totalRow: 59 },
+  { name: 'Viagens', startRow: 62, endRow: 66, totalRow: 67 },
+  { name: 'Brindes & Promo', startRow: 70, endRow: 78, totalRow: 79 },
+  { name: 'Terceiros', startRow: 82, endRow: 87, totalRow: 88 },
 ];
 
 function getSectionForRow(rowNum: number): string | null {
@@ -53,8 +53,8 @@ function getSectionForRow(rowNum: number): string | null {
 function isTotalOrSummaryRow(rowNum: number): boolean {
   // Total rows for each section
   const totalRows = SECTIONS.map(s => s.totalRow);
-  // Summary rows: 84, 85, 86, 87
-  const summaryRows = [84, 85, 86, 87];
+  // Summary rows: 90 (Grand Total), 91 (Total budget), 92 (Budget savings), 93 (Savings acum)
+  const summaryRows = [89, 90, 91, 92, 93];
   return totalRows.includes(rowNum) || summaryRows.includes(rowNum);
 }
 
@@ -134,7 +134,7 @@ router.post('/sync', async (_req, res) => {
       // Skip total and summary rows
       if (isTotalOrSummaryRow(rowNum)) {
         // But handle budget line (row 85)
-        if (rowNum === 85) {
+        if (rowNum === 91) {
           // "Total budget" row — DO NOT sync from sheet.
           // Budget is managed locally at R$ 100.000/month (Sep/2025 – Dec/2026).
           // User adjusts manually if needed.
