@@ -506,6 +506,21 @@ export function Budget() {
     return result;
   }, [costItemsExclHC, budgetLineItems, detailYear]);
 
+  // Month and quarter keys (must be before chart data that uses them)
+  const monthKeys = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => `${detailYear}-${String(i + 1).padStart(2, '0')}`);
+  }, [detailYear]);
+
+  const quarterKeys = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const quarterMonths: Record<string, string[]> = {
+    Q1: monthKeys.filter(mk => ['01', '02', '03'].includes(mk.slice(5))),
+    Q2: monthKeys.filter(mk => ['04', '05', '06'].includes(mk.slice(5))),
+    Q3: monthKeys.filter(mk => ['07', '08', '09'].includes(mk.slice(5))),
+    Q4: monthKeys.filter(mk => ['10', '11', '12'].includes(mk.slice(5))),
+  };
+  const sumQuarter = (months: Record<string, number>, qk: string) =>
+    (quarterMonths[qk] || []).reduce((s, mk) => s + (months[mk] || 0), 0);
+
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
     if (tableView === 'quarterly') {
@@ -625,23 +640,6 @@ export function Budget() {
     });
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
   }, [detailFiltered]);
-
-  // Unique month keys for the detail table (only for detailYear)
-  const monthKeys = useMemo(() => {
-    // Always show all 12 months for the selected year
-    return Array.from({ length: 12 }, (_, i) => `${detailYear}-${String(i + 1).padStart(2, '0')}`);
-  }, [detailYear]);
-
-  // Quarterly keys
-  const quarterKeys = [`Q1`, `Q2`, `Q3`, `Q4`];
-  const quarterMonths: Record<string, string[]> = {
-    Q1: monthKeys.filter(mk => ['01', '02', '03'].includes(mk.slice(5))),
-    Q2: monthKeys.filter(mk => ['04', '05', '06'].includes(mk.slice(5))),
-    Q3: monthKeys.filter(mk => ['07', '08', '09'].includes(mk.slice(5))),
-    Q4: monthKeys.filter(mk => ['10', '11', '12'].includes(mk.slice(5))),
-  };
-  const sumQuarter = (months: Record<string, number>, qk: string) =>
-    (quarterMonths[qk] || []).reduce((s, mk) => s + (months[mk] || 0), 0);
 
   // Section summary — uses detailYear
   interface SectionRow {
