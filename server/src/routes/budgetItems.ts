@@ -135,21 +135,9 @@ router.post('/sync', async (_req, res) => {
       if (isTotalOrSummaryRow(rowNum)) {
         // But handle budget line (row 85)
         if (rowNum === 85) {
-          // This is the "Total budget" row - store as Budget section
-          for (let m = 0; m < 12; m++) {
-            // 2025: cols 3-14
-            const val2025 = parseMoney(row[3 + m] ?? '');
-            if (val2025 > 0) {
-              await upsertBudgetItem('Budget', null, null, 'Total Budget', 2025, m + 1, val2025, 0);
-              imported++;
-            }
-            // 2026: cols 16-27
-            const val2026 = parseMoney(row[16 + m] ?? '');
-            if (val2026 > 0) {
-              await upsertBudgetItem('Budget', null, null, 'Total Budget', 2026, m + 1, val2026, 0);
-              imported++;
-            }
-          }
+          // "Total budget" row — DO NOT sync from sheet.
+          // Budget is managed locally at R$ 100.000/month (Sep/2025 – Dec/2026).
+          // User adjusts manually if needed.
         }
         continue;
       }
