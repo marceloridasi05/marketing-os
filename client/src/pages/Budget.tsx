@@ -438,7 +438,7 @@ export function Budget() {
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
     const map = new Map<string, Record<string, number>>();
-    filtered.forEach(d => {
+    detailFiltered.forEach(d => {
       const key = `${MONTHS[d.month]} ${d.year}`;
       const sortKey = `${d.year}-${String(d.month).padStart(2, '0')}`;
       if (!map.has(sortKey)) {
@@ -452,38 +452,48 @@ export function Budget() {
       row[d.section] = (row[d.section] || 0) + d.actual;
     });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
-  }, [filtered]);
+  }, [detailFiltered]);
 
-  // Breakdown tiles: by section, strategy, expense type
+  // Breakdown tiles: by section, strategy, expense type — uses detailYear
   const bySection = useMemo(() => {
     const map = new Map<string, number>();
-    filtered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + d.actual));
+    detailFiltered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + d.actual));
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  }, [filtered]);
+  }, [detailFiltered]);
 
   const byStrategy = useMemo(() => {
     const map = new Map<string, number>();
-    filtered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + d.actual); });
+    detailFiltered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + d.actual); });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  }, [filtered]);
+  }, [detailFiltered]);
 
   const byExpenseType = useMemo(() => {
     const map = new Map<string, number>();
-    filtered.forEach(d => { const k = d.expenseType || 'Sem tipo'; map.set(k, (map.get(k) || 0) + d.actual); });
+    detailFiltered.forEach(d => { const k = d.expenseType || 'Sem tipo'; map.set(k, (map.get(k) || 0) + d.actual); });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
   const STRATEGY_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
 
-  // Savings line chart data (only from SAVINGS_START, excl Headcount)
+  // Savings line chart data (only from SAVINGS_START, excl Headcount, filtered by detailYear)
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
+    // Pre-compute cumulative from SAVINGS_START before detailYear
     let cumSavings = 0;
+    const allSavingsMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    for (const ym of allSavingsMonths) {
+      if (ym.startsWith(String(detailYear))) break;
+      const [y, m] = ym.split('-').map(Number);
+      const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const mb = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
+      cumSavings += (mb - mc);
+    }
+
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
       const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
@@ -498,9 +508,18 @@ export function Budget() {
         'Savings Acum.': cumSavings,
       };
     });
-  }, [costItemsExclHC, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems, detailYear]);
 
-  // Aggregated: by item across months (for detail table)
+  // Detail table: year selector
+  const currentYear = new Date().getFullYear();
+  const [detailYear, setDetailYear] = useState(currentYear);
+  const availableYears = useMemo(() => {
+    const set = new Set<number>();
+    filtered.forEach(d => set.add(d.year));
+    return [...set].sort();
+  }, [filtered]);
+
+  // Aggregated: by item across months (for detail table) — filtered by detailYear
   interface ItemRow {
     name: string;
     section: string;
@@ -510,9 +529,11 @@ export function Budget() {
     months: Record<string, number>;
   }
 
+  const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
+
   const itemRows = useMemo(() => {
     const map = new Map<string, ItemRow>();
-    filtered.forEach(d => {
+    detailFiltered.forEach(d => {
       const key = `${d.section}|${d.name}`;
       if (!map.has(key)) {
         map.set(key, {
@@ -530,16 +551,15 @@ export function Budget() {
       row.total += d.actual;
     });
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
-  }, [filtered]);
+  }, [detailFiltered]);
 
-  // Unique month keys for the detail table
+  // Unique month keys for the detail table (only for detailYear)
   const monthKeys = useMemo(() => {
-    const set = new Set<string>();
-    filtered.forEach(d => set.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    return [...set].sort();
-  }, [filtered]);
+    // Always show all 12 months for the selected year
+    return Array.from({ length: 12 }, (_, i) => `${detailYear}-${String(i + 1).padStart(2, '0')}`);
+  }, [detailYear]);
 
-  // Section summary
+  // Section summary — uses detailYear
   interface SectionRow {
     section: string;
     total: number;
@@ -547,7 +567,7 @@ export function Budget() {
   }
   const sectionRows = useMemo(() => {
     const map = new Map<string, SectionRow>();
-    filtered.forEach(d => {
+    detailFiltered.forEach(d => {
       if (!map.has(d.section)) {
         map.set(d.section, { section: d.section, total: 0, months: {} });
       }
@@ -557,7 +577,7 @@ export function Budget() {
       row.total += d.actual;
     });
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section));
-  }, [filtered]);
+  }, [detailFiltered]);
 
   // Savings table data
   interface SavingsRow {
@@ -572,9 +592,19 @@ export function Budget() {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
     let cumSavings = 0;
+    // Compute cumulative from SAVINGS_START to get correct running total
+    const allSavingsMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    for (const ym of allSavingsMonths) {
+      if (ym.startsWith(String(detailYear))) break;
+      const [y, m] = ym.split('-').map(Number);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
+      cumSavings += (monthBudget - monthCost);
+    }
+
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
       const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
@@ -590,7 +620,7 @@ export function Budget() {
         savingsAcum: cumSavings,
       };
     });
-  }, [costItemsExclHC, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems, detailYear]);
 
   const { sorted: sortedSavings, SH: SavSH } = useSort<SavingsRow>(savingsTableData, 'sortKey');
 
@@ -838,6 +868,17 @@ export function Budget() {
           </div>
 
           {/* Charts */}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-500">Gráficos — {detailYear}</h3>
+            <div className="flex gap-1">
+              {availableYears.map(y => (
+                <button key={y} onClick={() => setDetailYear(y)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Stacked bar */}
             <Card className="min-h-48">
@@ -1003,10 +1044,20 @@ export function Budget() {
           {/* Detail Table */}
           <CollapsibleCard title="Detalhamento por Item" className="mb-6"
             actions={
-              <button onClick={openCreate}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
-                <Plus size={14} /> Adicionar
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {availableYears.map(y => (
+                    <button key={y} onClick={() => setDetailYear(y)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      {y}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={openCreate}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
+                  <Plus size={14} /> Adicionar
+                </button>
+              </div>
             }>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1095,7 +1146,17 @@ export function Budget() {
           </CollapsibleCard>
 
           {/* Section Summary */}
-          <CollapsibleCard title="Resumo por Seção" className="mb-6">
+          <CollapsibleCard title="Resumo por Seção" className="mb-6"
+            actions={
+              <div className="flex gap-1">
+                {availableYears.map(y => (
+                  <button key={y} onClick={() => setDetailYear(y)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {y}
+                  </button>
+                ))}
+              </div>
+            }>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1159,7 +1220,17 @@ export function Budget() {
           </CollapsibleCard>
 
           {/* Savings Table - only when Todos */}
-          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (a partir de Set/2025)" className="mb-6">
+          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (a partir de Set/2025)" className="mb-6"
+            actions={
+              <div className="flex gap-1">
+                {availableYears.map(y => (
+                  <button key={y} onClick={() => setDetailYear(y)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {y}
+                  </button>
+                ))}
+              </div>
+            }>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
