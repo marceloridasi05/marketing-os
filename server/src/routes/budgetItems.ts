@@ -38,9 +38,9 @@ const SECTIONS = [
   { name: 'Ferramentas', startRow: 13, endRow: 26, totalRow: 27 },
   { name: 'Eventos', startRow: 31, endRow: 47, totalRow: 48 },
   { name: 'Mídia', startRow: 51, endRow: 58, totalRow: 59 },
-  { name: 'Viagens', startRow: 62, endRow: 66, totalRow: 67 },
-  { name: 'Brindes & Promo', startRow: 70, endRow: 78, totalRow: 79 },
-  { name: 'Terceiros', startRow: 81, endRow: 86, totalRow: 88 },
+  { name: 'Viagens', startRow: 62, endRow: 68, totalRow: 69 },
+  { name: 'Brindes & Promo', startRow: 72, endRow: 80, totalRow: 81 },
+  { name: 'Terceiros', startRow: 84, endRow: 89, totalRow: 90 },
 ];
 
 function getSectionForRow(rowNum: number): string | null {
@@ -53,8 +53,8 @@ function getSectionForRow(rowNum: number): string | null {
 function isTotalOrSummaryRow(rowNum: number): boolean {
   // Total rows for each section
   const totalRows = SECTIONS.map(s => s.totalRow);
-  // Summary rows: 90 (Grand Total), 91 (Total budget), 92 (Budget savings), 93 (Savings acum)
-  const summaryRows = [89, 90, 91, 92, 93];
+  // Summary rows: 91 (empty), 92 (Grand Total), 93 (Total budget), 94 (Budget savings), 95 (Savings acum)
+  const summaryRows = [91, 92, 93, 94, 95];
   return totalRows.includes(rowNum) || summaryRows.includes(rowNum);
 }
 
@@ -134,7 +134,7 @@ router.post('/sync', async (_req, res) => {
       // Skip total and summary rows
       if (isTotalOrSummaryRow(rowNum)) {
         // But handle budget line (row 85)
-        if (rowNum === 91) {
+        if (rowNum === 93) {
           // "Total budget" row — DO NOT sync from sheet.
           // Budget is managed locally at R$ 100.000/month (Sep/2025 – Dec/2026).
           // User adjusts manually if needed.
@@ -151,19 +151,16 @@ router.post('/sync', async (_req, res) => {
       // Process 2025 months (cols 3-14) - values are actual spend
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[3 + m] ?? '');
-        if (val !== 0) {
-          await upsertBudgetItem(section, strategy, expenseType, name, 2025, m + 1, 0, val);
-          imported++;
-        }
+        // Always upsert (even 0) to correct stale data in DB
+        await upsertBudgetItem(section, strategy, expenseType, name, 2025, m + 1, 0, val);
+        if (val !== 0) imported++;
       }
 
       // Process 2026 months (cols 16-27) - values are actual spend
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[16 + m] ?? '');
-        if (val !== 0) {
-          await upsertBudgetItem(section, strategy, expenseType, name, 2026, m + 1, 0, val);
-          imported++;
-        }
+        await upsertBudgetItem(section, strategy, expenseType, name, 2026, m + 1, 0, val);
+        if (val !== 0) imported++;
       }
     }
 
