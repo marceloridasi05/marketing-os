@@ -26,6 +26,7 @@ export const performanceEntries = sqliteTable('performance_entries', {
   conversions: integer('conversions'),
   cost: real('cost'),
   notes: text('notes'),
+  engineType: text('engine_type'), // SMB | ENTERPRISE | null
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -38,6 +39,7 @@ export const budgets = sqliteTable('budgets', {
   plannedBudget: real('planned_budget').notNull(),
   actualSpent: real('actual_spent').default(0).notNull(),
   notes: text('notes'),
+  engineType: text('engine_type'), // SMB | ENTERPRISE | null
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -68,6 +70,7 @@ export const initiatives = sqliteTable('initiatives', {
   status: text('status').default('planned').notNull(),
   priority: text('priority').default('medium').notNull(),
   notes: text('notes'),
+  engineType: text('engine_type'), // SMB | ENTERPRISE | null
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });

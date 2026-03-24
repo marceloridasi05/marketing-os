@@ -10,6 +10,7 @@ router.get('/', async (req, res) => {
   const conditions = [];
   if (req.query.year) conditions.push(eq(budgets.year, +req.query.year));
   if (req.query.month) conditions.push(eq(budgets.month, +req.query.month));
+  if (req.query.engineType) conditions.push(eq(budgets.engineType, req.query.engineType as string));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const rows = await db
@@ -22,6 +23,7 @@ router.get('/', async (req, res) => {
       plannedBudget: budgets.plannedBudget,
       actualSpent: budgets.actualSpent,
       notes: budgets.notes,
+      engineType: budgets.engineType,
     })
     .from(budgets)
     .innerJoin(channels, eq(budgets.channelId, channels.id))

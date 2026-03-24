@@ -12,6 +12,7 @@ router.get('/', async (req, res) => {
   if (req.query.status) conditions.push(eq(initiatives.status, req.query.status as string));
   if (req.query.objective) conditions.push(eq(initiatives.objective, req.query.objective as string));
   if (req.query.actionType) conditions.push(eq(initiatives.actionType, req.query.actionType as string));
+  if (req.query.engineType) conditions.push(eq(initiatives.engineType, req.query.engineType as string));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const rows = await db.select().from(initiatives).where(where).orderBy(initiatives.year, initiatives.month, initiatives.name);

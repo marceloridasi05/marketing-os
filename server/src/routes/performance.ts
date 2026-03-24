@@ -12,6 +12,7 @@ function buildFilters(query: Record<string, string>) {
   if (query.channelId) conditions.push(eq(performanceEntries.channelId, +query.channelId));
   if (query.periodType) conditions.push(eq(performanceEntries.periodType, query.periodType));
   if (query.campaignType) conditions.push(eq(performanceEntries.campaignType, query.campaignType));
+  if (query.engineType) conditions.push(eq(performanceEntries.engineType, query.engineType));
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
@@ -36,6 +37,7 @@ router.get('/', async (req, res) => {
       conversions: performanceEntries.conversions,
       cost: performanceEntries.cost,
       notes: performanceEntries.notes,
+      engineType: performanceEntries.engineType,
       createdAt: performanceEntries.createdAt,
       updatedAt: performanceEntries.updatedAt,
     })

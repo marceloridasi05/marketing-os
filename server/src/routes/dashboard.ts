@@ -11,6 +11,7 @@ function buildFilters(query: Record<string, string>) {
   if (query.endDate) conditions.push(lte(performanceEntries.date, query.endDate));
   if (query.channelId) conditions.push(eq(performanceEntries.channelId, +query.channelId));
   if (query.periodType) conditions.push(eq(performanceEntries.periodType, query.periodType));
+  if (query.engineType) conditions.push(eq(performanceEntries.engineType, query.engineType));
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 

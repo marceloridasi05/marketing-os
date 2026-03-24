@@ -91,12 +91,12 @@ const PERIOD_TYPES = Object.keys(PERIOD_TYPES_MAP);
 interface FormData {
   date: string; periodType: string; channelId: string; campaignName: string; campaignType: string;
   impressions: string; clicks: string; sessions: string; users: string; newUsers: string;
-  leads: string; conversions: string; cost: string; notes: string;
+  leads: string; conversions: string; cost: string; notes: string; engineType: string;
 }
-const emptyForm: FormData = { date: new Date().toISOString().slice(0, 10), periodType: 'monthly', channelId: '', campaignName: '', campaignType: '', impressions: '', clicks: '', sessions: '', users: '', newUsers: '', leads: '', conversions: '', cost: '', notes: '' };
+const emptyForm: FormData = { date: new Date().toISOString().slice(0, 10), periodType: 'monthly', channelId: '', campaignName: '', campaignType: '', impressions: '', clicks: '', sessions: '', users: '', newUsers: '', leads: '', conversions: '', cost: '', notes: '', engineType: '' };
 
 function entryToForm(e: PerfEntry): FormData {
-  return { date: e.date, periodType: e.periodType, channelId: String(e.channelId), campaignName: e.campaignName ?? '', campaignType: e.campaignType ?? '', impressions: e.impressions != null ? String(e.impressions) : '', clicks: e.clicks != null ? String(e.clicks) : '', sessions: e.sessions != null ? String(e.sessions) : '', users: e.users != null ? String(e.users) : '', newUsers: e.newUsers != null ? String(e.newUsers) : '', leads: e.leads != null ? String(e.leads) : '', conversions: e.conversions != null ? String(e.conversions) : '', cost: e.cost != null ? String(e.cost) : '', notes: e.notes ?? '' };
+  return { date: e.date, periodType: e.periodType, channelId: String(e.channelId), campaignName: e.campaignName ?? '', campaignType: e.campaignType ?? '', impressions: e.impressions != null ? String(e.impressions) : '', clicks: e.clicks != null ? String(e.clicks) : '', sessions: e.sessions != null ? String(e.sessions) : '', users: e.users != null ? String(e.users) : '', newUsers: e.newUsers != null ? String(e.newUsers) : '', leads: e.leads != null ? String(e.leads) : '', conversions: e.conversions != null ? String(e.conversions) : '', cost: e.cost != null ? String(e.cost) : '', notes: e.notes ?? '', engineType: (e as unknown as Record<string, string>).engineType ?? '' };
 }
 
 const FIELD_LABELS: Record<string, string> = { impressions: 'Impressões', clicks: 'Cliques', sessions: 'Sessões', users: 'Usuários', newUsers: 'Novos Usuários', leads: 'Leads', conversions: 'Conversões', cost: 'Custo' };
@@ -110,7 +110,7 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
     if (!form.channelId) return;
     setSaving(true);
     const numOrNull = (v: string) => v === '' ? null : Number(v);
-    const payload = { date: form.date, periodType: form.periodType, channelId: Number(form.channelId), campaignName: form.campaignName || null, campaignType: form.campaignType || null, impressions: numOrNull(form.impressions), clicks: numOrNull(form.clicks), sessions: numOrNull(form.sessions), users: numOrNull(form.users), newUsers: numOrNull(form.newUsers), leads: numOrNull(form.leads), conversions: numOrNull(form.conversions), cost: numOrNull(form.cost), notes: form.notes || null };
+    const payload = { date: form.date, periodType: form.periodType, channelId: Number(form.channelId), campaignName: form.campaignName || null, campaignType: form.campaignType || null, impressions: numOrNull(form.impressions), clicks: numOrNull(form.clicks), sessions: numOrNull(form.sessions), users: numOrNull(form.users), newUsers: numOrNull(form.newUsers), leads: numOrNull(form.leads), conversions: numOrNull(form.conversions), cost: numOrNull(form.cost), notes: form.notes || null, engineType: form.engineType || null };
     if (editId) await api.put(`/performance/${editId}`, payload);
     else await api.post('/performance', payload);
     setSaving(false);
@@ -139,7 +139,16 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
               <div key={key}><label className="block text-xs font-medium text-gray-500 mb-1">{FIELD_LABELS[key]}</label><input type="number" step={key === 'cost' ? '0.01' : '1'} min="0" value={form[key]} onChange={set(key)} className={inputCls} placeholder="—" /></div>
             ))}
           </div>
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Observações</label><textarea value={form.notes} onChange={set('notes')} className={inputCls} rows={2} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Engine</label>
+              <select value={form.engineType} onChange={set('engineType')} className={inputCls}>
+                <option value="">— (Nenhum)</option>
+                <option value="SMB">SMB</option>
+                <option value="ENTERPRISE">Enterprise</option>
+              </select>
+            </div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Observações</label><textarea value={form.notes} onChange={set('notes')} className={inputCls} rows={1} /></div>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50">{saving ? 'Salvando...' : editId ? 'Atualizar' : 'Criar'}</button>

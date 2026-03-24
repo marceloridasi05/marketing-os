@@ -59,13 +59,13 @@ function buildQS(params: Record<string, string>) {
 interface FormData {
   name: string; objective: string; actionType: string; channel: string;
   year: string; month: string; startDate: string; endDate: string;
-  status: string; priority: string; notes: string;
+  status: string; priority: string; notes: string; engineType: string;
 }
 
 const emptyForm: FormData = {
   name: '', objective: '', actionType: '', channel: '',
   year: '2026', month: String(new Date().getMonth() + 1),
-  startDate: '', endDate: '', status: 'planned', priority: 'medium', notes: '',
+  startDate: '', endDate: '', status: 'planned', priority: 'medium', notes: '', engineType: '',
 };
 
 function initToForm(i: Initiative): FormData {
@@ -73,7 +73,7 @@ function initToForm(i: Initiative): FormData {
     name: i.name, objective: i.objective, actionType: i.actionType, channel: i.channel,
     year: String(i.year), month: String(i.month),
     startDate: i.startDate ?? '', endDate: i.endDate ?? '',
-    status: i.status, priority: i.priority, notes: i.notes ?? '',
+    status: i.status, priority: i.priority, notes: i.notes ?? '', engineType: (i as unknown as Record<string, string>).engineType ?? '',
   };
 }
 
@@ -94,7 +94,7 @@ function InitiativeFormModal({ channels, objectives, actionTypes, initial, editI
       name: form.name, objective: form.objective, actionType: form.actionType,
       channel: form.channel, year: +form.year, month: +form.month,
       startDate: form.startDate || null, endDate: form.endDate || null,
-      status: form.status, priority: form.priority, notes: form.notes || null,
+      status: form.status, priority: form.priority, notes: form.notes || null, engineType: form.engineType || null,
     };
     if (editId) await api.put(`/initiatives/${editId}`, payload);
     else await api.post('/initiatives', payload);
@@ -161,7 +161,7 @@ function InitiativeFormModal({ channels, objectives, actionTypes, initial, editI
               <input type="date" value={form.endDate} onChange={set('endDate')} className={inputCls} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
               <select value={form.status} onChange={set('status')} className={inputCls}>
@@ -172,6 +172,14 @@ function InitiativeFormModal({ channels, objectives, actionTypes, initial, editI
               <label className="block text-xs font-medium text-gray-500 mb-1">Prioridade</label>
               <select value={form.priority} onChange={set('priority')} className={inputCls}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Engine</label>
+              <select value={form.engineType} onChange={set('engineType')} className={inputCls}>
+                <option value="">— (Nenhum)</option>
+                <option value="SMB">SMB</option>
+                <option value="ENTERPRISE">Enterprise</option>
               </select>
             </div>
           </div>
@@ -254,6 +262,7 @@ export function Plan() {
   const [fStatus, setFStatus] = useState('');
   const [fObjective, setFObjective] = useState('');
   const [fActionType, setFActionType] = useState('');
+  const [engineFilter, setEngineFilter] = useState('');
 
   // Sorting
   const [sortKey, setSortKey] = useState('month');
@@ -277,11 +286,11 @@ export function Plan() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const qs = buildQS({ year: fYear, month: fMonth, status: fStatus, objective: fObjective, actionType: fActionType });
+    const qs = buildQS({ year: fYear, month: fMonth, status: fStatus, objective: fObjective, actionType: fActionType, engineType: engineFilter });
     const rows = await api.get<Initiative[]>(`/initiatives${qs}`);
     setData(rows);
     setLoading(false);
-  }, [fYear, fMonth, fStatus, fObjective, fActionType]);
+  }, [fYear, fMonth, fStatus, fObjective, fActionType, engineFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -375,6 +384,14 @@ export function Plan() {
           <select value={fActionType} onChange={e => setFActionType(e.target.value)} className={inputCls}>
             <option value="">Todos</option>
             {actionTypes.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Engine</label>
+          <select value={engineFilter} onChange={e => setEngineFilter(e.target.value)} className={inputCls}>
+            <option value="">Todos</option>
+            <option value="SMB">SMB</option>
+            <option value="ENTERPRISE">Enterprise</option>
           </select>
         </div>
         <div className="ml-auto flex gap-1">
