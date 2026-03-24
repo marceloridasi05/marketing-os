@@ -40,7 +40,7 @@ const SECTIONS = [
   { name: 'Mídia', startRow: 51, endRow: 58, totalRow: 59 },
   { name: 'Viagens', startRow: 62, endRow: 66, totalRow: 67 },
   { name: 'Brindes & Promo', startRow: 70, endRow: 78, totalRow: 79 },
-  { name: 'Terceiros', startRow: 82, endRow: 87, totalRow: 88 },
+  { name: 'Terceiros', startRow: 81, endRow: 86, totalRow: 88 },
 ];
 
 function getSectionForRow(rowNum: number): string | null {

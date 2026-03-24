@@ -309,6 +309,35 @@ function EditableCell({ value, options, onSave, align = 'center', bold = false, 
   );
 }
 
+// Inline editable money cell — click to edit the value
+function EditableMoneyCell({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value || ''));
+
+  if (editing) {
+    return (
+      <td className="py-1 px-1 text-center">
+        <input type="number" step="0.01" min="0" value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { onSave(Number(draft) || 0); setEditing(false); }
+            if (e.key === 'Escape') { setDraft(String(value || '')); setEditing(false); }
+          }}
+          autoFocus
+          className="w-24 border border-blue-400 rounded px-1.5 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td className="py-2 px-2 text-center text-gray-900 whitespace-nowrap cursor-pointer hover:bg-blue-50"
+      onClick={() => { setDraft(String(value || '')); setEditing(true); }}>
+      {value > 0 ? fmtMoney(value) : '—'}
+    </td>
+  );
+}
+
 // --- Main Page ---
 export function Budget() {
   const [allData, setAllData] = useState<BudgetItem[]>([]);
@@ -661,6 +690,25 @@ export function Budget() {
     const itemsToUpdate = allData.filter(d => d.name === oldName && d.section === oldSection);
     for (const item of itemsToUpdate) {
       await api.put(`/budget-items/${item.id}`, { ...item, [field]: newValue || null });
+    }
+    fetchData();
+  };
+
+  // Update a specific month's actual value for an item
+  const updateItemMonthValue = async (itemName: string, itemSection: string, yearMonth: string, newValue: number) => {
+    const [y, m] = yearMonth.split('-').map(Number);
+    const existing = allData.find(d => d.name === itemName && d.section === itemSection && d.year === y && d.month === m);
+    if (existing) {
+      await api.put(`/budget-items/${existing.id}`, { ...existing, actual: newValue });
+    } else {
+      // Create new entry for this month
+      const template = allData.find(d => d.name === itemName && d.section === itemSection);
+      if (template) {
+        await api.post('/budget-items', {
+          section: template.section, strategy: template.strategy, expenseType: template.expenseType,
+          name: template.name, year: y, month: m, planned: 0, actual: newValue,
+        });
+      }
     }
     fetchData();
   };
@@ -1111,10 +1159,8 @@ export function Budget() {
                         <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} tagColor={r.strategy ? getTagColor(r.strategy, 'strategy', strategies) : undefined} />
                         <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} tagColor={r.expenseType ? getTagColor(r.expenseType, 'type', expenseTypes) : undefined} />
                         {monthVals.map((v, mi) => (
-                          <td key={monthKeys[mi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap"
->
-                            {v > 0 ? fmtMoney(v) : '—'}
-                          </td>
+                          <EditableMoneyCell key={monthKeys[mi]} value={v}
+                            onSave={newVal => updateItemMonthValue(r.name, r.section, monthKeys[mi], newVal)} />
                         ))}
                         {monthKeys.length > 1 && (
                           <>
