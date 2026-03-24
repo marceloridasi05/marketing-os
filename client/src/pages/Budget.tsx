@@ -356,6 +356,7 @@ export function Budget() {
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
   const [budgetEdits, setBudgetEdits] = useState<Record<string, string>>({});
   const [showPrevYears, setShowPrevYears] = useState(false);
+  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -953,9 +954,17 @@ export function Budget() {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} width={60} />
                     <Tooltip formatter={(value) => fmtMoney(Number(value))} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+                      onClick={(e: { dataKey?: string }) => {
+                        if (!e.dataKey) return;
+                        setHiddenBars(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; });
+                      }}
+                      formatter={(value: string, entry: { dataKey?: string }) => (
+                        <span style={{ color: hiddenBars.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenBars.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
+                      )}
+                    />
                     {SECTIONS.map(s => (
-                      <Bar key={s} dataKey={s} stackId="a" fill={SECTION_COLORS[s]} />
+                      <Bar key={s} dataKey={s} stackId="a" fill={SECTION_COLORS[s]} hide={hiddenBars.has(s)} />
                     ))}
                   </BarChart>
                 </ResponsiveContainer>

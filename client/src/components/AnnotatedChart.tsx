@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
 import { Card } from './Card';
 import { api } from '../lib/api';
@@ -31,6 +31,7 @@ interface AnnotatedChartProps {
 }
 
 export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, height = 200 }: AnnotatedChartProps) {
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedX, setSelectedX] = useState('');
@@ -148,9 +149,27 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
             <XAxis dataKey={xKey} tick={CustomTick as unknown as React.ComponentType} />
             <YAxis tick={{ fontSize: 11 }} width={50} />
             <Tooltip content={CustomTooltip as unknown as React.ComponentType} />
+            <Legend
+              onClick={(e: { dataKey?: string }) => {
+                if (!e.dataKey) return;
+                setHiddenLines(prev => {
+                  const next = new Set(prev);
+                  if (next.has(e.dataKey!)) next.delete(e.dataKey!);
+                  else next.add(e.dataKey!);
+                  return next;
+                });
+              }}
+              formatter={(value: string, entry: { dataKey?: string }) => (
+                <span style={{ color: hiddenLines.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenLines.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>
+                  {value}
+                </span>
+              )}
+              wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+            />
             {lines.map(l => (
               <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name || l.dataKey}
-                stroke={l.color} strokeWidth={2} dot={{ r: 2 }} />
+                stroke={l.color} strokeWidth={2} dot={{ r: 2 }}
+                hide={hiddenLines.has(l.dataKey)} />
             ))}
             {/* Reference lines for annotations */}
             {annotations.map(a => (

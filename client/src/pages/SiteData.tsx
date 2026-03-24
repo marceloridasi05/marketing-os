@@ -142,6 +142,7 @@ function getDateRange(period: TimePeriod): { start: string; end: string } | null
 export function SiteData() {
   const [rawData, setRawData] = useState<SiteRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -450,10 +451,18 @@ export function SiteData() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} width={55} />
                   <Tooltip />
-                  <Legend />
-                  <Bar dataKey="Sessões Site" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="Sessões Blog" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="Leads" fill="#10b981" radius={[2, 2, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+                    onClick={(e: { dataKey?: string }) => {
+                      if (!e.dataKey) return;
+                      setHiddenBars(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; });
+                    }}
+                    formatter={(value: string, entry: { dataKey?: string }) => (
+                      <span style={{ color: hiddenBars.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenBars.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
+                    )}
+                  />
+                  <Bar dataKey="Sessões Site" fill="#3b82f6" radius={[2, 2, 0, 0]} hide={hiddenBars.has('Sessões Site')} />
+                  <Bar dataKey="Sessões Blog" fill="#8b5cf6" radius={[2, 2, 0, 0]} hide={hiddenBars.has('Sessões Blog')} />
+                  <Bar dataKey="Leads" fill="#10b981" radius={[2, 2, 0, 0]} hide={hiddenBars.has('Leads')} />
                 </BarChart>
               </ResponsiveContainer>
             </CollapsibleCard>

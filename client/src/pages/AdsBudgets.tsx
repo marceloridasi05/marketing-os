@@ -56,6 +56,7 @@ const PERIOD_OPTIONS = [
 export function AdsBudgets() {
   const [data, setData] = useState<AdsBudgetRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState('all');
@@ -221,9 +222,17 @@ export function AdsBudgets() {
                     <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 11 }} width={60} />
                     <Tooltip formatter={(value: number) => fmtMoney(value)} />
-                    <Legend />
-                    <Bar dataKey="Google" fill="#22c55e" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="LinkedIn" fill="#2563eb" radius={[2, 2, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+                      onClick={(e: { dataKey?: string }) => {
+                        if (!e.dataKey) return;
+                        setHiddenBars(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; });
+                      }}
+                      formatter={(value: string, entry: { dataKey?: string }) => (
+                        <span style={{ color: hiddenBars.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenBars.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
+                      )}
+                    />
+                    <Bar dataKey="Google" fill="#22c55e" radius={[2, 2, 0, 0]} hide={hiddenBars.has('Google')} />
+                    <Bar dataKey="LinkedIn" fill="#2563eb" radius={[2, 2, 0, 0]} hide={hiddenBars.has('LinkedIn')} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes</p>}
