@@ -371,8 +371,10 @@ export function Budget() {
   // Filter data
   const monthRange = useMemo(() => getMonthRange(timePeriod), [timePeriod]);
 
-  const costItems = useMemo(() => allData.filter(d => d.section !== 'Budget'), [allData]);
-  const costItemsExclHC = useMemo(() => allData.filter(d => d.section !== 'Budget' && d.section !== 'Headcount'), [allData]);
+  // Exclude "Total X" summary rows to avoid double-counting
+  const isNotTotalRow = (d: BudgetItem) => !d.name.startsWith('Total ') && d.name !== 'Grand Total Mkt';
+  const costItems = useMemo(() => allData.filter(d => d.section !== 'Budget' && isNotTotalRow(d)), [allData]);
+  const costItemsExclHC = useMemo(() => allData.filter(d => d.section !== 'Budget' && d.section !== 'Headcount' && isNotTotalRow(d)), [allData]);
   const budgetLineItems = useMemo(() => allData.filter(d => d.section === 'Budget'), [allData]);
 
   const filtered = useMemo(() => {
