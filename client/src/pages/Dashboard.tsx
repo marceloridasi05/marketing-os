@@ -488,17 +488,6 @@ export function Dashboard() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200">
-          <span className="text-[10px] font-medium text-gray-400 uppercase mr-1">Engine</span>
-          {[{ v: '', l: 'Todos' }, { v: 'SMB', l: 'SMB' }, { v: 'ENTERPRISE', l: 'Enterprise' }].map(o => (
-            <button key={o.v} onClick={() => setEngineFilter(o.v)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                engineFilter === o.v ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}>
-              {o.l}
-            </button>
-          ))}
-        </div>
       </div>
 
       {loading ? (
@@ -525,29 +514,6 @@ export function Dashboard() {
               icon={totalSavings >= 0 ? <TrendingUp size={14} className="text-green-500" /> : <TrendingDown size={14} className="text-red-500" />} />
           </div>
 
-          {/* Engine Breakdown */}
-          {engineFilter === '' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <Card className="border-l-4 border-l-blue-500">
-                <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">SMB Engine</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div><p className="text-[10px] text-gray-500 uppercase">Leads</p><p className="text-lg font-semibold text-gray-900">{fmtNum(fSite.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0))}</p></div>
-                  <div><p className="text-[10px] text-gray-500 uppercase">GA Conv.</p><p className="text-lg font-semibold text-gray-900">{fmtNum(totalGaConversions)}</p></div>
-                  <div><p className="text-[10px] text-gray-500 uppercase">Gasto Ads</p><p className="text-lg font-semibold text-gray-900">{fmtMoney(totalAdsSpend)}</p></div>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-2">Foco: eficiência de custo, CPL, volume de leads</p>
-              </Card>
-              <Card className="border-l-4 border-l-purple-500">
-                <h4 className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">Enterprise Engine</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div><p className="text-[10px] text-gray-500 uppercase">LI Impressões</p><p className="text-lg font-semibold text-gray-900">{fmtNum(totalLiImpressions)}</p></div>
-                  <div><p className="text-[10px] text-gray-500 uppercase">Seguidores</p><p className="text-lg font-semibold text-gray-900">{fmtNum(latestFollowers)}</p></div>
-                  <div><p className="text-[10px] text-gray-500 uppercase">Gasto Mktg</p><p className="text-lg font-semibold text-gray-900">{fmtMoney(totalMktgSpend)}</p></div>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-2">Foco: execução de ABM, awareness, pipeline Enterprise</p>
-              </Card>
-            </div>
-          )}
 
           {/* Row 2: Mini sparkline charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
