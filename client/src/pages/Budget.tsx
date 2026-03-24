@@ -420,12 +420,14 @@ export function Budget() {
   const savings = totalOrcamento - gastoFromSavingsStart;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
-  // Savings acumulado: compute running total over months from SAVINGS_START (excl Headcount)
+  // Savings acumulado: resets each year — shows accumulated for detailYear only
   const savingsAcumulado = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
+    const yearStart = `${detailYear}-01`;
+    const savingsStart = detailYear <= 2025 ? SAVINGS_START : yearStart;
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= savingsStart && ym.startsWith(String(detailYear)));
 
     let cumSavings = 0;
     for (const ym of sortedMonths) {
@@ -435,7 +437,7 @@ export function Budget() {
       cumSavings += (monthBudget - monthCost);
     }
     return cumSavings;
-  }, [costItemsExclHC, budgetLineItems]);
+  }, [costItemsExclHC, budgetLineItems, detailYear]);
 
   // Detail table: year selector
   const currentYear = new Date().getFullYear();
@@ -450,9 +452,9 @@ export function Budget() {
   const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
 
   // Budget & savings per month for detailYear (excl Headcount, from SAVINGS_START)
+  // Savings acumulado zera a cada virada de ano
   const monthBudgetSavings = useMemo(() => {
     const result: Record<string, { budget: number; gasto: number; savings: number; savingsAcum: number }> = {};
-    // Compute cumulative savings from SAVINGS_START up to start of detailYear
     let cumSavings = 0;
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
@@ -460,6 +462,8 @@ export function Budget() {
     const sorted = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
     for (const ym of sorted) {
       const [y, m] = ym.split('-').map(Number);
+      // Reset cumulative at start of each year (or start of savings period)
+      if (m === 1 || (y === 2025 && m === 9)) cumSavings = 0;
       const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
       const mb = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const ms = mb - mc;
@@ -513,22 +517,15 @@ export function Budget() {
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
 
   // Savings line chart data (only from SAVINGS_START, excl Headcount, filtered by detailYear)
+  // Savings chart: cumulative resets each year
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
-    // Pre-compute cumulative from SAVINGS_START before detailYear
+    // No carry-over: cumulative starts at 0 for each year
     let cumSavings = 0;
-    const allSavingsMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
-    for (const ym of allSavingsMonths) {
-      if (ym.startsWith(String(detailYear))) break;
-      const [y, m] = ym.split('-').map(Number);
-      const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
-      const mb = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
-      cumSavings += (mb - mc);
-    }
 
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
@@ -613,22 +610,15 @@ export function Budget() {
     savings: number;
     savingsAcum: number;
   }
+  // Savings acumulado zera a cada ano
   const savingsTableData = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
+    // Cumulative resets each year — no carry-over from previous years
     let cumSavings = 0;
-    // Compute cumulative from SAVINGS_START to get correct running total
-    const allSavingsMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START);
-    for (const ym of allSavingsMonths) {
-      if (ym.startsWith(String(detailYear))) break;
-      const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
-      const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
-      cumSavings += (monthBudget - monthCost);
-    }
 
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
@@ -767,7 +757,7 @@ export function Budget() {
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Savings Acumulado</p>
-                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className="text-xs text-gray-400 mt-0.5">ano {detailYear}</p>
                   <p className={`text-2xl font-semibold mt-1 ${savingsAcumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumulado)}</p>
                 </Card>
               </>
