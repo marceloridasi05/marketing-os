@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 
@@ -294,6 +294,130 @@ export function Dashboard() {
   const savingsBudgetItems = fBudget.filter(r => r.section === 'Budget' && r.year === savingsYear);
   const totalSavings = savingsBudgetItems.reduce((s, r) => s + r.planned, 0) - savingsCostItems.reduce((s, r) => s + r.actual, 0);
 
+  // --- ANALYTICS ENGINE (deterministic) ---
+  // Previous period data for comparison
+  const prevRange = useMemo(() => {
+    if (!dateRange) return null;
+    const s = new Date(dateRange.start);
+    const e = new Date(dateRange.end);
+    const diff = e.getTime() - s.getTime() + 86400000;
+    const prevEnd = new Date(s.getTime() - 86400000);
+    const prevStart = new Date(prevEnd.getTime() - diff + 86400000);
+    return { start: prevStart.toISOString().slice(0, 10), end: prevEnd.toISOString().slice(0, 10) };
+  }, [dateRange]);
+
+  const pSite = useMemo(() => filterByWeekStart(siteData, prevRange), [siteData, prevRange]);
+  const pAds = useMemo(() => filterByWeekStart(adsKpis, prevRange), [adsKpis, prevRange]);
+  const pLiPage = useMemo(() => filterByWeekStart(linkedinPage, prevRange), [linkedinPage, prevRange]);
+  const pAdsBudgets = useMemo(() => filterAdsBudgetByRange(adsBudgets, prevRange), [adsBudgets, prevRange]);
+
+  const prevSessions = pSite.reduce((s, r) => s + (r.sessions ?? 0), 0);
+  const prevLeads = pSite.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
+  const prevGaConv = pAds.reduce((s, r) => s + (r.gaConversions ?? 0), 0);
+  const prevLiImp = pLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
+  const prevAdsSpend = pAdsBudgets.reduce((s, r) => s + (r.monthlyTotalUsed ?? 0), 0);
+
+  const safePct = (cur: number, prev: number) => prev > 0 ? ((cur - prev) / prev) * 100 : (cur > 0 ? 100 : 0);
+  const safeDivide = (a: number, b: number) => b > 0 ? a / b : null;
+
+  // KPI Comparisons
+  const kpiComparisons = useMemo(() => {
+    const cpl = safeDivide(totalAdsSpend, totalLeads);
+    const prevCpl = safeDivide(prevAdsSpend, prevLeads);
+    const gaClicks = fAds.reduce((s, r) => s + (r.gaClicks ?? 0), 0);
+    const gaImp = fAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
+    const prevGaClicks = pAds.reduce((s, r) => s + (r.gaClicks ?? 0), 0);
+    const prevGaImp = pAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
+    const ctr = safeDivide(gaClicks, gaImp);
+    const prevCtr = safeDivide(prevGaClicks, prevGaImp);
+    const convRate = safeDivide(totalGaConversions, gaClicks);
+    const prevConvRate = safeDivide(prevGaConv, prevGaClicks);
+    return [
+      { label: 'Sessões', cur: totalSessions, prev: prevSessions, fmt: 'num' as const },
+      { label: 'Leads', cur: totalLeads, prev: prevLeads, fmt: 'num' as const },
+      { label: 'Investimento', cur: totalAdsSpend, prev: prevAdsSpend, fmt: 'money' as const },
+      { label: 'CPL', cur: cpl, prev: prevCpl, fmt: 'money' as const },
+      { label: 'CTR', cur: ctr != null ? ctr * 100 : null, prev: prevCtr != null ? prevCtr * 100 : null, fmt: 'pct' as const },
+      { label: 'Taxa Conv.', cur: convRate != null ? convRate * 100 : null, prev: prevConvRate != null ? prevConvRate * 100 : null, fmt: 'pct' as const },
+    ];
+  }, [totalSessions, prevSessions, totalLeads, prevLeads, totalAdsSpend, prevAdsSpend, totalGaConversions, prevGaConv, fAds, pAds]);
+
+  // Rule-based Alerts
+  const alerts = useMemo(() => {
+    const items: { severity: 'critical' | 'warning' | 'good'; msg: string }[] = [];
+    // Spend > 0 but leads = 0
+    if (totalAdsSpend > 0 && totalLeads === 0) items.push({ severity: 'critical', msg: 'Investimento em Ads sem gerar leads no período' });
+    // CPL > 1.5x prev
+    const cpl = safeDivide(totalAdsSpend, totalLeads);
+    const prevCpl = safeDivide(prevAdsSpend, prevLeads);
+    if (cpl != null && prevCpl != null && prevCpl > 0 && cpl > prevCpl * 1.5) items.push({ severity: 'warning', msg: `CPL subiu ${((cpl / prevCpl - 1) * 100).toFixed(0)}% vs período anterior` });
+    // Spend up, leads down
+    if (totalAdsSpend > prevAdsSpend && totalLeads < prevLeads && prevLeads > 0) items.push({ severity: 'warning', msg: 'Investimento subiu mas leads caíram' });
+    // Sessions up, leads down
+    if (totalSessions > prevSessions && totalLeads < prevLeads && prevLeads > 0) items.push({ severity: 'warning', msg: 'Sessões subiram mas leads caíram — problema de conversão' });
+    // Budget overrun
+    if (totalSavings < 0) items.push({ severity: 'critical', msg: `Orçamento estourado: ${fmtMoney(Math.abs(totalSavings))} acima` });
+    // Good signals
+    if (totalLeads > prevLeads && prevLeads > 0) items.push({ severity: 'good', msg: `Leads cresceram ${safePct(totalLeads, prevLeads).toFixed(0)}% vs anterior` });
+    if (totalSavings > 0 && totalMktgSpend > 0) items.push({ severity: 'good', msg: `Savings de ${fmtMoney(totalSavings)} no período` });
+    if (cpl != null && prevCpl != null && cpl < prevCpl) items.push({ severity: 'good', msg: `CPL melhorou ${((1 - cpl / prevCpl) * 100).toFixed(0)}%` });
+    return items;
+  }, [totalAdsSpend, totalLeads, prevAdsSpend, prevLeads, totalSessions, prevSessions, totalSavings, totalMktgSpend]);
+
+  // Bottleneck Detection
+  const bottleneck = useMemo(() => {
+    // Score each dimension 0-2 (0=bad, 1=attention, 2=good)
+    const sessionsTrend = totalSessions > prevSessions ? 2 : totalSessions === prevSessions ? 1 : 0;
+    const leadsTrend = totalLeads > prevLeads ? 2 : totalLeads === prevLeads ? 1 : 0;
+    const cpl = safeDivide(totalAdsSpend, totalLeads);
+    const prevCplVal = safeDivide(prevAdsSpend, prevLeads);
+    const efficiencyTrend = cpl != null && prevCplVal != null ? (cpl <= prevCplVal ? 2 : cpl <= prevCplVal * 1.3 ? 1 : 0) : 1;
+    const budgetOk = totalSavings >= 0 ? 2 : totalSavings > -10000 ? 1 : 0;
+
+    if (sessionsTrend === 0 && leadsTrend <= 1) return { type: 'Aquisição', desc: 'Tráfego em queda — revisar canais e campanhas', icon: '🔍', color: 'red' };
+    if (sessionsTrend >= 1 && leadsTrend === 0) return { type: 'Conversão', desc: 'Tráfego ok mas leads caíram — revisar landing pages e CTAs', icon: '🎯', color: 'orange' };
+    if (efficiencyTrend === 0) return { type: 'Eficiência', desc: 'CPL subindo — otimizar campanhas ou realocar budget', icon: '💰', color: 'orange' };
+    if (budgetOk === 0) return { type: 'Orçamento', desc: 'Gastos acima do planejado — priorizar cortes ou renegociar', icon: '📊', color: 'red' };
+    return { type: 'Saudável', desc: 'Sem gargalos críticos identificados', icon: '✅', color: 'green' };
+  }, [totalSessions, prevSessions, totalLeads, prevLeads, totalAdsSpend, prevAdsSpend, totalSavings]);
+
+  // Health Score (0-10)
+  const healthScore = useMemo(() => {
+    let score = 5; // baseline
+    // Lead trend (+/- 2)
+    if (prevLeads > 0) { const d = safePct(totalLeads, prevLeads); score += d > 10 ? 2 : d > 0 ? 1 : d > -10 ? 0 : d > -25 ? -1 : -2; }
+    // Efficiency (+/- 2)
+    const cpl = safeDivide(totalAdsSpend, totalLeads);
+    const pCpl = safeDivide(prevAdsSpend, prevLeads);
+    if (cpl != null && pCpl != null && pCpl > 0) { const d = ((cpl - pCpl) / pCpl) * 100; score += d < -10 ? 2 : d < 0 ? 1 : d < 15 ? 0 : d < 30 ? -1 : -2; }
+    // Budget adherence (+/- 2)
+    score += totalSavings > 10000 ? 2 : totalSavings >= 0 ? 1 : totalSavings > -10000 ? -1 : -2;
+    // Session trend (+/- 1)
+    if (prevSessions > 0) { const d = safePct(totalSessions, prevSessions); score += d > 5 ? 1 : d < -5 ? -1 : 0; }
+    // Clamp 0-10
+    return Math.max(0, Math.min(10, score));
+  }, [totalLeads, prevLeads, totalAdsSpend, prevAdsSpend, totalSessions, prevSessions, totalSavings]);
+
+  const healthStatus = healthScore >= 7 ? 'Saudável' : healthScore >= 4 ? 'Atenção' : 'Crítico';
+  const healthColor = healthScore >= 7 ? 'green' : healthScore >= 4 ? 'yellow' : 'red';
+
+  // Rankings (top channels by spend from budget items)
+  const rankings = useMemo(() => {
+    const costItems = fBudget.filter(r => r.section === 'Mídia' && isNotTotalRow(r));
+    const byName = new Map<string, { spend: number; name: string }>();
+    for (const r of costItems) {
+      const cur = byName.get(r.name) ?? { spend: 0, name: r.name };
+      cur.spend += r.actual;
+      byName.set(r.name, cur);
+    }
+    const sorted = [...byName.values()].filter(v => v.spend > 0).sort((a, b) => b.spend - a.spend);
+    return {
+      highestSpend: sorted[0] ?? null,
+      lowestSpend: sorted.length > 1 ? sorted[sorted.length - 1] : null,
+      topSpenders: sorted.slice(0, 5),
+    };
+  }, [fBudget]);
+
   // --- Chart data ---
   const siteChartData = useMemo(() => {
     const withData = fSite.filter(r => r.sessions != null && (r.sessions ?? 0) > 0);
@@ -514,6 +638,120 @@ export function Dashboard() {
               icon={totalSavings >= 0 ? <TrendingUp size={14} className="text-green-500" /> : <TrendingDown size={14} className="text-red-500" />} />
           </div>
 
+
+          {/* Analytics: Health Score + Bottleneck + Alerts */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            {/* Health Score */}
+            <Card className="flex items-center gap-4">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shrink-0 ${
+                healthColor === 'green' ? 'bg-green-100 text-green-700' :
+                healthColor === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {healthScore}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saúde do Marketing</p>
+                <p className={`text-sm font-bold ${
+                  healthColor === 'green' ? 'text-green-600' :
+                  healthColor === 'yellow' ? 'text-yellow-600' :
+                  'text-red-600'
+                }`}>{healthStatus}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Score 0-10 baseado em tendências, eficiência e orçamento</p>
+              </div>
+            </Card>
+
+            {/* Bottleneck */}
+            <Card className={`border-l-4 ${
+              bottleneck.color === 'green' ? 'border-l-green-500' :
+              bottleneck.color === 'orange' ? 'border-l-orange-500' :
+              'border-l-red-500'
+            }`}>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gargalo Principal</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{bottleneck.icon}</span>
+                <div>
+                  <p className="text-sm font-bold text-gray-800">{bottleneck.type}</p>
+                  <p className="text-[10px] text-gray-500 leading-tight">{bottleneck.desc}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Alerts Summary */}
+            <Card>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Alertas</p>
+              <div className="space-y-1">
+                {alerts.length === 0 ? (
+                  <p className="text-xs text-gray-400">Sem alertas no período</p>
+                ) : alerts.slice(0, 4).map((a, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-xs">
+                    {a.severity === 'critical' ? <XCircle size={12} className="text-red-500 mt-0.5 shrink-0" /> :
+                     a.severity === 'warning' ? <AlertTriangle size={12} className="text-yellow-500 mt-0.5 shrink-0" /> :
+                     <CheckCircle2 size={12} className="text-green-500 mt-0.5 shrink-0" />}
+                    <span className={`leading-tight ${
+                      a.severity === 'critical' ? 'text-red-700' :
+                      a.severity === 'warning' ? 'text-yellow-700' :
+                      'text-green-700'
+                    }`}>{a.msg}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* KPI Comparisons: current vs previous */}
+          <CollapsibleCard title="Comparação com Período Anterior" className="mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {kpiComparisons.map(k => {
+                const cur = k.cur ?? 0;
+                const prev = k.prev ?? 0;
+                const diff = cur - prev;
+                const pct = prev > 0 ? ((cur - prev) / prev) * 100 : (cur > 0 ? 100 : 0);
+                const positive = k.label === 'CPL' || k.label === 'Investimento' ? diff <= 0 : diff >= 0;
+                const fmtV = (v: number) => k.fmt === 'money' ? fmtMoney(v) : k.fmt === 'pct' ? `${v.toFixed(1)}%` : fmtNum(v);
+                return (
+                  <div key={k.label} className="bg-white rounded-lg border border-gray-200 p-3">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{k.label}</p>
+                    <p className="text-lg font-bold text-gray-900 mt-0.5">{fmtV(cur)}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      {diff !== 0 && (
+                        positive
+                          ? <TrendingUp size={10} className="text-green-500" />
+                          : <TrendingDown size={10} className="text-red-500" />
+                      )}
+                      <span className={`text-[10px] font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
+                        {diff > 0 ? '+' : ''}{fmtV(diff)}
+                      </span>
+                      <span className={`text-[10px] ${positive ? 'text-green-400' : 'text-red-400'}`}>
+                        ({pct > 0 ? '+' : ''}{pct.toFixed(0)}%)
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-gray-300 mt-0.5">Anterior: {fmtV(prev)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleCard>
+
+          {/* Rankings */}
+          {rankings.topSpenders.length > 0 && (
+            <CollapsibleCard title="Ranking — Mídia por Investimento" className="mb-6">
+              <div className="space-y-1.5">
+                {rankings.topSpenders.map((r, i) => (
+                  <div key={r.name} className="flex items-center gap-3">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      i === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{i + 1}</span>
+                    <span className="text-xs font-medium text-gray-700 w-40 truncate">{r.name}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                      <div className="bg-blue-500 rounded-full h-2" style={{ width: `${(r.spend / (rankings.topSpenders[0]?.spend || 1)) * 100}%` }} />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 w-24 text-right">{fmtMoney(r.spend)}</span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleCard>
+          )}
 
           {/* Row 2: Mini sparkline charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

@@ -337,6 +337,23 @@ export function Plan() {
   const planned = data.filter(i => i.status === 'planned').length;
   const ongoing = data.filter(i => i.status === 'ongoing').length;
   const done = data.filter(i => i.status === 'done').length;
+  const cancelled = data.filter(i => i.status === 'cancelled').length;
+  const completionRate = data.length > 0 ? ((done / data.length) * 100).toFixed(0) : '0';
+  const executionRate = data.length > 0 ? (((done + ongoing) / data.length) * 100).toFixed(0) : '0';
+
+  // By channel breakdown
+  const byChannel = useMemo(() => {
+    const map = new Map<string, number>();
+    data.forEach(i => map.set(i.channel, (map.get(i.channel) ?? 0) + 1));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [data]);
+
+  // By objective breakdown
+  const byObjective = useMemo(() => {
+    const map = new Map<string, number>();
+    data.forEach(i => map.set(i.objective, (map.get(i.objective) ?? 0) + 1));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [data]);
 
   return (
     <div>
@@ -404,13 +421,68 @@ export function Plan() {
         </div>
       </div>
 
-      {/* Status summary */}
-      <div className="flex gap-4 mb-4 text-sm">
-        <span className="text-gray-500">{data.length} iniciativas</span>
-        <span className="text-gray-400">|</span>
-        <span className="text-gray-500">{planned} planejadas</span>
-        <span className="text-blue-600">{ongoing} em andamento</span>
-        <span className="text-green-600">{done} concluídas</span>
+      {/* Analytics Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase">Total</p>
+          <p className="text-lg font-bold text-gray-900">{data.length}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase">Planejadas</p>
+          <p className="text-lg font-bold text-gray-500">{planned}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-blue-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-blue-400 uppercase">Em Andamento</p>
+          <p className="text-lg font-bold text-blue-600">{ongoing}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-green-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-green-400 uppercase">Concluídas</p>
+          <p className="text-lg font-bold text-green-600">{done}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-red-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-red-400 uppercase">Canceladas</p>
+          <p className="text-lg font-bold text-red-600">{cancelled}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-green-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-green-400 uppercase">Conclusão</p>
+          <p className="text-lg font-bold text-green-600">{completionRate}%</p>
+        </div>
+        <div className="bg-white rounded-lg border border-blue-200 p-2.5 text-center">
+          <p className="text-[10px] font-semibold text-blue-400 uppercase">Execução</p>
+          <p className="text-lg font-bold text-blue-600">{executionRate}%</p>
+        </div>
+      </div>
+
+      {/* Breakdowns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-3">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Por Canal</p>
+          <div className="space-y-1">
+            {byChannel.slice(0, 6).map(([ch, count]) => (
+              <div key={ch} className="flex items-center gap-2 text-xs">
+                <span className="text-gray-700 w-28 truncate">{ch}</span>
+                <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                  <div className="bg-blue-500 rounded-full h-1.5" style={{ width: `${(count / (byChannel[0]?.[1] || 1)) * 100}%` }} />
+                </div>
+                <span className="text-gray-500 font-medium w-6 text-right">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-3">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Por Objetivo</p>
+          <div className="space-y-1">
+            {byObjective.slice(0, 6).map(([obj, count]) => (
+              <div key={obj} className="flex items-center gap-2 text-xs">
+                <span className="text-gray-700 w-36 truncate">{obj}</span>
+                <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                  <div className="bg-purple-500 rounded-full h-1.5" style={{ width: `${(count / (byObjective[0]?.[1] || 1)) * 100}%` }} />
+                </div>
+                <span className="text-gray-500 font-medium w-6 text-right">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {loading ? (
