@@ -821,24 +821,28 @@ export function Dashboard() {
                 <p className="text-sm text-gray-400 py-4 text-center">Sem dados</p>
               ) : (
                 <div className="space-y-2">
-                  {topChannels.map((ch, i) => (
-                    <div key={i}>
-                      <div className="flex items-center justify-between text-xs mb-0.5">
-                        <span className="text-gray-700 truncate mr-2">{ch.name}</span>
-                        {showChannelNames ? (
-                          <span className="text-gray-900 font-medium whitespace-nowrap">{fmtMoneyFull(ch.spend)}</span>
-                        ) : (
-                          <span className="text-gray-400 select-none" style={{ filter: 'blur(5px)' }}>R$ ••••••</span>
-                        )}
+                  {topChannels.map((ch, i) => {
+                    const isSensitive = /head|designer\s*sr/i.test(ch.name);
+                    const showValue = !isSensitive || showChannelNames;
+                    return (
+                      <div key={i}>
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className="text-gray-700 truncate mr-2">{ch.name}</span>
+                          {showValue ? (
+                            <span className="text-gray-900 font-medium whitespace-nowrap">{fmtMoneyFull(ch.spend)}</span>
+                          ) : (
+                            <span className="text-gray-400 select-none" style={{ filter: 'blur(5px)' }}>R$ ••••••</span>
+                          )}
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
+                            style={{ width: `${ch.pct}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div
-                          className="h-1.5 rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
-                          style={{ width: `${ch.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CollapsibleCard>
