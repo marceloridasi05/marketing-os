@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap, Eye, EyeOff } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 
@@ -232,6 +232,7 @@ export function Dashboard() {
     abmUrl: string;
   } | null>(null);
   const [abmLoading, setAbmLoading] = useState(false);
+  const [showAccountNames, setShowAccountNames] = useState(false);
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -491,15 +492,22 @@ export function Dashboard() {
   }, [fBudget]);
 
   // --- Table data: LinkedIn Ads - latest week with data ---
+  // LinkedIn campaigns aggregated for the selected period
+  const fLiCampaigns = useMemo(() => filterByWeekStart(liCampaigns, dateRange), [liCampaigns, dateRange]);
   const liAdsLatest = useMemo(() => {
-    if (liCampaigns.length === 0) return [];
-    // Find the latest weekStart that has data
-    const weeks = [...new Set(liCampaigns.map(r => r.weekStart))].sort();
-    const latestWeek = weeks[weeks.length - 1];
-    return liCampaigns
-      .filter(r => r.weekStart === latestWeek && ((r.impressions ?? 0) > 0 || (r.clicks ?? 0) > 0))
-      .sort((a, b) => (b.cost ?? 0) - (a.cost ?? 0));
-  }, [liCampaigns]);
+    if (fLiCampaigns.length === 0) return [];
+    // Aggregate by campaign name across all weeks in period
+    const byCamp = new Map<string, { campaignName: string; impressions: number; clicks: number; cost: number }>();
+    for (const r of fLiCampaigns) {
+      if ((r.impressions ?? 0) === 0 && (r.clicks ?? 0) === 0) continue;
+      const cur = byCamp.get(r.campaignName) ?? { campaignName: r.campaignName, impressions: 0, clicks: 0, cost: 0 };
+      cur.impressions += r.impressions ?? 0;
+      cur.clicks += r.clicks ?? 0;
+      cur.cost += r.cost ?? 0;
+      byCamp.set(r.campaignName, cur);
+    }
+    return [...byCamp.values()].sort((a, b) => b.cost - a.cost);
+  }, [fLiCampaigns]);
 
   // --- Table data: Savings por Mes ---
   const savingsTable = useMemo(() => {
@@ -992,10 +1000,18 @@ export function Dashboard() {
                   </div>
                 )}
 
-                {/* Top Accounts Table (compact) */}
+                {/* Top Accounts Table (compact, masked by default) */}
                 {abmData.topAccounts.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Contas por Visitas</h4>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top Contas por Visitas</h4>
+                      <button onClick={() => setShowAccountNames(!showAccountNames)}
+                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                        title={showAccountNames ? 'Ocultar nomes' : 'Revelar nomes'}>
+                        {showAccountNames ? <EyeOff size={10} /> : <Eye size={10} />}
+                        {showAccountNames ? 'Ocultar' : 'Revelar'}
+                      </button>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -1011,7 +1027,13 @@ export function Dashboard() {
                         <tbody>
                           {abmData.topAccounts.map((a, i) => (
                             <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">{a.name}</td>
+                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">
+                                {showAccountNames ? a.name : (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="bg-gray-200 rounded px-2 py-0.5 text-gray-400 select-none" style={{ filter: 'blur(4px)' }}>{a.name}</span>
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-1.5 px-2 text-center text-gray-900 text-xs">{a.visits}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.sessions}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.pages}</td>
