@@ -209,7 +209,7 @@ function KpiTile({ label, value, icon }: {
 
 // --- Main ---
 export function Dashboard() {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('this_year');
   const [loading, setLoading] = useState(true);
 
   // Raw data
@@ -263,19 +263,15 @@ export function Dashboard() {
   const totalLiImpressions = fLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
   const latestFollowers = fLiPage.length > 0 ? (fLiPage[fLiPage.length - 1].followers ?? 0) : 0;
   const totalAdsSpend = fAdsBudgets.reduce((s, r) => s + (r.monthlyTotalUsed ?? 0), 0);
-  const totalMktgSpend = fBudget.filter(r => r.section !== 'Budget' && r.section !== 'Headcount').reduce((s, r) => s + r.actual, 0);
+  const isNotTotalRow = (r: BudgetItemRow) => !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
+  const totalMktgSpend = fBudget.filter(r => r.section !== 'Budget' && r.section !== 'Headcount' && isNotTotalRow(r)).reduce((s, r) => s + r.actual, 0);
 
-  // Savings: only from 2025-09 onwards, excluding Headcount (matches spreadsheet Grand Total Mkt)
-  const savingsBudget = fBudget.filter(r => {
-    const ym = r.year * 100 + r.month;
-    return ym >= 202509 && r.section !== 'Budget' && r.section !== 'Headcount';
-  });
-  // Budget limits from 2025-09 onwards
-  const budgetLimits = fBudget.filter(r => {
-    const ym = r.year * 100 + r.month;
-    return ym >= 202509 && r.section === 'Budget';
-  });
-  const totalSavings = budgetLimits.reduce((s, r) => s + r.planned, 0) - savingsBudget.reduce((s, r) => s + r.actual, 0);
+  // Savings: current year only (resets per year), from SAVINGS_START, excl Headcount & Total rows
+  const currentYear = new Date().getFullYear();
+  const savingsYear = timePeriod === 'this_year' ? currentYear : (timePeriod === 'last_month' ? (new Date().getMonth() === 0 ? currentYear - 1 : currentYear) : currentYear);
+  const savingsCostItems = fBudget.filter(r => r.section !== 'Budget' && r.section !== 'Headcount' && isNotTotalRow(r) && r.year === savingsYear);
+  const savingsBudgetItems = fBudget.filter(r => r.section === 'Budget' && r.year === savingsYear);
+  const totalSavings = savingsBudgetItems.reduce((s, r) => s + r.planned, 0) - savingsCostItems.reduce((s, r) => s + r.actual, 0);
 
   // --- Chart data ---
   const siteChartData = useMemo(() => {
@@ -308,7 +304,7 @@ export function Dashboard() {
     // Monthly aggregation from 2025-09
     const allItems = budgetItems.filter(r => {
       const ym = r.year * 100 + r.month;
-      return ym >= 202509 && r.section !== 'Budget';
+      return ym >= 202509 && r.section !== 'Budget' && !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
     });
     // Also apply date range filter if set
     const items = dateRange ? filterBudgetByRange(allItems, dateRange) : allItems;
@@ -336,7 +332,7 @@ export function Dashboard() {
   const topChannels = useMemo(() => {
     const byName = new Map<string, number>();
     for (const r of fBudget) {
-      if (r.section === 'Budget') continue;
+      if (r.section === 'Budget' || r.name.startsWith('Total ') || r.name === 'Grand Total Mkt') continue;
       const cur = byName.get(r.name) ?? 0;
       byName.set(r.name, cur + r.actual);
     }
@@ -363,7 +359,7 @@ export function Dashboard() {
   const savingsTable = useMemo(() => {
     const allItems = budgetItems.filter(r => {
       const ym = r.year * 100 + r.month;
-      return ym >= 202509 && r.section !== 'Budget';
+      return ym >= 202509 && r.section !== 'Budget' && !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
     });
     const items = dateRange ? filterBudgetByRange(allItems, dateRange) : allItems;
     const byMonth = new Map<string, { planned: number; actual: number; year: number; month: number }>();

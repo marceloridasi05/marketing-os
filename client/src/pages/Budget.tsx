@@ -349,6 +349,7 @@ export function Budget() {
   const [filterStrategy, setFilterStrategy] = useState<string>('Todos');
   const [filterExpenseType, setFilterExpenseType] = useState<string>('Todos');
   const [activeTab, setActiveTab] = useState<string>('Todos');
+  const [tableView, setTableView] = useState<'monthly' | 'quarterly'>('monthly');
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -610,6 +611,17 @@ export function Budget() {
     // Always show all 12 months for the selected year
     return Array.from({ length: 12 }, (_, i) => `${detailYear}-${String(i + 1).padStart(2, '0')}`);
   }, [detailYear]);
+
+  // Quarterly keys
+  const quarterKeys = [`Q1`, `Q2`, `Q3`, `Q4`];
+  const quarterMonths: Record<string, string[]> = {
+    Q1: monthKeys.filter(mk => ['01', '02', '03'].includes(mk.slice(5))),
+    Q2: monthKeys.filter(mk => ['04', '05', '06'].includes(mk.slice(5))),
+    Q3: monthKeys.filter(mk => ['07', '08', '09'].includes(mk.slice(5))),
+    Q4: monthKeys.filter(mk => ['10', '11', '12'].includes(mk.slice(5))),
+  };
+  const sumQuarter = (months: Record<string, number>, qk: string) =>
+    (quarterMonths[qk] || []).reduce((s, mk) => s + (months[mk] || 0), 0);
 
   // Section summary — uses detailYear
   interface SectionRow {
@@ -1117,6 +1129,16 @@ export function Budget() {
           <CollapsibleCard title="Detalhamento por Item" className="mb-6"
             actions={
               <div className="flex items-center gap-2">
+                <div className="flex gap-0.5 bg-gray-100 rounded-md p-0.5">
+                  <button onClick={() => setTableView('monthly')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded ${tableView === 'monthly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Mensal
+                  </button>
+                  <button onClick={() => setTableView('quarterly')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded ${tableView === 'quarterly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Trimestral
+                  </button>
+                </div>
                 <div className="flex gap-1">
                   {availableYears.map(y => (
                     <button key={y} onClick={() => setDetailYear(y)}
@@ -1139,27 +1161,30 @@ export function Budget() {
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Seção</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Estratégia</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Tipo</th>
-                    {monthKeys.map(mk => {
+                    {tableView === 'monthly' ? monthKeys.map(mk => {
                       const [y, m] = mk.split('-').map(Number);
                       return (
                         <th key={mk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">
                           {MONTHS[m]} {y}
                         </th>
                       );
-                    })}
-                    {monthKeys.length > 1 && (
-                      <>
-                        <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Total</th>
-                        <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Δ%</th>
-                      </>
-                    )}
+                    }) : quarterKeys.map(qk => (
+                      <th key={qk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">
+                        {qk} {detailYear}
+                      </th>
+                    ))}
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Total</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Δ%</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemRows.length === 0 ? (
-                    <tr><td colSpan={4 + monthKeys.length + 2} className="py-8 text-center text-gray-400">Sem dados</td></tr>
+                    <tr><td colSpan={4 + (tableView === 'monthly' ? monthKeys.length : 4) + 2} className="py-8 text-center text-gray-400">Sem dados</td></tr>
                   ) : itemRows.map((r, ri) => {
-                    const monthVals = monthKeys.map(mk => r.months[mk] || 0);
+                    const colVals = tableView === 'monthly'
+                      ? monthKeys.map(mk => r.months[mk] || 0)
+                      : quarterKeys.map(qk => sumQuarter(r.months, qk));
+                    const colKeys = tableView === 'monthly' ? monthKeys : quarterKeys;
                     const prevTotal = ri > 0 ? itemRows[ri - 1].total : 0;
                     return (
                       <tr key={`${r.section}-${r.name}`} className="border-b border-gray-100 hover:bg-gray-50">
@@ -1167,107 +1192,67 @@ export function Budget() {
                         <EditableCell value={r.section} options={SECTIONS} onSave={v => updateItemMeta(r.name, r.section, 'section', v)} tagColor={getTagColor(r.section, 'section', SECTIONS)} />
                         <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} tagColor={r.strategy ? getTagColor(r.strategy, 'strategy', strategies) : undefined} />
                         <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} tagColor={r.expenseType ? getTagColor(r.expenseType, 'type', expenseTypes) : undefined} />
-                        {monthVals.map((v, mi) => (
-                          <EditableMoneyCell key={monthKeys[mi]} value={v}
-                            onSave={newVal => updateItemMonthValue(r.name, r.section, monthKeys[mi], newVal)} />
+                        {tableView === 'monthly' ? colVals.map((v, mi) => (
+                          <EditableMoneyCell key={colKeys[mi]} value={v}
+                            onSave={newVal => updateItemMonthValue(r.name, r.section, colKeys[mi], newVal)} />
+                        )) : colVals.map((v, qi) => (
+                          <td key={colKeys[qi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap">
+                            {v > 0 ? fmtMoney(v) : '—'}
+                          </td>
                         ))}
-                        {monthKeys.length > 1 && (
-                          <>
-                            <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap"
->
-                              {fmtMoney(r.total)}
-                            </td>
-                            <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
-                              {delta(r.total, prevTotal)}
-                            </td>
-                          </>
-                        )}
+                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap">
+                          {fmtMoney(r.total)}
+                        </td>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
+                          {delta(r.total, prevTotal)}
+                        </td>
                       </tr>
                     );
                   })}
-                  {/* Total row */}
+                  {/* Footer rows: Grand Total, Budget, Savings, Savings Acum */}
                   {itemRows.length > 0 && (() => {
-                    const grandTotal = itemRows.reduce((s, r) => s + r.total, 0);
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
                     const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
                     const lastMk = monthKeys.filter(mk => monthBudgetSavings[mk]).pop();
                     const savingsAcumTotal = lastMk ? (monthBudgetSavings[lastMk]?.savingsAcum ?? 0) : 0;
+                    const excHC = itemRows.filter(r => r.section !== 'Headcount');
+                    const footerCols = tableView === 'monthly' ? monthKeys : quarterKeys;
+
+                    const gtVals = footerCols.map(ck => tableView === 'monthly'
+                      ? excHC.reduce((s, r) => s + (r.months[ck] || 0), 0)
+                      : excHC.reduce((s, r) => s + sumQuarter(r.months, ck), 0));
+                    const budgetVals = footerCols.map(ck => tableView === 'monthly'
+                      ? (monthBudgetSavings[ck]?.budget ?? 0)
+                      : (quarterMonths[ck] || []).reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0));
+                    const savingsVals = footerCols.map(ck => tableView === 'monthly'
+                      ? (monthBudgetSavings[ck]?.savings ?? null)
+                      : (quarterMonths[ck] || []).reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0));
+                    const savAcumVals = footerCols.map(ck => {
+                      if (tableView === 'monthly') return monthBudgetSavings[ck]?.savingsAcum ?? null;
+                      const lastM = (quarterMonths[ck] || []).filter(mk => monthBudgetSavings[mk]).pop();
+                      return lastM ? (monthBudgetSavings[lastM]?.savingsAcum ?? null) : null;
+                    });
+
+                    const footerRow = (label: string, vals: (number | null)[], totalVal: number, bgCls: string, textCls: string, colorFn?: (v: number | null) => string) => (
+                      <tr className={`${bgCls} font-medium`}>
+                        <td className={`py-2 px-2 text-left ${textCls}`}>{label}</td>
+                        <td className="py-2 px-2" colSpan={3}></td>
+                        {vals.map((v, i) => {
+                          const cls = colorFn ? colorFn(v) : textCls;
+                          return <td key={i} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : '—'}</td>;
+                        })}
+                        <td className={`py-2 px-2 text-center whitespace-nowrap ${colorFn ? colorFn(totalVal) : textCls}`}>{fmtMoney(totalVal)}</td>
+                        <td className="py-2 px-2"></td>
+                      </tr>
+                    );
+                    const signColor = (v: number | null) => v == null ? 'text-gray-400' : v >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium';
+
                     return (
                       <>
-                        <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-                          <td className="py-2.5 px-2 text-left text-gray-800">Grand Total Mkt</td>
-                          <td className="py-2.5 px-2" colSpan={3}></td>
-                          {monthKeys.map(mk => {
-                            const monthTotal = itemRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + (r.months[mk] || 0), 0);
-                            return (
-                              <td key={mk} className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
-                                {monthTotal > 0 ? fmtMoney(monthTotal) : '—'}
-                              </td>
-                            );
-                          })}
-                          {monthKeys.length > 1 && (
-                            <>
-                              <td className="py-2.5 px-2 text-center text-gray-900 whitespace-nowrap">
-                                {fmtMoney(itemRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + r.total, 0))}
-                              </td>
-                              <td className="py-2.5 px-2"></td>
-                            </>
-                          )}
-                        </tr>
-                        <tr className="bg-blue-50 font-medium">
-                          <td className="py-2 px-2 text-left text-blue-800">Budget</td>
-                          <td className="py-2 px-2" colSpan={3}></td>
-                          {monthKeys.map(mk => {
-                            const b = monthBudgetSavings[mk]?.budget ?? 0;
-                            return (
-                              <td key={mk} className="py-2 px-2 text-center text-blue-800 whitespace-nowrap">
-                                {b > 0 ? fmtMoney(b) : '—'}
-                              </td>
-                            );
-                          })}
-                          {monthKeys.length > 1 && (
-                            <>
-                              <td className="py-2 px-2 text-center text-blue-800 whitespace-nowrap">{budgetTotal > 0 ? fmtMoney(budgetTotal) : '—'}</td>
-                              <td className="py-2 px-2"></td>
-                            </>
-                          )}
-                        </tr>
-                        <tr className="bg-green-50 font-medium">
-                          <td className="py-2 px-2 text-left text-green-800">Budget Savings</td>
-                          <td className="py-2 px-2" colSpan={3}></td>
-                          {monthKeys.map(mk => {
-                            const sv = monthBudgetSavings[mk]?.savings;
-                            return (
-                              <td key={mk} className={`py-2 px-2 text-center whitespace-nowrap font-medium ${sv != null ? (sv >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>
-                                {sv != null ? fmtMoney(sv) : '—'}
-                              </td>
-                            );
-                          })}
-                          {monthKeys.length > 1 && (
-                            <>
-                              <td className={`py-2 px-2 text-center whitespace-nowrap font-medium ${savingsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsTotal)}</td>
-                              <td className="py-2 px-2"></td>
-                            </>
-                          )}
-                        </tr>
-                        <tr className="bg-yellow-50 font-medium">
-                          <td className="py-2 px-2 text-left text-yellow-800">Savings Acumulado</td>
-                          <td className="py-2 px-2" colSpan={3}></td>
-                          {monthKeys.map(mk => {
-                            const sa = monthBudgetSavings[mk]?.savingsAcum;
-                            return (
-                              <td key={mk} className={`py-2 px-2 text-center whitespace-nowrap font-medium ${sa != null ? (sa >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>
-                                {sa != null ? fmtMoney(sa) : '—'}
-                              </td>
-                            );
-                          })}
-                          {monthKeys.length > 1 && (
-                            <>
-                              <td className={`py-2 px-2 text-center whitespace-nowrap font-medium ${savingsAcumTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumTotal)}</td>
-                              <td className="py-2 px-2"></td>
-                            </>
-                          )}
-                        </tr>
+                        {footerRow('Grand Total Mkt', gtVals, excHC.reduce((s, r) => s + r.total, 0), 'bg-gray-100 font-semibold border-t-2 border-gray-300', 'text-gray-800')}
+                        {footerRow('Budget', budgetVals, budgetTotal, 'bg-blue-50', 'text-blue-800')}
+                        {footerRow('Budget Savings', savingsVals, savingsTotal, 'bg-green-50', 'text-green-800', signColor)}
+                        {footerRow('Savings Acumulado', savAcumVals, savingsAcumTotal, 'bg-yellow-50', 'text-yellow-800', signColor)}
                       </>
                     );
                   })()}
@@ -1279,13 +1264,25 @@ export function Budget() {
           {/* Section Summary */}
           <CollapsibleCard title="Resumo por Seção" className="mb-6"
             actions={
-              <div className="flex gap-1">
-                {availableYears.map(y => (
-                  <button key={y} onClick={() => setDetailYear(y)}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {y}
+              <div className="flex items-center gap-2">
+                <div className="flex gap-0.5 bg-gray-100 rounded-md p-0.5">
+                  <button onClick={() => setTableView('monthly')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded ${tableView === 'monthly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Mensal
                   </button>
-                ))}
+                  <button onClick={() => setTableView('quarterly')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded ${tableView === 'quarterly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Trimestral
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  {availableYears.map(y => (
+                    <button key={y} onClick={() => setDetailYear(y)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${detailYear === y ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      {y}
+                    </button>
+                  ))}
+                </div>
               </div>
             }>
             <div className="overflow-x-auto">
@@ -1293,14 +1290,12 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Seção</th>
-                    {monthKeys.map(mk => {
+                    {tableView === 'monthly' ? monthKeys.map(mk => {
                       const [y, m] = mk.split('-').map(Number);
-                      return (
-                        <th key={mk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">
-                          {MONTHS[m]} {y}
-                        </th>
-                      );
-                    })}
+                      return <th key={mk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">{MONTHS[m]} {y}</th>;
+                    }) : quarterKeys.map(qk => (
+                      <th key={qk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">{qk} {detailYear}</th>
+                    ))}
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Total</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Δ%</th>
                   </tr>
@@ -1308,74 +1303,64 @@ export function Budget() {
                 <tbody>
                   {sectionRows.map((r, ri) => {
                     const prevTotal = ri > 0 ? sectionRows[ri - 1].total : 0;
-                    const sectionMax = Math.max(...sectionRows.map(s => s.total), 0);
+                    const secCols = tableView === 'monthly' ? monthKeys : quarterKeys;
                     return (
                       <tr key={r.section} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">
                           <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: SECTION_COLORS[r.section] || '#999' }} />
                           {r.section}
                         </td>
-                        {monthKeys.map(mk => (
-                          <td key={mk} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap"
->
-                            {(r.months[mk] || 0) > 0 ? fmtMoney(r.months[mk]) : '—'}
-                          </td>
-                        ))}
-                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap"
->
-                          {fmtMoney(r.total)}
-                        </td>
-                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
-                          {delta(r.total, prevTotal)}
-                        </td>
+                        {secCols.map(ck => {
+                          const v = tableView === 'monthly' ? (r.months[ck] || 0) : sumQuarter(r.months, ck);
+                          return <td key={ck} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap">{v > 0 ? fmtMoney(v) : '—'}</td>;
+                        })}
+                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap">{fmtMoney(r.total)}</td>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>{delta(r.total, prevTotal)}</td>
                       </tr>
                     );
                   })}
                   {/* Grand Total Mkt + Budget + Savings rows */}
                   {sectionRows.length > 0 && (() => {
-                    const grandTotalExclHC = sectionRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + r.total, 0);
+                    const excHC = sectionRows.filter(r => r.section !== 'Headcount');
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
                     const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
                     const lastMk = monthKeys.filter(mk => monthBudgetSavings[mk]).pop();
                     const savingsAcumTotal = lastMk ? (monthBudgetSavings[lastMk]?.savingsAcum ?? 0) : 0;
+                    const sCols = tableView === 'monthly' ? monthKeys : quarterKeys;
+                    const signColor = (v: number | null) => v == null ? 'text-gray-400' : v >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium';
+
+                    const sFooterRow = (label: string, colFn: (ck: string) => number | null, totalVal: number, bgCls: string, textCls: string, colorFn?: (v: number | null) => string) => (
+                      <tr className={`${bgCls} font-medium`}>
+                        <td className={`py-2 px-2 text-left ${textCls}`}>{label}</td>
+                        {sCols.map(ck => {
+                          const v = colFn(ck);
+                          const cls = colorFn ? colorFn(v) : textCls;
+                          return <td key={ck} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : '—'}</td>;
+                        })}
+                        <td className={`py-2 px-2 text-center whitespace-nowrap ${colorFn ? colorFn(totalVal) : textCls}`}>{fmtMoney(totalVal)}</td>
+                        <td></td>
+                      </tr>
+                    );
+
                     return (
                       <>
-                        <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-                          <td className="py-2.5 px-2 text-left text-gray-800">Grand Total Mkt</td>
-                          {monthKeys.map(mk => {
-                            const total = sectionRows.filter(r => r.section !== 'Headcount').reduce((s, r) => s + (r.months[mk] || 0), 0);
-                            return <td key={mk} className="py-2.5 px-2 text-center text-gray-900">{total > 0 ? fmtMoney(total) : '—'}</td>;
-                          })}
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(grandTotalExclHC)}</td>
-                          <td></td>
-                        </tr>
-                        <tr className="bg-blue-50 font-medium">
-                          <td className="py-2 px-2 text-left text-blue-800">Budget</td>
-                          {monthKeys.map(mk => {
-                            const b = monthBudgetSavings[mk]?.budget ?? 0;
-                            return <td key={mk} className="py-2 px-2 text-center text-blue-800">{b > 0 ? fmtMoney(b) : '—'}</td>;
-                          })}
-                          <td className="py-2 px-2 text-center text-blue-800">{budgetTotal > 0 ? fmtMoney(budgetTotal) : '—'}</td>
-                          <td></td>
-                        </tr>
-                        <tr className="bg-green-50 font-medium">
-                          <td className="py-2 px-2 text-left text-green-800">Budget Savings</td>
-                          {monthKeys.map(mk => {
-                            const sv = monthBudgetSavings[mk]?.savings;
-                            return <td key={mk} className={`py-2 px-2 text-center font-medium ${sv != null ? (sv >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>{sv != null ? fmtMoney(sv) : '—'}</td>;
-                          })}
-                          <td className={`py-2 px-2 text-center font-medium ${savingsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsTotal)}</td>
-                          <td></td>
-                        </tr>
-                        <tr className="bg-yellow-50 font-medium">
-                          <td className="py-2 px-2 text-left text-yellow-800">Savings Acumulado</td>
-                          {monthKeys.map(mk => {
-                            const sa = monthBudgetSavings[mk]?.savingsAcum;
-                            return <td key={mk} className={`py-2 px-2 text-center font-medium ${sa != null ? (sa >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}`}>{sa != null ? fmtMoney(sa) : '—'}</td>;
-                          })}
-                          <td className={`py-2 px-2 text-center font-medium ${savingsAcumTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumTotal)}</td>
-                          <td></td>
-                        </tr>
+                        {sFooterRow('Grand Total Mkt', ck => tableView === 'monthly'
+                          ? excHC.reduce((s, r) => s + (r.months[ck] || 0), 0)
+                          : excHC.reduce((s, r) => s + sumQuarter(r.months, ck), 0),
+                          excHC.reduce((s, r) => s + r.total, 0), 'bg-gray-100 font-semibold border-t-2 border-gray-300', 'text-gray-800')}
+                        {sFooterRow('Budget', ck => tableView === 'monthly'
+                          ? (monthBudgetSavings[ck]?.budget ?? 0)
+                          : (quarterMonths[ck] || []).reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0),
+                          budgetTotal, 'bg-blue-50', 'text-blue-800')}
+                        {sFooterRow('Budget Savings', ck => tableView === 'monthly'
+                          ? (monthBudgetSavings[ck]?.savings ?? null)
+                          : (quarterMonths[ck] || []).reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0),
+                          savingsTotal, 'bg-green-50', 'text-green-800', signColor)}
+                        {sFooterRow('Savings Acumulado', ck => {
+                          if (tableView === 'monthly') return monthBudgetSavings[ck]?.savingsAcum ?? null;
+                          const lastM = (quarterMonths[ck] || []).filter(mk => monthBudgetSavings[mk]).pop();
+                          return lastM ? (monthBudgetSavings[lastM]?.savingsAcum ?? null) : null;
+                        }, savingsAcumTotal, 'bg-yellow-50', 'text-yellow-800', signColor)}
                       </>
                     );
                   })()}
