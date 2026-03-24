@@ -35,6 +35,26 @@ router.get('/summary', async (_req, res) => {
         intent: a.intent_level,
         lastSeen: a.last_seen,
         pages: a.unique_pages,
+        heatScore: a.final_heat_score || a.intent_score || 0,
+        outboundScore: a.outbound_count || 0,
+        accountStatus: a.account_status,
+      }));
+
+    // Linha de Chegada: targets with heat scores
+    const targetList = targets.targets || [];
+    const linhaDeChegada = targetList
+      .filter((t: Record<string, unknown>) => (t.total_heat_score as number || 0) > 0 || (t.total_visits as number || 0) > 0)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+        ((b.total_heat_score as number) || 0) - ((a.total_heat_score as number) || 0))
+      .slice(0, 15)
+      .map((t: Record<string, unknown>) => ({
+        name: t.name,
+        domain: t.domain,
+        heatScore: t.total_heat_score || 0,
+        abmScore: t.abm_score || 0,
+        outboundScore: t.outbound_score || 0,
+        visits: t.total_visits || 0,
+        accountStatus: t.account_status,
       }));
 
     // Recent visits (last 20 identified)
@@ -78,6 +98,7 @@ router.get('/summary', async (_req, res) => {
         detected: targets.summary?.detected || 0,
       },
       topAccounts,
+      linhaDeChegada,
       recentVisits,
       abmUrl: ABM_BASE,
     });

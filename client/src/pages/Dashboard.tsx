@@ -226,7 +226,8 @@ export function Dashboard() {
     stats: { totalVisits: number; identifiedLogos: number; estimatedLogos: number; totalLogoReach: number; corporateVisits: number; icpInferredLogos: number; lastVisit: string };
     intelligence: { totalAccounts: number; onFire: number; hot: number; warm: number; cold: number; identityConfirmed: number };
     targets: { total: number; manualTargets: number; detected: number };
-    topAccounts: { name: string; visits: number; sessions: number; intent: string; lastSeen: string; pages: number }[];
+    topAccounts: { name: string; visits: number; sessions: number; intent: string; lastSeen: string; pages: number; heatScore: number; outboundScore: number }[];
+    linhaDeChegada: { name: string; domain: string; heatScore: number; abmScore: number; outboundScore: number; visits: number; accountStatus: string }[];
     recentVisits: { company: string; page: string; source: string; timestamp: string; intent: string; confidence: string }[];
     abmUrl: string;
   } | null>(null);
@@ -935,7 +936,63 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Top Accounts Table */}
+                {/* Linha de Chegada */}
+                {abmData.linhaDeChegada && abmData.linhaDeChegada.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Linha de Chegada — Contas Alvo</h4>
+                    {/* Milestone header */}
+                    <div className="relative h-5 ml-[140px] mr-12 mb-1">
+                      {[
+                        { pct: 28, label: '📞 Contatar', color: 'text-blue-500' },
+                        { pct: 58, label: '🤝 Nutrir', color: 'text-amber-500' },
+                        { pct: 83, label: '🏁 Fechar', color: 'text-emerald-600' },
+                      ].map(m => (
+                        <div key={m.label} className="absolute flex flex-col items-center" style={{ left: `${m.pct}%`, transform: 'translateX(-50%)' }}>
+                          <span className={`text-[10px] font-semibold whitespace-nowrap ${m.color}`}>{m.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Track rows */}
+                    <div className="space-y-1">
+                      {abmData.linhaDeChegada.map((t, i) => {
+                        const pct = Math.max(1, Math.min(99, t.heatScore));
+                        const fillColor = pct >= 70 ? 'from-red-300 to-red-500' :
+                          pct >= 45 ? 'from-orange-200 to-orange-400' :
+                          pct >= 20 ? 'from-yellow-200 to-yellow-400' :
+                          'from-gray-100 to-gray-300';
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <div className="w-[132px] shrink-0 flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 shrink-0">
+                                {t.name?.[0] || '?'}
+                              </div>
+                              <span className="text-[11px] font-medium text-gray-700 truncate leading-tight">{t.name}</span>
+                            </div>
+                            <div className="flex-1 relative h-6 bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
+                              {/* Milestone lines */}
+                              {[28, 58, 83].map(mp => (
+                                <div key={mp} className="absolute top-0 bottom-0 w-px border-l border-dashed border-gray-200 opacity-40" style={{ left: `${mp}%` }} />
+                              ))}
+                              {/* Fill bar */}
+                              <div className={`absolute top-1 bottom-1 left-1 rounded bg-gradient-to-r transition-all ${fillColor}`}
+                                style={{ width: `calc(${pct}% - 8px)` }} />
+                              {/* Avatar on track */}
+                              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
+                                style={{ left: `${pct}%` }}>
+                                <div className="w-5 h-5 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center text-[8px] font-bold text-gray-600 shadow-sm">
+                                  {t.name?.[0] || '?'}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs tabular-nums font-bold text-gray-500 w-7 text-right shrink-0">{t.heatScore}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Accounts Table (compact) */}
                 {abmData.topAccounts.length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Contas por Visitas</h4>
