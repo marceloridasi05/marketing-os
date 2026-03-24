@@ -357,27 +357,30 @@ export function Dashboard() {
 
   // --- Table data: Savings por Mes ---
   const savingsTable = useMemo(() => {
-    const allItems = budgetItems.filter(r => {
+    const costItems = budgetItems.filter(r => {
       const ym = r.year * 100 + r.month;
-      return ym >= 202509 && r.section !== 'Budget' && !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
+      return ym >= 202509 && r.section !== 'Budget' && r.section !== 'Headcount' && !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
     });
-    const items = dateRange ? filterBudgetByRange(allItems, dateRange) : allItems;
-    const byMonth = new Map<string, { planned: number; actual: number; year: number; month: number }>();
-    for (const r of items) {
-      const key = `${r.year}-${String(r.month).padStart(2, '0')}`;
-      const cur = byMonth.get(key) ?? { planned: 0, actual: 0, year: r.year, month: r.month };
-      cur.planned += r.planned;
-      cur.actual += r.actual;
-      byMonth.set(key, cur);
-    }
-    return Array.from(byMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => ({
-        label: `${MONTH_NAMES[v.month - 1]}/${v.year}`,
-        planned: v.planned,
-        actual: v.actual,
-        savings: v.planned - v.actual,
-      }));
+    const budgetLines = budgetItems.filter(r => r.section === 'Budget');
+    const filteredCost = dateRange ? filterBudgetByRange(costItems, dateRange) : costItems;
+    const filteredBudget = dateRange ? filterBudgetByRange(budgetLines, dateRange) : budgetLines.filter(r => (r.year * 100 + r.month) >= 202509);
+
+    // Get unique months from both
+    const allKeys = new Set<string>();
+    filteredCost.forEach(r => allKeys.add(`${r.year}-${String(r.month).padStart(2, '0')}`));
+    filteredBudget.forEach(r => allKeys.add(`${r.year}-${String(r.month).padStart(2, '0')}`));
+
+    return [...allKeys].sort().map(key => {
+      const [y, m] = key.split('-').map(Number);
+      const budget = filteredBudget.filter(r => r.year === y && r.month === m).reduce((s, r) => s + r.planned, 0);
+      const actual = filteredCost.filter(r => r.year === y && r.month === m).reduce((s, r) => s + r.actual, 0);
+      return {
+        label: `${MONTH_NAMES[m - 1]}/${y}`,
+        planned: budget,
+        actual,
+        savings: budget - actual,
+      };
+    });
   }, [budgetItems, dateRange]);
 
   // --- AI Analysis ---
