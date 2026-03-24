@@ -435,6 +435,15 @@ export function Budget() {
     return cumSavings;
   }, [costItemsExclHC, budgetLineItems]);
 
+  // Detail table: year selector
+  const currentYear = new Date().getFullYear();
+  const [detailYear, setDetailYear] = useState(currentYear);
+  const availableYears = useMemo(() => {
+    const set = new Set<number>();
+    filtered.forEach(d => set.add(d.year));
+    return [...set].sort();
+  }, [filtered]);
+
   // Detail filtered by year (used by charts, tables, breakdowns)
   const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
 
@@ -512,15 +521,6 @@ export function Budget() {
       };
     });
   }, [costItemsExclHC, budgetLineItems, detailYear]);
-
-  // Detail table: year selector
-  const currentYear = new Date().getFullYear();
-  const [detailYear, setDetailYear] = useState(currentYear);
-  const availableYears = useMemo(() => {
-    const set = new Set<number>();
-    filtered.forEach(d => set.add(d.year));
-    return [...set].sort();
-  }, [filtered]);
 
   // Aggregated: by item across months (for detail table) — filtered by detailYear
   interface ItemRow {
