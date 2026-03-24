@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 
@@ -221,6 +221,17 @@ export function Dashboard() {
   const [budgetItems, setBudgetItems] = useState<BudgetItemRow[]>([]);
   const [adsBudgets, setAdsBudgets] = useState<AdsBudgetRow[]>([]);
 
+  // ABM Intelligence state
+  const [abmData, setAbmData] = useState<{
+    stats: { totalVisits: number; identifiedLogos: number; estimatedLogos: number; totalLogoReach: number; corporateVisits: number; icpInferredLogos: number; lastVisit: string };
+    intelligence: { totalAccounts: number; onFire: number; hot: number; warm: number; cold: number; identityConfirmed: number };
+    targets: { total: number; manualTargets: number; detected: number };
+    topAccounts: { name: string; visits: number; sessions: number; intent: string; lastSeen: string; pages: number }[];
+    recentVisits: { company: string; page: string; source: string; timestamp: string; intent: string; confidence: string }[];
+    abmUrl: string;
+  } | null>(null);
+  const [abmLoading, setAbmLoading] = useState(false);
+
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [aiTimestamp, setAiTimestamp] = useState<string | null>(null);
@@ -248,6 +259,15 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Fetch ABM data separately (external API, may be slow)
+  useEffect(() => {
+    setAbmLoading(true);
+    api.get<typeof abmData>('/abm/summary')
+      .then(d => setAbmData(d))
+      .catch(() => setAbmData(null))
+      .finally(() => setAbmLoading(false));
+  }, []);
 
   // Filtered data
   const dateRange = useMemo(() => getDateRange(timePeriod), [timePeriod]);
@@ -660,6 +680,115 @@ export function Dashboard() {
               )}
             </CollapsibleCard>
           </div>
+
+          {/* ABM Intelligence Widget */}
+          <CollapsibleCard title="ABM Intelligence" className="mb-6"
+            actions={
+              abmData?.abmUrl ? (
+                <a href={abmData.abmUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors">
+                  <ExternalLink size={12} /> Abrir ABM Control Center
+                </a>
+              ) : undefined
+            }>
+            {abmLoading ? (
+              <div className="flex items-center justify-center gap-3 py-8">
+                <Loader2 size={20} className="animate-spin text-indigo-500" />
+                <span className="text-sm text-gray-400">Carregando dados ABM...</span>
+              </div>
+            ) : !abmData ? (
+              <div className="py-8 text-center">
+                <Radar size={32} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-400">ABM Control Center indisponível</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* KPI tiles */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  <div className="bg-gradient-to-br from-indigo-50 to-white rounded-lg border border-indigo-100 p-3">
+                    <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">Total Visitas</p>
+                    <p className="text-xl font-bold text-indigo-700 mt-0.5">{abmData.stats.totalVisits.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-white rounded-lg border border-green-100 p-3">
+                    <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider">Logos Identificados</p>
+                    <p className="text-xl font-bold text-green-700 mt-0.5">{abmData.stats.totalLogoReach.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-50 to-white rounded-lg border border-orange-100 p-3">
+                    <p className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider">Contas Warm</p>
+                    <p className="text-xl font-bold text-orange-600 mt-0.5">{abmData.intelligence.warm}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-red-50 to-white rounded-lg border border-red-100 p-3">
+                    <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Contas Hot</p>
+                    <p className="text-xl font-bold text-red-600 mt-0.5">{abmData.intelligence.hot + abmData.intelligence.onFire}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg border border-purple-100 p-3">
+                    <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider">Contas Alvo</p>
+                    <p className="text-xl font-bold text-purple-700 mt-0.5">{abmData.targets.total}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg border border-blue-100 p-3">
+                    <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">ICP Inferido</p>
+                    <p className="text-xl font-bold text-blue-700 mt-0.5">{abmData.stats.icpInferredLogos.toLocaleString('pt-BR')}</p>
+                  </div>
+                </div>
+
+                {/* Top Accounts Table */}
+                {abmData.topAccounts.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Contas por Visitas</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-2 px-2 font-medium text-gray-500 text-xs">Empresa</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-500 text-xs">Visitas</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-500 text-xs">Sessões</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-500 text-xs">Páginas</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-500 text-xs">Intenção</th>
+                            <th className="text-left py-2 px-2 font-medium text-gray-500 text-xs">Última Visita</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {abmData.topAccounts.map((a, i) => (
+                            <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">{a.name}</td>
+                              <td className="py-1.5 px-2 text-center text-gray-900 text-xs">{a.visits}</td>
+                              <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.sessions}</td>
+                              <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.pages}</td>
+                              <td className="py-1.5 px-2 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                  a.intent === 'hot' || a.intent === 'on_fire' ? 'bg-red-100 text-red-700' :
+                                  a.intent === 'warm' ? 'bg-orange-100 text-orange-700' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>{a.intent || 'cold'}</span>
+                              </td>
+                              <td className="py-1.5 px-2 text-gray-500 text-xs">{a.lastSeen ? new Date(a.lastSeen).toLocaleDateString('pt-BR') : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Identified Visits */}
+                {abmData.recentVisits.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Visitas Identificadas Recentes</h4>
+                    <div className="space-y-1">
+                      {abmData.recentVisits.slice(0, 8).map((v, i) => (
+                        <div key={i} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-gray-50 text-xs">
+                          <span className="font-medium text-gray-800 w-40 truncate">{v.company}</span>
+                          <span className="text-gray-500 truncate flex-1">{v.page}</span>
+                          <span className="text-gray-400 shrink-0">{v.source}</span>
+                          <span className="text-gray-400 shrink-0">{v.timestamp ? new Date(v.timestamp).toLocaleDateString('pt-BR') : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CollapsibleCard>
 
           {/* AI Analysis Section */}
           <div ref={aiCardRef}>

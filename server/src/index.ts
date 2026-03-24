@@ -19,6 +19,7 @@ import chartAnnotationsRouter from './routes/chartAnnotations.js';
 import budgetItemsRouter from './routes/budgetItems.js';
 import adsBudgetsRouter from './routes/adsBudgets.js';
 import aiAnalysisRouter from './routes/aiAnalysis.js';
+import abmProxyRouter from './routes/abmProxy.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/chart-annotations', chartAnnotationsRouter);
 app.use('/api/budget-items', budgetItemsRouter);
 app.use('/api/ads-budgets', adsBudgetsRouter);
 app.use('/api/ai-analysis', aiAnalysisRouter);
+app.use('/api/abm', abmProxyRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
