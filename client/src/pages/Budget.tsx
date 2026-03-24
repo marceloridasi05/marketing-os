@@ -435,6 +435,9 @@ export function Budget() {
     return cumSavings;
   }, [costItemsExclHC, budgetLineItems]);
 
+  // Detail filtered by year (used by charts, tables, breakdowns)
+  const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
+
   // Chart data: stacked bar by section/month
   const stackedBarData = useMemo(() => {
     const map = new Map<string, Record<string, number>>();
@@ -528,8 +531,6 @@ export function Budget() {
     total: number;
     months: Record<string, number>;
   }
-
-  const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
 
   const itemRows = useMemo(() => {
     const map = new Map<string, ItemRow>();
