@@ -30,6 +30,7 @@ router.get('/summary', async (_req, res) => {
       .slice(0, 10)
       .map((a: Record<string, unknown>) => ({
         name: a.company_name,
+        domain: a.company_domain || null,
         visits: a.total_visits,
         sessions: a.unique_sessions,
         intent: a.intent_level,

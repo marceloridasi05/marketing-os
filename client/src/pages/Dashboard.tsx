@@ -226,7 +226,7 @@ export function Dashboard() {
     stats: { totalVisits: number; identifiedLogos: number; estimatedLogos: number; totalLogoReach: number; corporateVisits: number; icpInferredLogos: number; lastVisit: string };
     intelligence: { totalAccounts: number; onFire: number; hot: number; warm: number; cold: number; identityConfirmed: number };
     targets: { total: number; manualTargets: number; detected: number };
-    topAccounts: { name: string; visits: number; sessions: number; intent: string; lastSeen: string; pages: number; heatScore: number; outboundScore: number }[];
+    topAccounts: { name: string; domain: string | null; visits: number; sessions: number; intent: string; lastSeen: string; pages: number; heatScore: number; outboundScore: number }[];
     linhaDeChegada: { name: string; domain: string; heatScore: number; abmScore: number; outboundScore: number; visits: number; accountStatus: string }[];
     recentVisits: { company: string; page: string; source: string; timestamp: string; intent: string; confidence: string }[];
     abmUrl: string;
@@ -987,9 +987,13 @@ export function Dashboard() {
                         return (
                           <div key={i} className="flex items-center gap-2">
                             <div className="w-[132px] shrink-0 flex items-center gap-1.5">
-                              <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 shrink-0">
-                                {t.name?.[0] || '?'}
-                              </div>
+                              {t.domain ? (
+                                <img src={`https://www.google.com/s2/favicons?domain=${t.domain}&sz=20`} alt="" className="w-5 h-5 rounded-full shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 shrink-0">
+                                  {t.name?.[0] || '?'}
+                                </div>
+                              )}
                               <span className="text-[11px] font-medium text-gray-700 truncate leading-tight">{t.name}</span>
                             </div>
                             <div className="flex-1 relative h-6 bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
@@ -1035,7 +1039,16 @@ export function Dashboard() {
                         <tbody>
                           {abmData.topAccounts.map((a, i) => (
                             <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">{a.name}</td>
+                              <td className="py-1.5 px-2 font-medium text-gray-800 text-xs">
+                                <span className="flex items-center gap-1.5">
+                                  {a.domain ? (
+                                    <img src={`https://www.google.com/s2/favicons?domain=${a.domain}&sz=16`} alt="" className="w-4 h-4 rounded-sm shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                  ) : (
+                                    <span className="w-4 h-4 rounded-sm bg-gray-200 shrink-0 flex items-center justify-center text-[8px] text-gray-400 font-bold">{(a.name || '?')[0]}</span>
+                                  )}
+                                  {a.name}
+                                </span>
+                              </td>
                               <td className="py-1.5 px-2 text-center text-gray-900 text-xs">{a.visits}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.sessions}</td>
                               <td className="py-1.5 px-2 text-center text-gray-600 text-xs">{a.pages}</td>
