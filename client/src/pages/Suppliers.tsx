@@ -9,11 +9,15 @@ interface Supplier {
   id: number;
   name: string;
   category: string;
+  type: string;
+  contactName: string | null;
   website: string | null;
   whatsapp: string | null;
   notes: string | null;
   active: boolean;
 }
+
+type TabType = 'fornecedor' | 'tool';
 
 const CATEGORIES = [
   'Eventos', 'Dados', 'Mídia', 'Audiovisual', 'Design', 'PR & Comunicação',
@@ -40,13 +44,15 @@ const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 interface FormData {
   name: string;
   category: string;
+  type: string;
+  contactName: string;
   website: string;
   whatsapp: string;
   notes: string;
   active: boolean;
 }
 
-const emptyForm: FormData = { name: '', category: '', website: '', whatsapp: '', notes: '', active: true };
+const emptyForm = (tab: TabType): FormData => ({ name: '', category: '', type: tab, contactName: '', website: '', whatsapp: '', notes: '', active: true });
 
 function SupplierFormModal({ initial, editId, onClose, onSaved }: {
   initial: FormData; editId: number | null; onClose: () => void; onSaved: () => void;
@@ -70,7 +76,7 @@ function SupplierFormModal({ initial, editId, onClose, onSaved }: {
     <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-16 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{editId ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{editId ? 'Editar' : 'Novo'} {form.type === 'tool' ? 'Tool' : 'Fornecedor'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -86,12 +92,18 @@ function SupplierFormModal({ initial, editId, onClose, onSaved }: {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Site</label>
-            <input value={form.website} onChange={set('website')} className={inputCls} placeholder="https://..." />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Contato</label>
+            <input value={form.contactName} onChange={set('contactName')} className={inputCls} placeholder="Nome do contato na empresa" />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">WhatsApp</label>
-            <input value={form.whatsapp} onChange={set('whatsapp')} className={inputCls} placeholder="+55 11 99999-9999" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Site</label>
+              <input value={form.website} onChange={set('website')} className={inputCls} placeholder="https://..." />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">WhatsApp</label>
+              <input value={form.whatsapp} onChange={set('whatsapp')} className={inputCls} placeholder="+55 11 99999-9999" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Observações</label>
@@ -124,6 +136,7 @@ export function Suppliers() {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
+  const [tab, setTab] = useState<TabType>('fornecedor');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -142,6 +155,8 @@ export function Suppliers() {
 
   const openEdit = (s: Supplier) => { setEditItem(s); setShowForm(true); };
   const openCreate = () => { setEditItem(null); setShowForm(true); };
+  const fornecedorCount = data.filter(r => (r.type || 'fornecedor') === 'fornecedor').length;
+  const toolCount = data.filter(r => r.type === 'tool').length;
   const handleSaved = () => { setShowForm(false); setEditItem(null); fetchData(); };
 
   const handleSort = (key: string) => {
@@ -150,7 +165,7 @@ export function Suppliers() {
   };
 
   const filtered = useMemo(() => {
-    let rows = data;
+    let rows = data.filter(r => (r.type || 'fornecedor') === tab);
     if (categoryFilter) rows = rows.filter(r => r.category === categoryFilter);
     if (search) {
       const s = search.toLowerCase();
@@ -172,11 +187,12 @@ export function Suppliers() {
   }, [data, categoryFilter, search, sortKey, sortAsc]);
 
   // Category counts
+  const tabData = useMemo(() => data.filter(r => (r.type || 'fornecedor') === tab), [data, tab]);
   const categoryCounts = useMemo(() => {
     const map = new Map<string, number>();
-    data.forEach(r => map.set(r.category, (map.get(r.category) ?? 0) + 1));
+    tabData.forEach(r => map.set(r.category, (map.get(r.category) ?? 0) + 1));
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [data]);
+  }, [tabData]);
 
   const SH = ({ k, label }: { k: string; label: string }) => (
     <th className="text-left py-2.5 px-3 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm"
@@ -196,12 +212,24 @@ export function Suppliers() {
         }
       />
 
+      {/* Tabs */}
+      <div className="flex gap-1.5 mb-4">
+        <button onClick={() => { setTab('fornecedor'); setCategoryFilter(''); }}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'fornecedor' ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200'}`}>
+          Fornecedores ({fornecedorCount})
+        </button>
+        <button onClick={() => { setTab('tool'); setCategoryFilter(''); }}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${tab === 'tool' ? 'bg-gray-900 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200'}`}>
+          Tools ({toolCount})
+        </button>
+      </div>
+
       {/* Summary tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
         <button onClick={() => setCategoryFilter('')}
           className={`bg-white rounded-lg border p-2.5 text-center transition-all ${!categoryFilter ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200 hover:border-gray-400'}`}>
           <p className="text-[10px] font-semibold text-gray-400 uppercase">Todos</p>
-          <p className="text-lg font-bold text-gray-900">{data.length}</p>
+          <p className="text-lg font-bold text-gray-900">{tabData.length}</p>
         </button>
         {categoryCounts.map(([cat, count]) => (
           <button key={cat} onClick={() => setCategoryFilter(categoryFilter === cat ? '' : cat)}
@@ -239,6 +267,7 @@ export function Suppliers() {
                 <tr className="border-b border-gray-200">
                   <SH k="name" label="Nome" />
                   <SH k="category" label="Categoria" />
+                  <SH k="contactName" label="Contato" />
                   <th className="text-center py-2.5 px-3 font-medium text-gray-500 text-sm">Site</th>
                   <th className="text-center py-2.5 px-3 font-medium text-gray-500 text-sm">WhatsApp</th>
                   <SH k="notes" label="Observações" />
@@ -248,7 +277,7 @@ export function Suppliers() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="py-8 text-center text-gray-400">Nenhum fornecedor encontrado</td></tr>
+                  <tr><td colSpan={8} className="py-8 text-center text-gray-400">Nenhum {tab === 'tool' ? 'tool' : 'fornecedor'} encontrado</td></tr>
                 ) : filtered.map(s => (
                   <tr key={s.id} className={`border-b border-gray-100 hover:bg-gray-50 ${!s.active ? 'opacity-50' : ''}`}>
                     <td className="py-2.5 px-3 font-medium text-gray-800">{s.name}</td>
@@ -258,6 +287,7 @@ export function Suppliers() {
                         {s.category}
                       </span>
                     </td>
+                    <td className="py-2.5 px-3 text-gray-600 text-xs">{s.contactName || '—'}</td>
                     <td className="py-2.5 px-3 text-center">
                       {s.website ? (
                         <a href={s.website.startsWith('http') ? s.website : `https://${s.website}`}
@@ -299,10 +329,11 @@ export function Suppliers() {
       {showForm && (
         <SupplierFormModal
           initial={editItem ? {
-            name: editItem.name, category: editItem.category,
+            name: editItem.name, category: editItem.category, type: editItem.type || 'fornecedor',
+            contactName: editItem.contactName ?? '',
             website: editItem.website ?? '', whatsapp: editItem.whatsapp ?? '',
             notes: editItem.notes ?? '', active: editItem.active,
-          } : emptyForm}
+          } : emptyForm(tab)}
           editId={editItem?.id ?? null}
           onClose={() => { setShowForm(false); setEditItem(null); }}
           onSaved={handleSaved}

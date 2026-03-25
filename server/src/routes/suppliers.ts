@@ -13,9 +13,10 @@ router.get('/', async (_req, res) => {
 
 // POST /
 router.post('/', async (req, res) => {
-  const { name, category, website, whatsapp, notes, active } = req.body;
+  const { name, category, type, contactName, website, whatsapp, notes, active } = req.body;
   const result = await db.insert(suppliers).values({
-    name, category, website: website || null, whatsapp: whatsapp || null,
+    name, category, type: type || 'fornecedor', contactName: contactName || null,
+    website: website || null, whatsapp: whatsapp || null,
     notes: notes || null, active: active !== false,
   }).returning();
   res.json(result[0]);
@@ -23,9 +24,10 @@ router.post('/', async (req, res) => {
 
 // PUT /:id
 router.put('/:id', async (req, res) => {
-  const { name, category, website, whatsapp, notes, active } = req.body;
+  const { name, category, type, contactName, website, whatsapp, notes, active } = req.body;
   await db.update(suppliers).set({
-    name, category, website: website || null, whatsapp: whatsapp || null,
+    name, category, type: type || 'fornecedor', contactName: contactName || null,
+    website: website || null, whatsapp: whatsapp || null,
     notes: notes || null, active: active !== false,
     updatedAt: sql`datetime('now')`,
   }).where(eq(suppliers.id, +req.params.id));
