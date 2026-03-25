@@ -184,7 +184,7 @@ export function Suppliers() {
       if (an > bn) return sortAsc ? 1 : -1;
       return 0;
     });
-  }, [data, categoryFilter, search, sortKey, sortAsc]);
+  }, [data, tab, categoryFilter, search, sortKey, sortAsc]);
 
   // Category counts
   const tabData = useMemo(() => data.filter(r => (r.type || 'fornecedor') === tab), [data, tab]);
