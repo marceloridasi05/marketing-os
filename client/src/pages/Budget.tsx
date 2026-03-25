@@ -351,7 +351,7 @@ export function Budget() {
   const [filterStrategy, setFilterStrategy] = useState<string>('Todos');
   const [filterExpenseType, setFilterExpenseType] = useState<string>('Todos');
   const [activeTab, setActiveTab] = useState<string>('Todos');
-  const [showHC, setShowHC] = useState(false);
+  const [showHC, setShowHC] = useState(true);
   const [tableView, setTableView] = useState<'monthly' | 'quarterly'>('monthly');
 
   // Form state

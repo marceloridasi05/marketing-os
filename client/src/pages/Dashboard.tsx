@@ -232,7 +232,7 @@ export function Dashboard() {
     abmUrl: string;
   } | null>(null);
   const [abmLoading, setAbmLoading] = useState(false);
-  const [showChannelNames, setShowChannelNames] = useState(false);
+  const [showChannelNames, setShowChannelNames] = useState(true);
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
