@@ -173,6 +173,42 @@ export const linkedinPage = sqliteTable('linkedin_page', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const ideas = sqliteTable('ideas', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  description: text('description'),
+  targetDate: text('target_date'),
+  relatedEvent: text('related_event'),
+  expectedOutcome: text('expected_outcome'),
+  complexity: text('complexity').default('medium').notNull(), // low, medium, high
+  category: text('category'), // Conteúdo, Evento, Campanha, Produto, Parceria, Outro
+  status: text('status').default('idea').notNull(), // idea, planned, executed, discarded
+  executed: integer('executed', { mode: 'boolean' }).default(false).notNull(),
+  executedDate: text('executed_date'),
+  priority: text('priority').default('medium'), // low, medium, high
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const experiments = sqliteTable('experiments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  hypothesis: text('hypothesis').notNull(),
+  expectedResult: text('expected_result'),
+  duration: text('duration'), // ex: "2 semanas", "1 mês"
+  startDate: text('start_date'),
+  endDate: text('end_date'),
+  channel: text('channel'), // Google Ads, LinkedIn, Site, etc
+  metric: text('metric'), // CPL, CTR, Conversão, etc
+  baselineValue: text('baseline_value'),
+  resultValue: text('result_value'),
+  learning: text('learning'),
+  status: text('status').default('planned').notNull(), // planned, running, completed
+  successful: text('successful'), // yes, no, inconclusive, null
+  category: text('category'), // Aquisição, Conversão, Retenção, Branding, Outro
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   year: integer('year').notNull(),

@@ -9,6 +9,8 @@ import { SiteData } from './pages/SiteData';
 import { LinkedinPage } from './pages/LinkedinPage';
 import { AdsBudgets } from './pages/AdsBudgets';
 import { Suppliers } from './pages/Suppliers';
+import { Ideas } from './pages/Ideas';
+import { Experiments } from './pages/Experiments';
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
           <Route path="/plan" element={<Plan />} />
           <Route path="/site-data" element={<SiteData />} />
           <Route path="/linkedin-page" element={<LinkedinPage />} />
+          <Route path="/experiments" element={<Experiments />} />
+          <Route path="/ideas" element={<Ideas />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
