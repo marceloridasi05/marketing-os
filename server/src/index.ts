@@ -20,6 +20,7 @@ import budgetItemsRouter from './routes/budgetItems.js';
 import adsBudgetsRouter from './routes/adsBudgets.js';
 import aiAnalysisRouter from './routes/aiAnalysis.js';
 import abmProxyRouter from './routes/abmProxy.js';
+import suppliersRouter from './routes/suppliers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/budget-items', budgetItemsRouter);
 app.use('/api/ads-budgets', adsBudgetsRouter);
 app.use('/api/ai-analysis', aiAnalysisRouter);
 app.use('/api/abm', abmProxyRouter);
+app.use('/api/suppliers', suppliersRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

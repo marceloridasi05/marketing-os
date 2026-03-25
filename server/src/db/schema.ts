@@ -107,6 +107,18 @@ export const siteData = sqliteTable('site_data', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const suppliers = sqliteTable('suppliers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  website: text('website'),
+  whatsapp: text('whatsapp'),
+  notes: text('notes'),
+  active: integer('active', { mode: 'boolean' }).default(true).notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const adsKpis = sqliteTable('ads_kpis', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   week: text('week').notNull(),

@@ -8,6 +8,7 @@ import {
   Linkedin,
   Settings,
   Wallet,
+  Briefcase,
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
   { to: '/budget', label: 'Orçamento', icon: DollarSign },
   { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+  { to: '/suppliers', label: 'Fornecedores e Tools', icon: Briefcase },
   { to: '/settings', label: 'Configurações', icon: Settings },
 ];
 
