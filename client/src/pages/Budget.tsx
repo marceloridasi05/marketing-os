@@ -4,7 +4,7 @@ import { Card } from '../components/Card';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { api } from '../lib/api';
-import { RefreshCw, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { RefreshCw, Plus, Pencil, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
@@ -29,6 +29,8 @@ const MONTHS = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
 const SECTIONS = ['Headcount', 'Ferramentas', 'Eventos', 'Mídia', 'Viagens', 'Brindes & Promo', 'Terceiros'];
+const isSensitiveRow = (name: string, section: string) =>
+  section === 'Headcount' || /head|salário/i.test(name);
 const SAVINGS_START = '2025-09'; // Savings only count from Sep 2025 onwards
 const SECTION_COLORS: Record<string, string> = {
   'Headcount': '#3b82f6',
@@ -349,6 +351,7 @@ export function Budget() {
   const [filterStrategy, setFilterStrategy] = useState<string>('Todos');
   const [filterExpenseType, setFilterExpenseType] = useState<string>('Todos');
   const [activeTab, setActiveTab] = useState<string>('Todos');
+  const [showHC, setShowHC] = useState(false);
   const [tableView, setTableView] = useState<'monthly' | 'quarterly'>('monthly');
 
   // Form state
@@ -1067,15 +1070,18 @@ export function Budget() {
             <Card className="min-w-0">
               <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Seção</h3>
               <div className="space-y-2">
-                {bySection.map(item => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTION_COLORS[item.name] || '#999' }} />
-                      <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                {bySection.map(item => {
+                  const hcBlur = item.name === 'Headcount' && !showHC;
+                  return (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SECTION_COLORS[item.name] || '#999' }} />
+                        <span className="text-xs text-gray-700 truncate max-w-[120px]">{item.name}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-gray-900" style={hcBlur ? { filter: 'blur(6px)', userSelect: 'none' } : {}}>{fmtMoney(item.value)}</span>
                     </div>
-                    <span className="text-xs font-semibold text-gray-900">{fmtMoney(item.value)}</span>
-                  </div>
-                ))}
+                  );
+                })}
                 {bySection.length === 0 && <p className="text-xs text-gray-400">Sem dados</p>}
               </div>
             </Card>
@@ -1165,6 +1171,12 @@ export function Budget() {
                     </button>
                   ))}
                 </div>
+                <button onClick={() => setShowHC(!showHC)}
+                  className="flex items-center gap-1 px-2 py-1.5 text-xs border border-gray-300 rounded-md text-gray-500 hover:text-gray-700 hover:border-gray-400 transition-colors"
+                  title={showHC ? 'Ocultar Headcount/Salários' : 'Revelar Headcount/Salários'}>
+                  {showHC ? <EyeOff size={12} /> : <Eye size={12} />}
+                  {showHC ? 'Ocultar HC' : 'Revelar HC'}
+                </button>
                 <button onClick={openCreate}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
                   <Plus size={14} /> Adicionar
@@ -1204,6 +1216,8 @@ export function Budget() {
                       : quarterKeys.map(qk => sumQuarter(r.months, qk));
                     const colKeys = tableView === 'monthly' ? monthKeys : quarterKeys;
                     const prevTotal = ri > 0 ? itemRows[ri - 1].total : 0;
+                    const sensitive = isSensitiveRow(r.name, r.section);
+                    const blurStyle = sensitive && !showHC ? { filter: 'blur(6px)', userSelect: 'none' as const } : {};
                     return (
                       <tr key={`${r.section}-${r.name}`} className="border-b border-gray-100 hover:bg-gray-50">
                         <EditableCell value={r.name} options={itemNames} onSave={v => updateItemMeta(r.name, r.section, 'name', v)} align="left" bold />
@@ -1211,17 +1225,23 @@ export function Budget() {
                         <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} tagColor={r.strategy ? getTagColor(r.strategy, 'strategy', strategies) : undefined} />
                         <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} tagColor={r.expenseType ? getTagColor(r.expenseType, 'type', expenseTypes) : undefined} />
                         {tableView === 'monthly' ? colVals.map((v, mi) => (
-                          <EditableMoneyCell key={colKeys[mi]} value={v}
-                            onSave={newVal => updateItemMonthValue(r.name, r.section, colKeys[mi], newVal)} />
+                          sensitive && !showHC ? (
+                            <td key={colKeys[mi]} className="py-2 px-2 text-center text-gray-400 whitespace-nowrap" style={blurStyle}>
+                              {v > 0 ? fmtMoney(v) : '—'}
+                            </td>
+                          ) : (
+                            <EditableMoneyCell key={colKeys[mi]} value={v}
+                              onSave={newVal => updateItemMonthValue(r.name, r.section, colKeys[mi], newVal)} />
+                          )
                         )) : colVals.map((v, qi) => (
-                          <td key={colKeys[qi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap">
+                          <td key={colKeys[qi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap" style={blurStyle}>
                             {v > 0 ? fmtMoney(v) : '—'}
                           </td>
                         ))}
-                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap">
+                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap" style={blurStyle}>
                           {fmtMoney(r.total)}
                         </td>
-                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`} style={blurStyle}>
                           {delta(r.total, prevTotal)}
                         </td>
                       </tr>
@@ -1322,6 +1342,8 @@ export function Budget() {
                   {sectionRows.map((r, ri) => {
                     const prevTotal = ri > 0 ? sectionRows[ri - 1].total : 0;
                     const secCols = tableView === 'monthly' ? monthKeys : quarterKeys;
+                    const sensitive = r.section === 'Headcount';
+                    const blurS = sensitive && !showHC ? { filter: 'blur(6px)', userSelect: 'none' as const } : {};
                     return (
                       <tr key={r.section} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">
@@ -1330,10 +1352,10 @@ export function Budget() {
                         </td>
                         {secCols.map(ck => {
                           const v = tableView === 'monthly' ? (r.months[ck] || 0) : sumQuarter(r.months, ck);
-                          return <td key={ck} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap">{v > 0 ? fmtMoney(v) : '—'}</td>;
+                          return <td key={ck} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap" style={blurS}>{v > 0 ? fmtMoney(v) : '—'}</td>;
                         })}
-                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap">{fmtMoney(r.total)}</td>
-                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`}>{delta(r.total, prevTotal)}</td>
+                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap" style={blurS}>{fmtMoney(r.total)}</td>
+                        <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`} style={blurS}>{delta(r.total, prevTotal)}</td>
                       </tr>
                     );
                   })}
