@@ -30,8 +30,6 @@ function detectStatus(val: string): string | null {
   return 'planned';
 }
 
-// Month columns map: col index -> { year, month }
-// Row 2 (index 2) has: Objetivo, Ação, Setembro, Outubro, Novembro, Dezembro, Janeiro, Fevereiro', Março...
 // Cols 2-5 = Sep-Dec 2025, Cols 6-17 = Jan-Dec 2026
 const MONTH_MAP: { col: number; year: number; month: number }[] = [
   { col: 2, year: 2025, month: 9 },
@@ -58,7 +56,7 @@ router.get('/', async (_req, res) => {
   res.json(rows);
 });
 
-// POST /sync
+// POST /sync — clean re-import from spreadsheet
 router.post('/sync', async (_req, res) => {
   try {
     const response = await fetch(CSV_URL);
@@ -66,11 +64,12 @@ router.post('/sync', async (_req, res) => {
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    // Data rows start at index 3 (row 4 in spreadsheet)
-    // Skip header rows (0=empty, 1=year header, 2=column headers)
-    // Stop at empty rows or "Estratégias" section
+    // Delete all existing data and re-import (fixes rename duplication)
+    await db.delete(planSchedule);
+
     let imported = 0;
     let currentObjective = '';
+    let currentAction = '';
 
     for (let i = 3; i < lines.length; i++) {
       const row = lines[i];
@@ -78,42 +77,51 @@ router.post('/sync', async (_req, res) => {
       const action = row[1]?.trim();
 
       // Stop at strategies section
-      if (row[1]?.trim() === 'Estratégias') break;
+      if (action === 'Estratégias') break;
 
-      // Skip completely empty rows
-      if (!obj && !action) {
-        const hasData = MONTH_MAP.some(m => row[m.col]?.trim());
-        if (!hasData) continue;
-      }
+      // Check if row has any month data
+      const hasData = MONTH_MAP.some(m => {
+        const v = row[m.col]?.trim();
+        return v && v !== '-';
+      });
+
+      // Skip completely empty rows (no obj, no action, no data)
+      if (!obj && !action && !hasData) continue;
 
       // Track current objective (some rows inherit from above)
       if (obj) currentObjective = obj;
-      if (!currentObjective || !action) continue;
+
+      // Track current action — continuation rows (no action) inherit from above
+      if (action) {
+        currentAction = action;
+      } else if (hasData) {
+        // This is a continuation row (like Cases row 2 with Allseg)
+        // Keep currentObjective and currentAction from above
+      } else {
+        continue;
+      }
+
+      if (!currentObjective || !currentAction) continue;
 
       // Process each month column
       for (const { col, year, month } of MONTH_MAP) {
         const val = row[col]?.trim() || '';
+        if (!val || val === '-') continue;
+
         const status = detectStatus(val);
         const cleanVal = val.replace(/[✅🔄❌]/g, '').trim() || null;
 
-        // Upsert
-        const existing = await db.select().from(planSchedule)
-          .where(and(
-            eq(planSchedule.objective, currentObjective),
-            eq(planSchedule.action, action),
-            eq(planSchedule.year, year),
-            eq(planSchedule.month, month)
-          )).limit(1);
-
-        if (existing.length > 0) {
-          await db.update(planSchedule).set({ value: cleanVal, status }).where(eq(planSchedule.id, existing[0].id));
-        } else if (cleanVal || status) {
+        if (cleanVal || status) {
           await db.insert(planSchedule).values({
-            objective: currentObjective, action, year, month, value: cleanVal, status,
+            objective: currentObjective,
+            action: currentAction,
+            year, month,
+            value: cleanVal,
+            status,
           });
+          imported++;
         }
       }
-      imported++;
     }
 
     res.json({ success: true, imported });
@@ -125,10 +133,30 @@ router.post('/sync', async (_req, res) => {
 
 // PUT /:id - update a single cell
 router.put('/:id', async (req, res) => {
-  const { value, status } = req.body;
-  await db.update(planSchedule).set({ value: value || null, status: status || null }).where(eq(planSchedule.id, +req.params.id));
+  const { value, status, action, objective } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (value !== undefined) updates.value = value || null;
+  if (status !== undefined) updates.status = status || null;
+  if (action !== undefined) updates.action = action;
+  if (objective !== undefined) updates.objective = objective;
+  await db.update(planSchedule).set(updates).where(eq(planSchedule.id, +req.params.id));
   const updated = await db.select().from(planSchedule).where(eq(planSchedule.id, +req.params.id));
   res.json(updated[0]);
+});
+
+// POST / - create a new cell
+router.post('/', async (req, res) => {
+  const { objective, action, year, month, value, status } = req.body;
+  const result = await db.insert(planSchedule).values({
+    objective, action, year, month, value: value || null, status: status || null,
+  }).returning();
+  res.json(result[0]);
+});
+
+// DELETE /:id
+router.delete('/:id', async (req, res) => {
+  await db.delete(planSchedule).where(eq(planSchedule.id, +req.params.id));
+  res.json({ deleted: true });
 });
 
 export default router;
