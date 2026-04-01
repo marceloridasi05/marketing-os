@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
 import { Card } from './Card';
 import { api } from '../lib/api';
@@ -28,9 +28,12 @@ interface AnnotatedChartProps {
   page: string;
   chartKey: string;
   height?: number;
+  chartType?: 'line' | 'bar';
+  referenceY?: number;
+  referenceLabel?: string;
 }
 
-export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, height = 200 }: AnnotatedChartProps) {
+export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, height = 200, chartType = 'line', referenceY, referenceLabel }: AnnotatedChartProps) {
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -144,38 +147,59 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
 
       {data.length > 1 ? (
         <ResponsiveContainer width="100%" height={height}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey={xKey} tick={CustomTick as unknown as React.ComponentType} />
-            <YAxis tick={{ fontSize: 11 }} width={50} />
-            <Tooltip content={CustomTooltip as unknown as React.ComponentType} />
-            <Legend
-              onClick={(e: { dataKey?: string }) => {
-                if (!e.dataKey) return;
-                setHiddenLines(prev => {
-                  const next = new Set(prev);
-                  if (next.has(e.dataKey!)) next.delete(e.dataKey!);
-                  else next.add(e.dataKey!);
-                  return next;
-                });
-              }}
-              formatter={(value: string, entry: { dataKey?: string }) => (
-                <span style={{ color: hiddenLines.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenLines.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>
-                  {value}
-                </span>
+          {chartType === 'bar' ? (
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey={xKey} tick={CustomTick as unknown as React.ComponentType} />
+              <YAxis tick={{ fontSize: 11 }} width={60} />
+              <Tooltip content={CustomTooltip as unknown as React.ComponentType} />
+              <Legend
+                onClick={(e: { dataKey?: string }) => { if (e.dataKey) setHiddenLines(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; }); }}
+                formatter={(value: string, entry: { dataKey?: string }) => (
+                  <span style={{ color: hiddenLines.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenLines.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
+                )}
+                wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+              />
+              {referenceY != null && referenceY > 0 && (
+                <ReferenceLine y={referenceY} stroke="#ef4444" strokeDasharray="6 4" strokeWidth={1.5}
+                  label={{ value: referenceLabel || '', position: 'insideTopRight', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
               )}
-              wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
-            />
-            {lines.map(l => (
-              <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name || l.dataKey}
-                stroke={l.color} strokeWidth={2} dot={{ r: 2 }}
-                hide={hiddenLines.has(l.dataKey)} />
-            ))}
-            {/* Reference lines for annotations */}
-            {annotations.map(a => (
-              <ReferenceLine key={a.id} x={a.xValue} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1} />
-            ))}
-          </LineChart>
+              {lines.map(l => (
+                <Bar key={l.dataKey} dataKey={l.dataKey} name={l.name || l.dataKey}
+                  fill={l.color} radius={[2, 2, 0, 0]}
+                  hide={hiddenLines.has(l.dataKey)} />
+              ))}
+              {annotations.map(a => (
+                <ReferenceLine key={a.id} x={a.xValue} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1} />
+              ))}
+            </BarChart>
+          ) : (
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey={xKey} tick={CustomTick as unknown as React.ComponentType} />
+              <YAxis tick={{ fontSize: 11 }} width={50} />
+              <Tooltip content={CustomTooltip as unknown as React.ComponentType} />
+              <Legend
+                onClick={(e: { dataKey?: string }) => { if (e.dataKey) setHiddenLines(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; }); }}
+                formatter={(value: string, entry: { dataKey?: string }) => (
+                  <span style={{ color: hiddenLines.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenLines.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
+                )}
+                wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+              />
+              {referenceY != null && referenceY > 0 && (
+                <ReferenceLine y={referenceY} stroke="#ef4444" strokeDasharray="6 4" strokeWidth={1.5}
+                  label={{ value: referenceLabel || '', position: 'insideTopRight', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
+              )}
+              {lines.map(l => (
+                <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name || l.dataKey}
+                  stroke={l.color} strokeWidth={2} dot={{ r: 2 }}
+                  hide={hiddenLines.has(l.dataKey)} />
+              ))}
+              {annotations.map(a => (
+                <ReferenceLine key={a.id} x={a.xValue} stroke="#f59e0b" strokeDasharray="4 4" strokeWidth={1} />
+              ))}
+            </LineChart>
+          )}
         </ResponsiveContainer>
       ) : (
         <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes para o gráfico</p>

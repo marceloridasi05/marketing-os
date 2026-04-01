@@ -5,9 +5,8 @@ import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
-} from 'recharts';
+// recharts imports kept for potential future use
+import {} from 'recharts';
 
 // --- Types ---
 interface AdsBudgetRow {
@@ -56,7 +55,7 @@ const PERIOD_OPTIONS = [
 export function AdsBudgets() {
   const [data, setData] = useState<AdsBudgetRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
+  // hiddenBars now managed by AnnotatedChart internally
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState('all');
@@ -112,9 +111,13 @@ export function AdsBudgets() {
       label: `${MONTHS[r.month]} ${r.year}`,
       Google: r.monthlyGoogle ?? 0,
       LinkedIn: r.monthlyLinkedin ?? 0,
+      Total: (r.monthlyGoogle ?? 0) + (r.monthlyLinkedin ?? 0),
       Disponível: r.monthlyAvailable ?? 0,
     }));
   }, [filtered]);
+
+  // Monthly budget limit for reference line
+  const monthlyBudgetLimit = currentLimit ? ((currentLimit.monthlyGoogle ?? 0) + (currentLimit.monthlyLinkedin ?? 0)) : 0;
 
   // Trend chart for AnnotatedChart
   const trendData = useMemo(() => {
@@ -214,29 +217,15 @@ export function AdsBudgets() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card title="Consumo Mensal por Canal" className="min-h-[280px]">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 11 }} width={60} />
-                    <Tooltip formatter={(value: number) => fmtMoney(value)} />
-                    <Legend wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
-                      onClick={(e: { dataKey?: string }) => {
-                        if (!e.dataKey) return;
-                        setHiddenBars(prev => { const n = new Set(prev); if (n.has(e.dataKey!)) n.delete(e.dataKey!); else n.add(e.dataKey!); return n; });
-                      }}
-                      formatter={(value: string, entry: { dataKey?: string }) => (
-                        <span style={{ color: hiddenBars.has(entry.dataKey ?? '') ? '#ccc' : undefined, cursor: 'pointer', fontSize: 11, textDecoration: hiddenBars.has(entry.dataKey ?? '') ? 'line-through' : undefined }}>{value}</span>
-                      )}
-                    />
-                    <Bar dataKey="Google" fill="#22c55e" radius={[2, 2, 0, 0]} hide={hiddenBars.has('Google')} />
-                    <Bar dataKey="LinkedIn" fill="#2563eb" radius={[2, 2, 0, 0]} hide={hiddenBars.has('LinkedIn')} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes</p>}
-            </Card>
+            <AnnotatedChart title="Consumo Mensal por Canal" data={chartData} xKey="label"
+              chartType="bar"
+              lines={[
+                { dataKey: 'Google', color: '#22c55e', name: 'Google' },
+                { dataKey: 'LinkedIn', color: '#2563eb', name: 'LinkedIn' },
+              ]}
+              referenceY={monthlyBudgetLimit > 0 ? monthlyBudgetLimit : undefined}
+              referenceLabel={monthlyBudgetLimit > 0 ? `Verba: ${fmtMoney(monthlyBudgetLimit)}` : undefined}
+              page="ads-budgets" chartKey="consumo-mensal" height={240} />
             <AnnotatedChart title="Tendência de Consumo" data={trendData} xKey="week"
               lines={[
                 { dataKey: 'Google Ads', color: '#22c55e', name: 'Google Ads' },
