@@ -413,16 +413,25 @@ export function Budget() {
     return items;
   }, [budgetLineItems, dateRange]);
 
-  // KPIs
+  // KPIs — always reflect the selected time period
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
-  // Only count budget from SAVINGS_START onwards
-  const totalOrcamento = filteredBudget.filter(d => `${d.year}-${String(d.month).padStart(2, '0')}` >= SAVINGS_START).reduce((s, d) => s + d.planned, 0);
-  // Savings: only sum cost from months >= SAVINGS_START, excluding Headcount (matches spreadsheet Grand Total Mkt)
-  const gastoFromSavingsStart = costItemsExclHC.filter(d => {
+  // Budget: only from SAVINGS_START, filtered by selected period
+  const filteredBudgetInPeriod = filteredBudget.filter(d => {
     const ym = `${d.year}-${String(d.month).padStart(2, '0')}`;
-    return ym >= SAVINGS_START && (!dateRange || (d.year * 100 + d.month >= parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7)) && d.year * 100 + d.month <= parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7))));
+    return ym >= SAVINGS_START;
+  });
+  const totalOrcamento = filteredBudgetInPeriod.reduce((s, d) => s + d.planned, 0);
+  // Gasto excl Headcount within selected period and from SAVINGS_START
+  const gastoExclHCInPeriod = costItemsExclHC.filter(d => {
+    const ym = `${d.year}-${String(d.month).padStart(2, '0')}`;
+    if (ym < SAVINGS_START) return false;
+    if (!dateRange) return true;
+    const ymNum = d.year * 100 + d.month;
+    const startNum = parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7));
+    const endNum = parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7));
+    return ymNum >= startNum && ymNum <= endNum;
   }).reduce((s, d) => s + d.actual, 0);
-  const savings = totalOrcamento - gastoFromSavingsStart;
+  const savings = totalOrcamento - gastoExclHCInPeriod;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
   // Detail table: year selector (must be before savingsAcumulado which depends on it)
@@ -434,14 +443,20 @@ export function Budget() {
     return [...set].sort();
   }, [filtered]);
 
-  // Savings acumulado: resets each year — shows accumulated for detailYear only
+  // Savings acumulado: for the selected period, resets each year
+  // Accumulates from Jan of the year (or SAVINGS_START if 2025) through end of period
   const savingsAcumulado = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
-    const yearStart = `${detailYear}-01`;
-    const savingsStart = detailYear <= 2025 ? SAVINGS_START : yearStart;
-    const sortedMonths = [...allMonths].sort().filter(ym => ym >= savingsStart && ym.startsWith(String(detailYear)));
+
+    // Determine the year to accumulate for (from dateRange end, or current year)
+    const endYear = dateRange ? parseInt(dateRange.end.slice(0, 4)) : new Date().getFullYear();
+    const endYM = dateRange ? dateRange.end.slice(0, 7) : `${endYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const yearStart = `${endYear}-01`;
+    const savingsStart = endYear <= 2025 ? SAVINGS_START : yearStart;
+
+    const sortedMonths = [...allMonths].sort().filter(ym => ym >= savingsStart && ym <= endYM && ym.startsWith(String(endYear)));
 
     let cumSavings = 0;
     for (const ym of sortedMonths) {
@@ -451,7 +466,7 @@ export function Budget() {
       cumSavings += (monthBudget - monthCost);
     }
     return cumSavings;
-  }, [costItemsExclHC, budgetLineItems, detailYear]);
+  }, [costItemsExclHC, budgetLineItems, dateRange]);
 
   // Detail filtered by year (used by charts, tables, breakdowns)
   const detailFiltered = useMemo(() => filtered.filter(d => d.year === detailYear), [filtered, detailYear]);
@@ -795,17 +810,17 @@ export function Budget() {
               <>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
-                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
                   <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Savings</p>
-                  <p className="text-xs text-gray-400 mt-0.5">a partir de Set/2025</p>
+                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
                   <p className={`text-2xl font-semibold mt-1 ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savings)}</p>
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Savings Acumulado</p>
-                  <p className="text-xs text-gray-400 mt-0.5">ano {detailYear}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
                   <p className={`text-2xl font-semibold mt-1 ${savingsAcumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumulado)}</p>
                 </Card>
               </>
@@ -975,7 +990,7 @@ export function Budget() {
             {/* Savings line chart - only when Todos */}
             {activeTab === 'Todos' && (
               <AnnotatedChart
-                title="Savings Mensal (a partir de Set/2025)"
+                title="Savings Mensal (no período selecionado)"
                 data={savingsChartData}
                 xKey="name"
                 lines={[
@@ -1376,7 +1391,7 @@ export function Budget() {
           </CollapsibleCard>
 
           {/* Savings Table - only when Todos */}
-          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (a partir de Set/2025)" className="mb-6"
+          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (no período selecionado)" className="mb-6"
             actions={
               <div className="flex gap-1">
                 {availableYears.map(y => (
