@@ -373,6 +373,35 @@ export function Plan() {
                     <tbody>
                       {actions.map(action => {
                         const actionIds = data.filter(d => d.objective === obj && d.action === action).map(d => d.id);
+
+                        // Compute merge fill: track last non-empty status to fill gaps
+                        const fillStatuses: (string | null)[] = [];
+                        let lastStatus: string | null = null;
+                        let gapCount = 0;
+                        // First pass: find cells and gaps
+                        const cellsByCol = monthCols.map(mc => cellMap.get(`${obj}|${action}|${mc.year}-${mc.month}`) || []);
+                        // Forward fill: when a cell has content and next cells are empty, fill with same status color
+                        for (let ci = 0; ci < cellsByCol.length; ci++) {
+                          if (cellsByCol[ci].length > 0) {
+                            lastStatus = cellsByCol[ci][0].status;
+                            gapCount = 0;
+                            fillStatuses.push(null); // has real content, no fill needed
+                          } else if (lastStatus && gapCount < 5) {
+                            // Check if there's a next non-empty cell ahead (merge pattern)
+                            const nextIdx = cellsByCol.findIndex((c, j) => j > ci && c.length > 0);
+                            if (nextIdx > -1 || gapCount < 3) {
+                              fillStatuses.push(lastStatus);
+                              gapCount++;
+                            } else {
+                              fillStatuses.push(null);
+                              lastStatus = null;
+                            }
+                          } else {
+                            fillStatuses.push(null);
+                            lastStatus = null;
+                          }
+                        }
+
                         return (
                           <tr key={action} className="border-b border-gray-50 hover:bg-gray-50 group">
                             <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap sticky left-0 bg-white z-10">
@@ -389,8 +418,20 @@ export function Plan() {
                                 </button>
                               </div>
                             </td>
-                            {monthCols.map(mc => {
-                              const items = cellMap.get(`${obj}|${action}|${mc.year}-${mc.month}`) || [];
+                            {monthCols.map((mc, colIdx) => {
+                              const items = cellsByCol[colIdx];
+                              const fillStatus = fillStatuses[colIdx];
+
+                              // Merge fill: empty cell but should show color from preceding cell
+                              if (items.length === 0 && fillStatus) {
+                                const fillStyle = STATUS_STYLES[fillStatus] || '';
+                                return (
+                                  <td key={mc.key} className="py-1 px-1 text-center align-top">
+                                    <div className={`rounded px-1 py-0.5 border opacity-30 h-5 ${fillStyle}`} />
+                                  </td>
+                                );
+                              }
+
                               return (
                                 <td key={mc.key} className="py-1 px-1 text-center align-top">
                                   {items.length === 0 ? (
