@@ -23,6 +23,7 @@ import abmProxyRouter from './routes/abmProxy.js';
 import suppliersRouter from './routes/suppliers.js';
 import ideasRouter from './routes/ideas.js';
 import experimentsRouter from './routes/experiments.js';
+import planScheduleRouter from './routes/planSchedule.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -51,6 +52,7 @@ app.use('/api/abm', abmProxyRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/ideas', ideasRouter);
 app.use('/api/experiments', experimentsRouter);
+app.use('/api/plan-schedule', planScheduleRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -57,6 +57,17 @@ export const fixedCosts = sqliteTable('fixed_costs', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const planSchedule = sqliteTable('plan_schedule', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  objective: text('objective').notNull(),
+  action: text('action').notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  value: text('value'), // text content for that cell
+  status: text('status'), // done, ongoing, failed, planned, null
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const initiatives = sqliteTable('initiatives', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
