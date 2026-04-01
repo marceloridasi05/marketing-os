@@ -151,9 +151,9 @@ router.post('/sync', async (_req, res) => {
         gaCvr: row[8]?.trim() || null,
         gaConversions: parseNum(row[9] ?? ''),
         gaCostPerConversion: row[10]?.trim() || null,
-        liImpressions: liImp > 0 ? liImp : null,
-        liClicks: liClick > 0 ? liClick : null,
-        liCost: liCostTotal > 0 ? Math.round(liCostTotal * 100) / 100 : null,
+        liImpressions: liImp,
+        liClicks: liClick,
+        liCost: Math.round(liCostTotal * 100) / 100,
       };
 
       const existing = await db.select().from(adsKpis).where(eq(adsKpis.week, week)).limit(1);

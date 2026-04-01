@@ -118,15 +118,17 @@ router.post('/sync', async (_req, res) => {
       const pageViews = parseNum(row[19] ?? '');
       const sessions = parseNum(row[20] ?? '');
       const activeUsers = parseNum(row[21] ?? '');
-      if (pageViews == null && sessions == null && activeUsers == null) continue;
-
       const existing = await db.select().from(siteMonthly)
         .where(and(eq(siteMonthly.year, currentYear), eq(siteMonthly.month, month)))
         .limit(1);
       if (existing.length > 0) {
+        // Always update existing records (even to null) so cleared cells are reflected
         await db.update(siteMonthly).set({ pageViews, sessions, activeUsers }).where(eq(siteMonthly.id, existing[0].id));
-      } else {
+      } else if (pageViews != null || sessions != null || activeUsers != null) {
+        // Only insert new records if at least one value is non-null
         await db.insert(siteMonthly).values({ year: currentYear, month, pageViews, sessions, activeUsers });
+      } else {
+        continue; // skip empty new rows
       }
       monthlyImported++;
     }
