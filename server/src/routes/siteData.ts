@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { siteData } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { siteData, siteMonthly } from '../db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -99,11 +99,49 @@ router.post('/sync', async (_req, res) => {
       imported++;
     }
 
-    res.json({ success: true, imported });
+    // Also import monthly data from columns R-V (17-21)
+    // Col 17=Year, 18=Month name, 19=Visualizações, 20=Sessions, 21=Active Users
+    const MONTH_NAME_MAP: Record<string, number> = {
+      'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4, 'Maio': 5, 'Junho': 6,
+      'Julho': 7, 'Agosto': 8, 'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12,
+    };
+    let currentYear = 0;
+    let monthlyImported = 0;
+    for (let i = 2; i < lines.length; i++) {
+      const row = lines[i];
+      if (!row || row.length < 20) continue;
+      const yearStr = row[17]?.trim();
+      const monthName = row[18]?.trim();
+      if (yearStr && /^\d{4}$/.test(yearStr)) currentYear = parseInt(yearStr);
+      if (!monthName || !MONTH_NAME_MAP[monthName] || !currentYear) continue;
+      const month = MONTH_NAME_MAP[monthName];
+      const pageViews = parseNum(row[19] ?? '');
+      const sessions = parseNum(row[20] ?? '');
+      const activeUsers = parseNum(row[21] ?? '');
+      if (pageViews == null && sessions == null && activeUsers == null) continue;
+
+      const existing = await db.select().from(siteMonthly)
+        .where(and(eq(siteMonthly.year, currentYear), eq(siteMonthly.month, month)))
+        .limit(1);
+      if (existing.length > 0) {
+        await db.update(siteMonthly).set({ pageViews, sessions, activeUsers }).where(eq(siteMonthly.id, existing[0].id));
+      } else {
+        await db.insert(siteMonthly).values({ year: currentYear, month, pageViews, sessions, activeUsers });
+      }
+      monthlyImported++;
+    }
+
+    res.json({ success: true, imported, monthlyImported });
   } catch (err) {
     console.error('Sync error:', err);
     res.status(500).json({ error: String(err) });
   }
+});
+
+// GET /monthly - monthly data from planilha columns R-V
+router.get('/monthly', async (_req, res) => {
+  const rows = await db.select().from(siteMonthly).orderBy(siteMonthly.year, siteMonthly.month);
+  res.json(rows);
 });
 
 export default router;

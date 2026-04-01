@@ -57,6 +57,16 @@ export const fixedCosts = sqliteTable('fixed_costs', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const siteMonthly = sqliteTable('site_monthly', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+  pageViews: integer('page_views'),
+  sessions: integer('sessions'),
+  activeUsers: integer('active_users'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const planSchedule = sqliteTable('plan_schedule', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   objective: text('objective').notNull(),

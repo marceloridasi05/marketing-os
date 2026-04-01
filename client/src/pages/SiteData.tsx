@@ -139,8 +139,18 @@ function getDateRange(period: TimePeriod): { start: string; end: string } | null
   return { start: fmt(start), end: fmt(end) };
 }
 
+interface SiteMonthlyRow {
+  id: number;
+  year: number;
+  month: number;
+  pageViews: number | null;
+  sessions: number | null;
+  activeUsers: number | null;
+}
+
 export function SiteData() {
   const [rawData, setRawData] = useState<SiteRow[]>([]);
+  const [monthlyRaw, setMonthlyRaw] = useState<SiteMonthlyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
@@ -149,8 +159,12 @@ export function SiteData() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const rows = await api.get<SiteRow[]>('/site-data');
+    const [rows, monthly] = await Promise.all([
+      api.get<SiteRow[]>('/site-data'),
+      api.get<SiteMonthlyRow[]>('/site-data/monthly'),
+    ]);
     setRawData(rows);
+    setMonthlyRaw(monthly);
     setLoading(false);
   }, []);
 
@@ -159,8 +173,8 @@ export function SiteData() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const result = await api.post<{ success: boolean; imported: number }>('/site-data/sync', {});
-      setLastSync(`${result.imported} registros sincronizados`);
+      const result = await api.post<{ success: boolean; imported: number; monthlyImported: number }>('/site-data/sync', {});
+      setLastSync(`${result.imported} semanas + ${result.monthlyImported} meses sincronizados`);
       await fetchData();
     } catch (err) { setLastSync(`Erro: ${err}`); }
     setSyncing(false);
@@ -205,14 +219,13 @@ export function SiteData() {
     aiSessions: number; aiUsers: number;
   }
   const monthlyData = useMemo(() => {
-    const byMonth: Record<string, MonthAgg> = {};
+    // Use planilha monthly data (columns R-V) for pageViews, sessions, activeUsers
+    // For leads, gains, blog/AI data: sum from weekly data (no monthly source for those)
+    const weekAgg: Record<string, { leads: number; gains: number; blogSessions: number; blogUsers: number; blogNewUsers: number; aiSessions: number; aiUsers: number }> = {};
     for (const r of withData) {
       const key = r.weekStart.slice(0, 7);
-      if (!byMonth[key]) byMonth[key] = { sessions: 0, totalUsers: 0, newUsers: 0, leads: 0, gains: 0, blogSessions: 0, blogUsers: 0, blogNewUsers: 0, aiSessions: 0, aiUsers: 0 };
-      const m = byMonth[key];
-      m.sessions += r.sessions ?? 0;
-      m.totalUsers += r.totalUsers ?? 0;
-      m.newUsers += r.newUsers ?? 0;
+      if (!weekAgg[key]) weekAgg[key] = { leads: 0, gains: 0, blogSessions: 0, blogUsers: 0, blogNewUsers: 0, aiSessions: 0, aiUsers: 0 };
+      const m = weekAgg[key];
       m.leads += r.leadsGenerated ?? 0;
       m.gains += r.weeklyGains ?? 0;
       m.blogSessions += r.blogSessions ?? 0;
@@ -221,8 +234,33 @@ export function SiteData() {
       m.aiSessions += r.aiSessions ?? 0;
       m.aiUsers += r.aiTotalUsers ?? 0;
     }
-    return Object.keys(byMonth).sort().map(key => ({ key, ...byMonth[key] }));
-  }, [withData]);
+
+    // Filter monthly by date range
+    const filteredMonthly = dateRange
+      ? monthlyRaw.filter(m => {
+          const ym = `${m.year}-${String(m.month).padStart(2, '0')}`;
+          return ym >= dateRange.start.slice(0, 7) && ym <= dateRange.end.slice(0, 7);
+        })
+      : monthlyRaw;
+
+    return filteredMonthly.map(m => {
+      const key = `${m.year}-${String(m.month).padStart(2, '0')}`;
+      const wa = weekAgg[key] || { leads: 0, gains: 0, blogSessions: 0, blogUsers: 0, blogNewUsers: 0, aiSessions: 0, aiUsers: 0 };
+      return {
+        key,
+        sessions: m.sessions ?? 0,
+        totalUsers: m.activeUsers ?? 0,
+        newUsers: 0, // not available in monthly planilha
+        leads: wa.leads,
+        gains: wa.gains,
+        blogSessions: wa.blogSessions,
+        blogUsers: wa.blogUsers,
+        blogNewUsers: wa.blogNewUsers,
+        aiSessions: wa.aiSessions,
+        aiUsers: wa.aiUsers,
+      };
+    });
+  }, [withData, monthlyRaw, dateRange]);
 
   const monthlyChartData = monthlyData.map(m => {
     const [yr, mo] = m.key.split('-');
