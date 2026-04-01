@@ -31,9 +31,10 @@ interface AnnotatedChartProps {
   chartType?: 'line' | 'bar';
   referenceY?: number;
   referenceLabel?: string;
+  referenceLines?: { y: number; label: string; color: string }[];
 }
 
-export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, height = 200, chartType = 'line', referenceY, referenceLabel }: AnnotatedChartProps) {
+export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, height = 200, chartType = 'line', referenceY, referenceLabel, referenceLines }: AnnotatedChartProps) {
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -164,6 +165,10 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
                 <ReferenceLine y={referenceY} stroke="#ef4444" strokeDasharray="6 4" strokeWidth={1.5}
                   label={{ value: referenceLabel || '', position: 'insideTopRight', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
               )}
+              {referenceLines?.map((rl, i) => (
+                <ReferenceLine key={`ref-${i}`} y={rl.y} stroke={rl.color} strokeDasharray="6 4" strokeWidth={1.5}
+                  label={{ value: rl.label, position: i === 0 ? 'insideTopRight' : 'insideBottomRight', fontSize: 10, fill: rl.color, fontWeight: 600 }} />
+              ))}
               {lines.map(l => (
                 <Bar key={l.dataKey} dataKey={l.dataKey} name={l.name || l.dataKey}
                   fill={l.color} radius={[2, 2, 0, 0]}
@@ -190,6 +195,10 @@ export function AnnotatedChart({ title, data, xKey, lines, page, chartKey, heigh
                 <ReferenceLine y={referenceY} stroke="#ef4444" strokeDasharray="6 4" strokeWidth={1.5}
                   label={{ value: referenceLabel || '', position: 'insideTopRight', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
               )}
+              {referenceLines?.map((rl, i) => (
+                <ReferenceLine key={`ref-${i}`} y={rl.y} stroke={rl.color} strokeDasharray="6 4" strokeWidth={1.5}
+                  label={{ value: rl.label, position: i === 0 ? 'insideTopRight' : 'insideBottomRight', fontSize: 10, fill: rl.color, fontWeight: 600 }} />
+              ))}
               {lines.map(l => (
                 <Line key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name || l.dataKey}
                   stroke={l.color} strokeWidth={2} dot={{ r: 2 }}

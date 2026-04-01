@@ -99,8 +99,13 @@ export function AdsBudgets() {
   // KPIs
   const totalGoogle = filtered.reduce((s, r) => s + (r.monthlyGoogle ?? 0), 0);
   const totalLinkedin = filtered.reduce((s, r) => s + (r.monthlyLinkedin ?? 0), 0);
-  const totalUsed = filtered.reduce((s, r) => s + (r.monthlyTotalUsed ?? 0), 0);
-  const totalAvailable = filtered.reduce((s, r) => s + (r.monthlyAvailable ?? 0), 0);
+  const totalUsed = totalGoogle + totalLinkedin;
+  // Budget: months with data * monthly limit
+  const monthsWithData = filtered.length;
+  const monthlyGoogleLimit = currentLimit?.monthlyGoogle ?? 0;
+  const monthlyLinkedinLimit = currentLimit?.monthlyLinkedin ?? 0;
+  const totalBudgetForPeriod = monthsWithData * (monthlyGoogleLimit + monthlyLinkedinLimit);
+  const totalAvailable = totalBudgetForPeriod - totalUsed;
 
   // Current budget limits
   const currentLimit = budgetLimits.find(b => b.year === 2026) ?? budgetLimits[budgetLimits.length - 1];
@@ -116,8 +121,9 @@ export function AdsBudgets() {
     }));
   }, [filtered]);
 
-  // Monthly budget limit for reference line
-  const monthlyBudgetLimit = currentLimit ? ((currentLimit.monthlyGoogle ?? 0) + (currentLimit.monthlyLinkedin ?? 0)) : 0;
+  // Monthly budget limits for reference lines (separate Google + LinkedIn)
+  const googleBudgetLimit = currentLimit?.monthlyGoogle ?? 0;
+  const linkedinBudgetLimit = currentLimit?.monthlyLinkedin ?? 0;
 
   // Trend chart for AnnotatedChart
   const trendData = useMemo(() => {
@@ -223,8 +229,10 @@ export function AdsBudgets() {
                 { dataKey: 'Google', color: '#22c55e', name: 'Google' },
                 { dataKey: 'LinkedIn', color: '#2563eb', name: 'LinkedIn' },
               ]}
-              referenceY={monthlyBudgetLimit > 0 ? monthlyBudgetLimit : undefined}
-              referenceLabel={monthlyBudgetLimit > 0 ? `Verba: ${fmtMoney(monthlyBudgetLimit)}` : undefined}
+              referenceLines={[
+                ...(linkedinBudgetLimit > 0 ? [{ y: linkedinBudgetLimit, label: `LinkedIn: ${fmtMoney(linkedinBudgetLimit)}`, color: '#2563eb' }] : []),
+                ...(googleBudgetLimit > 0 ? [{ y: googleBudgetLimit, label: `Google: ${fmtMoney(googleBudgetLimit)}`, color: '#22c55e' }] : []),
+              ]}
               page="ads-budgets" chartKey="consumo-mensal" height={240} />
             <AnnotatedChart title="Tendência de Consumo" data={trendData} xKey="week"
               lines={[
