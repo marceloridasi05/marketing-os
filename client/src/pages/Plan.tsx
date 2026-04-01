@@ -71,6 +71,13 @@ function EditableCell({ item, onSaved }: { item: ScheduleItem | null; monthCol: 
     return <span className="text-gray-200">—</span>;
   }
 
+  // 'empty' status = intentional dash from spreadsheet
+  if (item.status === 'empty' && !editing) {
+    return (
+      <span className="text-gray-300 cursor-pointer" onClick={() => { setVal(''); setStatus(''); setEditing(true); }} title="Clique para editar">—</span>
+    );
+  }
+
   if (editing) {
     return (
       <div className="space-y-1">
@@ -276,7 +283,7 @@ export function Plan() {
 
   // Stats
   const totalActions = new Set(data.map(d => `${d.objective}|${d.action}`)).size;
-  const allCellsWithStatus = data.filter(d => d.status);
+  const allCellsWithStatus = data.filter(d => d.status && d.status !== 'empty');
   const doneCells = allCellsWithStatus.filter(d => d.status === 'done').length;
   const ongoingCells = allCellsWithStatus.filter(d => d.status === 'ongoing').length;
   const failedCells = allCellsWithStatus.filter(d => d.status === 'failed').length;
@@ -378,16 +385,22 @@ export function Plan() {
                         const fillStatuses: (string | null)[] = [];
                         let lastStatus: string | null = null;
                         let gapCount = 0;
-                        // First pass: find cells and gaps
                         const cellsByCol = monthCols.map(mc => cellMap.get(`${obj}|${action}|${mc.year}-${mc.month}`) || []);
-                        // Forward fill: when a cell has content and next cells are empty, fill with same status color
                         for (let ci = 0; ci < cellsByCol.length; ci++) {
-                          if (cellsByCol[ci].length > 0) {
-                            lastStatus = cellsByCol[ci][0].status;
-                            gapCount = 0;
-                            fillStatuses.push(null); // has real content, no fill needed
+                          const cells = cellsByCol[ci];
+                          if (cells.length > 0) {
+                            const firstStatus = cells[0].status;
+                            // 'empty' marker = intentional dash, breaks merge fill
+                            if (firstStatus === 'empty') {
+                              fillStatuses.push(null);
+                              lastStatus = null;
+                              gapCount = 0;
+                            } else {
+                              lastStatus = firstStatus;
+                              gapCount = 0;
+                              fillStatuses.push(null); // has real content
+                            }
                           } else if (lastStatus && gapCount < 5) {
-                            // Check if there's a next non-empty cell ahead (merge pattern)
                             const nextIdx = cellsByCol.findIndex((c, j) => j > ci && c.length > 0);
                             if (nextIdx > -1 || gapCount < 3) {
                               fillStatuses.push(lastStatus);
@@ -461,7 +474,7 @@ export function Plan() {
           {/* Status breakdown by objective */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
             {objectives.map(obj => {
-              const objData = data.filter(d => d.objective === obj && d.status);
+              const objData = data.filter(d => d.objective === obj && d.status && d.status !== 'empty');
               const d = objData.filter(d => d.status === 'done').length;
               const o = objData.filter(d => d.status === 'ongoing').length;
               const f = objData.filter(d => d.status === 'failed').length;

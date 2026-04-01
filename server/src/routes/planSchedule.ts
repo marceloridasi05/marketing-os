@@ -106,7 +106,20 @@ router.post('/sync', async (_req, res) => {
       // Process each month column
       for (const { col, year, month } of MONTH_MAP) {
         const val = row[col]?.trim() || '';
-        if (!val || val === '-') continue;
+        if (!val) continue;
+
+        // Dash means "intentionally empty" — save as marker so frontend knows not to merge-fill
+        if (val === '-') {
+          await db.insert(planSchedule).values({
+            objective: currentObjective,
+            action: currentAction,
+            year, month,
+            value: null,
+            status: 'empty', // marker: intentionally empty
+          });
+          imported++;
+          continue;
+        }
 
         const status = detectStatus(val);
         const cleanVal = val.replace(/[✅🔄❌]/g, '').trim() || null;
