@@ -96,19 +96,18 @@ export function AdsBudgets() {
     return data.filter(r => r.month === 0);
   }, [data]);
 
+  // Current budget limits (must be before KPIs that reference it)
+  const currentLimit = budgetLimits.find(b => b.year === 2026) ?? budgetLimits[budgetLimits.length - 1];
+
   // KPIs
   const totalGoogle = filtered.reduce((s, r) => s + (r.monthlyGoogle ?? 0), 0);
   const totalLinkedin = filtered.reduce((s, r) => s + (r.monthlyLinkedin ?? 0), 0);
   const totalUsed = totalGoogle + totalLinkedin;
-  // Budget: months with data * monthly limit
   const monthsWithData = filtered.length;
   const monthlyGoogleLimit = currentLimit?.monthlyGoogle ?? 0;
   const monthlyLinkedinLimit = currentLimit?.monthlyLinkedin ?? 0;
   const totalBudgetForPeriod = monthsWithData * (monthlyGoogleLimit + monthlyLinkedinLimit);
   const totalAvailable = totalBudgetForPeriod - totalUsed;
-
-  // Current budget limits
-  const currentLimit = budgetLimits.find(b => b.year === 2026) ?? budgetLimits[budgetLimits.length - 1];
 
   // Chart data: monthly breakdown
   const chartData = useMemo(() => {
