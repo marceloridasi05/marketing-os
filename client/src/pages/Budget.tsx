@@ -5,6 +5,7 @@ import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { api } from '../lib/api';
 import { RefreshCw, Plus, Pencil, Trash2, X, Eye, EyeOff } from 'lucide-react';
+import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
@@ -85,35 +86,6 @@ function condStyle(val: number, min: number, max: number): React.CSSProperties {
   return { backgroundColor: `rgba(34, 197, 94, ${0.05 + ratio * 0.25})` };
 }
 
-// --- Time period ---
-type TimePeriod = 'all' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
-const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
-  { value: 'all', label: 'Todo o período' },
-  { value: 'last_30', label: 'Últimos 30 dias' },
-  { value: 'this_month', label: 'Este mês' },
-  { value: 'last_month', label: 'Mês passado' },
-  { value: 'this_year', label: 'Este ano' },
-];
-
-function getMonthRange(period: TimePeriod): { startYear: number; startMonth: number; endYear: number; endMonth: number } | null {
-  if (period === 'all') return null;
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  switch (period) {
-    case 'last_30':
-    case 'this_month':
-      return { startYear: y, startMonth: m, endYear: y, endMonth: m };
-    case 'last_month': {
-      const pm = m === 1 ? 12 : m - 1;
-      const py = m === 1 ? y - 1 : y;
-      return { startYear: py, startMonth: pm, endYear: py, endMonth: pm };
-    }
-    case 'this_year':
-      return { startYear: y, startMonth: 1, endYear: y, endMonth: 12 };
-    default: return null;
-  }
-}
 
 // --- Sort hook ---
 function useSort<T>(data: T[], defaultKey: string) {
@@ -346,7 +318,7 @@ export function Budget() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const { dateRange, filterProps } = useTimeFilter('all');
   const [filterSection, setFilterSection] = useState<string>('Todos');
   const [filterStrategy, setFilterStrategy] = useState<string>('Todos');
   const [filterExpenseType, setFilterExpenseType] = useState<string>('Todos');
@@ -403,7 +375,6 @@ export function Budget() {
   const [filterName, setFilterName] = useState<string>('Todos');
 
   // Filter data
-  const monthRange = useMemo(() => getMonthRange(timePeriod), [timePeriod]);
 
   // Exclude "Total X" summary rows to avoid double-counting
   const isNotTotalRow = (d: BudgetItem) => !d.name.startsWith('Total ') && d.name !== 'Grand Total Mkt';
@@ -413,12 +384,12 @@ export function Budget() {
 
   const filtered = useMemo(() => {
     let items = costItems;
-    if (monthRange) {
+    if (dateRange) {
+      const startYM = parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7));
+      const endYM = parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7));
       items = items.filter(d => {
         const ym = d.year * 100 + d.month;
-        const start = monthRange.startYear * 100 + monthRange.startMonth;
-        const end = monthRange.endYear * 100 + monthRange.endMonth;
-        return ym >= start && ym <= end;
+        return ym >= startYM && ym <= endYM;
       });
     }
     if (filterSection !== 'Todos') items = items.filter(d => d.section === filterSection);
@@ -427,20 +398,20 @@ export function Budget() {
     if (filterName !== 'Todos') items = items.filter(d => d.name === filterName);
     if (activeTab !== 'Todos') items = items.filter(d => d.section === activeTab);
     return items;
-  }, [costItems, monthRange, filterSection, filterStrategy, filterExpenseType, filterName, activeTab]);
+  }, [costItems, dateRange, filterSection, filterStrategy, filterExpenseType, filterName, activeTab]);
 
   const filteredBudget = useMemo(() => {
     let items = budgetLineItems;
-    if (monthRange) {
+    if (dateRange) {
+      const startYM = parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7));
+      const endYM = parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7));
       items = items.filter(d => {
         const ym = d.year * 100 + d.month;
-        const start = monthRange.startYear * 100 + monthRange.startMonth;
-        const end = monthRange.endYear * 100 + monthRange.endMonth;
-        return ym >= start && ym <= end;
+        return ym >= startYM && ym <= endYM;
       });
     }
     return items;
-  }, [budgetLineItems, monthRange]);
+  }, [budgetLineItems, dateRange]);
 
   // KPIs
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
@@ -449,7 +420,7 @@ export function Budget() {
   // Savings: only sum cost from months >= SAVINGS_START, excluding Headcount (matches spreadsheet Grand Total Mkt)
   const gastoFromSavingsStart = costItemsExclHC.filter(d => {
     const ym = `${d.year}-${String(d.month).padStart(2, '0')}`;
-    return ym >= SAVINGS_START && (!monthRange || (d.year * 100 + d.month >= monthRange.startYear * 100 + monthRange.startMonth && d.year * 100 + d.month <= monthRange.endYear * 100 + monthRange.endMonth));
+    return ym >= SAVINGS_START && (!dateRange || (d.year * 100 + d.month >= parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7)) && d.year * 100 + d.month <= parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7))));
   }).reduce((s, d) => s + d.actual, 0);
   const savings = totalOrcamento - gastoFromSavingsStart;
   const activeItems = new Set(filtered.map(d => d.name)).size;
@@ -807,12 +778,7 @@ export function Budget() {
 
       {/* Time Filter */}
       <div className="flex items-center gap-2 mb-6 p-3 bg-white rounded-lg border border-gray-200">
-        {PERIOD_OPTIONS.map(o => (
-          <button key={o.value} onClick={() => setTimePeriod(o.value)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${timePeriod === o.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-            {o.label}
-          </button>
-        ))}
+        <TimeFilter {...filterProps} />
       </div>
 
       {loading ? (

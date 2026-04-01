@@ -5,6 +5,7 @@ import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
+import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 // recharts imports kept for potential future use
 import {} from 'recharts';
 
@@ -44,12 +45,6 @@ function condStyle(val: number | null, min: number, max: number): React.CSSPrope
   return { backgroundColor: `rgba(${220 - ratio * 100}, ${g}, ${200 - ratio * 80}, ${0.08 + ratio * 0.2})` };
 }
 
-const PERIOD_OPTIONS = [
-  { value: 'all', label: 'Todo o período' },
-  { value: 'thisYear', label: 'Este ano' },
-  { value: '2025', label: '2025' },
-  { value: '2026', label: '2026' },
-];
 
 // --- Main ---
 export function AdsBudgets() {
@@ -58,7 +53,7 @@ export function AdsBudgets() {
   // hiddenBars now managed by AnnotatedChart internally
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState('all');
+  const { dateRange, filterProps } = useTimeFilter('all');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -81,15 +76,15 @@ export function AdsBudgets() {
 
   // Filter by period
   const filtered = useMemo(() => {
-    const currentYear = new Date().getFullYear();
     return data.filter(r => {
       if (r.month === 0) return false; // exclude disponível rows from main display
-      if (timePeriod === '2025') return r.year === 2025;
-      if (timePeriod === '2026') return r.year === 2026;
-      if (timePeriod === 'thisYear') return r.year === currentYear;
-      return true;
+      if (!dateRange) return true;
+      const startYM = parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7));
+      const endYM = parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7));
+      const ym = r.year * 100 + r.month;
+      return ym >= startYM && ym <= endYM;
     });
-  }, [data, timePeriod]);
+  }, [data, dateRange]);
 
   // Budget limits (disponível rows)
   const budgetLimits = useMemo(() => {
@@ -162,12 +157,7 @@ export function AdsBudgets() {
 
       {/* Period Filter */}
       <div className="flex items-center gap-2 mb-6 p-3 bg-white rounded-lg border border-gray-200">
-        {PERIOD_OPTIONS.map(o => (
-          <button key={o.value} onClick={() => setTimePeriod(o.value)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${timePeriod === o.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-            {o.label}
-          </button>
-        ))}
+        <TimeFilter {...filterProps} />
       </div>
 
       {loading ? (

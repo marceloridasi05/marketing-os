@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
+import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -113,31 +114,6 @@ function useSort<T>(data: T[], defaultKey: string, defaultAsc = true) {
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-// Time period filter (same as KPIs Ads)
-type TimePeriod = 'all' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
-const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
-  { value: 'all', label: 'Todo o período' },
-  { value: 'last_30', label: 'Últimos 30 dias' },
-  { value: 'this_month', label: 'Este mês' },
-  { value: 'last_month', label: 'Mês passado' },
-  { value: 'this_year', label: 'Este ano' },
-];
-
-function getDateRange(period: TimePeriod): { start: string; end: string } | null {
-  if (period === 'all') return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  let start: Date, end: Date;
-  switch (period) {
-    case 'last_30': start = new Date(today); start.setDate(today.getDate() - 29); end = today; break;
-    case 'this_month': start = new Date(today.getFullYear(), today.getMonth(), 1); end = today; break;
-    case 'last_month': start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); break;
-    case 'this_year': start = new Date(today.getFullYear(), 0, 1); end = today; break;
-    default: return null;
-  }
-  return { start: fmt(start), end: fmt(end) };
-}
 
 interface SiteMonthlyRow {
   id: number;
@@ -155,7 +131,7 @@ export function SiteData() {
   const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const { timePeriod, dateRange, filterProps } = useTimeFilter('all');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -180,7 +156,6 @@ export function SiteData() {
     setSyncing(false);
   };
 
-  const dateRange = useMemo(() => getDateRange(timePeriod), [timePeriod]);
   const data = useMemo(() => {
     if (!dateRange) return rawData;
     return rawData.filter(r => r.weekStart >= dateRange.start && r.weekStart <= dateRange.end);
@@ -316,16 +291,7 @@ export function SiteData() {
 
       {/* Time period selector */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {PERIOD_OPTIONS.map(p => (
-          <button key={p.value} onClick={() => setTimePeriod(p.value)}
-            className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-              timePeriod === p.value
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-            }`}>
-            {p.label}
-          </button>
-        ))}
+        <TimeFilter {...filterProps} />
       </div>
 
       {loading ? (

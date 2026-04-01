@@ -108,31 +108,8 @@ const fmtNum = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits:
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-// Time period filter
-type TimePeriod = 'all' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
-const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
-  { value: 'all', label: 'Todo o periodo' },
-  { value: 'last_30', label: 'Ultimos 30 dias' },
-  { value: 'this_month', label: 'Este mes' },
-  { value: 'last_month', label: 'Mes passado' },
-  { value: 'this_year', label: 'Este ano' },
-];
-
-function getDateRange(period: TimePeriod): { start: string; end: string } | null {
-  if (period === 'all') return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  let start: Date, end: Date;
-  switch (period) {
-    case 'last_30': start = new Date(today); start.setDate(today.getDate() - 29); end = today; break;
-    case 'this_month': start = new Date(today.getFullYear(), today.getMonth(), 1); end = today; break;
-    case 'last_month': start = new Date(today.getFullYear(), today.getMonth() - 1, 1); end = new Date(today.getFullYear(), today.getMonth(), 0); break;
-    case 'this_year': start = new Date(today.getFullYear(), 0, 1); end = today; break;
-    default: return null;
-  }
-  return { start: fmt(start), end: fmt(end) };
-}
+// Time period filter (centralized)
+import { TimeFilter, useTimeFilter, getDateRange, type TimePeriod } from '../components/TimeFilter';
 
 function filterByWeekStart<T extends { weekStart: string }>(rows: T[], range: { start: string; end: string } | null): T[] {
   if (!range) return rows;
@@ -209,7 +186,7 @@ function KpiTile({ label, value, icon }: {
 
 // --- Main ---
 export function Dashboard() {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('this_year');
+  const { timePeriod, dateRange, filterProps } = useTimeFilter('this_year');
   const [engineFilter, setEngineFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -272,7 +249,7 @@ export function Dashboard() {
   }, []);
 
   // Filtered data
-  const dateRange = useMemo(() => getDateRange(timePeriod), [timePeriod]);
+  // dateRange comes from useTimeFilter hook
   const fSite = useMemo(() => filterByWeekStart(siteData, dateRange), [siteData, dateRange]);
   const fAds = useMemo(() => filterByWeekStart(adsKpis, dateRange), [adsKpis, dateRange]);
   const fLiPage = useMemo(() => filterByWeekStart(linkedinPage, dateRange), [linkedinPage, dateRange]);
@@ -607,20 +584,9 @@ export function Dashboard() {
         }
       />
 
-      {/* Period Filter + Engine Filter */}
+      {/* Period Filter */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="flex flex-wrap gap-1.5">
-          {PERIOD_OPTIONS.map(p => (
-            <button key={p.value} onClick={() => setTimePeriod(p.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                timePeriod === p.value
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}>
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <TimeFilter {...filterProps} />
       </div>
 
       {loading ? (

@@ -6,6 +6,7 @@ import { CollapsibleCard } from '../components/CollapsibleCard';
 import { api } from '../lib/api';
 import { Plus, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
+import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 
 // --- Types ---
 interface AdsRow {
@@ -159,64 +160,6 @@ function EntryFormModal({ channels, initial, editId, onClose, onSaved }: { chann
   );
 }
 
-// --- Time period helpers ---
-type TimePeriod = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7' | 'last_30' | 'this_month' | 'last_month' | 'this_year';
-const PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
-  { value: 'all', label: 'Todo o período' },
-  { value: 'last_30', label: 'Últimos 30 dias' },
-  { value: 'this_month', label: 'Este mês' },
-  { value: 'last_month', label: 'Mês passado' },
-  { value: 'this_year', label: 'Este ano' },
-];
-
-function getDateRange(period: TimePeriod): { start: string; end: string } | null {
-  if (period === 'all') return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  let start: Date, end: Date;
-
-  switch (period) {
-    case 'today':
-      start = end = today;
-      break;
-    case 'yesterday': {
-      const y = new Date(today); y.setDate(y.getDate() - 1);
-      start = end = y;
-      break;
-    }
-    case 'this_week': {
-      const day = today.getDay();
-      start = new Date(today); start.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
-      end = today;
-      break;
-    }
-    case 'last_7':
-      start = new Date(today); start.setDate(today.getDate() - 6);
-      end = today;
-      break;
-    case 'last_30':
-      start = new Date(today); start.setDate(today.getDate() - 29);
-      end = today;
-      break;
-    case 'this_month':
-      start = new Date(today.getFullYear(), today.getMonth(), 1);
-      end = today;
-      break;
-    case 'last_month': {
-      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      end = new Date(today.getFullYear(), today.getMonth(), 0);
-      break;
-    }
-    case 'this_year':
-      start = new Date(today.getFullYear(), 0, 1);
-      end = today;
-      break;
-    default:
-      return null;
-  }
-  return { start: fmt(start), end: fmt(end) };
-}
 
 function parsePct(s: string | null): number | null {
   if (!s) return null;
@@ -238,7 +181,7 @@ export function Performance() {
   const [tab, setTab] = useState<'google' | 'linkedin' | 'manual'>('google');
 
   // Time period filter
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const { timePeriod, dateRange, filterProps } = useTimeFilter('all');
 
   // LinkedIn filters
   const [liAccountFilter, setLiAccountFilter] = useState('');
@@ -288,8 +231,6 @@ export function Performance() {
   const liCampaigns = useMemo(() => [...new Set(liData.map(r => r.campaignName))].sort(), [liData]);
 
   // Time-filtered data
-  const dateRange = useMemo(() => getDateRange(timePeriod), [timePeriod]);
-
   const timeFilteredAds = useMemo(() => {
     if (!dateRange) return adsData;
     return adsData.filter(r => r.weekStart >= dateRange.start && r.weekStart <= dateRange.end);
@@ -362,16 +303,7 @@ export function Performance() {
 
       {/* Time period selector */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {PERIOD_OPTIONS.map(p => (
-          <button key={p.value} onClick={() => setTimePeriod(p.value)}
-            className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-              timePeriod === p.value
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-            }`}>
-            {p.label}
-          </button>
-        ))}
+        <TimeFilter {...filterProps} />
       </div>
 
       {loading ? (
