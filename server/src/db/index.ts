@@ -188,10 +188,6 @@ const NEW_SHEET_CONFIG = JSON.stringify({
     adsBudgets: 1217583003,
   },
 });
-try {
-  sqlite.exec(`UPDATE sites SET sheet_config = '${NEW_SHEET_CONFIG}' WHERE sheet_config IS NULL`);
-} catch { /* ignore */ }
-
 // Migrations: add site_id to all data tables (idempotent)
 const tablesNeedingSiteId = [
   'channels', 'performance_entries', 'budgets', 'fixed_costs',
@@ -213,5 +209,10 @@ if (siteCount === 0) {
     try { sqlite.exec(`UPDATE ${table} SET site_id = ${defaultId} WHERE site_id IS NULL`); } catch { /* ignore */ }
   }
 }
+
+// Set default sheet config on all sites that don't have one (runs after site creation)
+try {
+  sqlite.exec(`UPDATE sites SET sheet_config = '${NEW_SHEET_CONFIG}' WHERE sheet_config IS NULL`);
+} catch { /* ignore */ }
 
 export const db = drizzle(sqlite, { schema });
