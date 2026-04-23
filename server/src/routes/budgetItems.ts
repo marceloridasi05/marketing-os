@@ -154,14 +154,14 @@ router.post('/sync', async (req, res) => {
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[3 + m] ?? '');
         // Always upsert (even 0) to correct stale data in DB
-        await upsertBudgetItem(section, strategy, expenseType, name, 2025, m + 1, 0, val);
+        await upsertBudgetItem(siteId, section, strategy, expenseType, name, 2025, m + 1, 0, val);
         if (val !== 0) imported++;
       }
 
       // Process 2026 months (cols 16-27) - values are actual spend
       for (let m = 0; m < 12; m++) {
         const val = parseMoney(row[16 + m] ?? '');
-        await upsertBudgetItem(section, strategy, expenseType, name, 2026, m + 1, 0, val);
+        await upsertBudgetItem(siteId, section, strategy, expenseType, name, 2026, m + 1, 0, val);
         if (val !== 0) imported++;
       }
     }
@@ -174,16 +174,19 @@ router.post('/sync', async (req, res) => {
 });
 
 async function upsertBudgetItem(
+  siteId: number | undefined,
   section: string, strategy: string | null, expenseType: string | null,
   name: string, year: number, month: number, planned: number, actual: number
 ) {
+  const conditions = [
+    eq(budgetItems.section, section),
+    eq(budgetItems.name, name),
+    eq(budgetItems.year, year),
+    eq(budgetItems.month, month),
+  ];
+  if (siteId) conditions.push(eq(budgetItems.siteId, siteId));
   const existing = await db.select().from(budgetItems)
-    .where(and(
-      eq(budgetItems.section, section),
-      eq(budgetItems.name, name),
-      eq(budgetItems.year, year),
-      eq(budgetItems.month, month),
-    )).limit(1);
+    .where(and(...conditions)).limit(1);
 
   if (existing.length > 0) {
     await db.update(budgetItems).set({
@@ -192,7 +195,7 @@ async function upsertBudgetItem(
     }).where(eq(budgetItems.id, existing[0].id));
   } else {
     await db.insert(budgetItems).values({
-      section, strategy, expenseType, name, year, month, planned, actual,
+      siteId, section, strategy, expenseType, name, year, month, planned, actual,
     });
   }
 }

@@ -80,6 +80,7 @@ router.post('/sync', async (req, res) => {
       // Disponível row (budget limits)
       if (col0.toLowerCase() === 'disponível') {
         const record = {
+          siteId,
           year: currentYear,
           month: 0, // 0 = disponível/budget row
           dailyGoogle: parseMoney(row[1] ?? ''),
@@ -90,8 +91,10 @@ router.post('/sync', async (req, res) => {
           monthlyTotalUsed: parseMoney(row[6] ?? ''),
           monthlyAvailable: parseMoney(row[7] ?? ''),
         };
+        const dispConditions = [eq(adsBudgets.year, currentYear), eq(adsBudgets.month, 0)];
+        if (siteId) dispConditions.push(eq(adsBudgets.siteId, siteId));
         const existing = await db.select().from(adsBudgets)
-          .where(and(eq(adsBudgets.year, currentYear), eq(adsBudgets.month, 0))).limit(1);
+          .where(and(...dispConditions)).limit(1);
         if (existing.length > 0) {
           await db.update(adsBudgets).set(record).where(eq(adsBudgets.id, existing[0].id));
         } else {
@@ -106,6 +109,7 @@ router.post('/sync', async (req, res) => {
       if (!monthNum) continue;
 
       const record = {
+        siteId,
         year: currentYear,
         month: monthNum,
         dailyGoogle: parseMoney(row[1] ?? ''),
@@ -117,8 +121,10 @@ router.post('/sync', async (req, res) => {
         monthlyAvailable: parseMoney(row[7] ?? ''),
       };
 
+      const monthConditions = [eq(adsBudgets.year, currentYear), eq(adsBudgets.month, monthNum)];
+      if (siteId) monthConditions.push(eq(adsBudgets.siteId, siteId));
       const existing = await db.select().from(adsBudgets)
-        .where(and(eq(adsBudgets.year, currentYear), eq(adsBudgets.month, monthNum))).limit(1);
+        .where(and(...monthConditions)).limit(1);
       if (existing.length > 0) {
         await db.update(adsBudgets).set(record).where(eq(adsBudgets.id, existing[0].id));
       } else {

@@ -67,6 +67,7 @@ router.post('/sync', async (req, res) => {
       const weekStart = parseDate(row[1]);
 
       const record = {
+        siteId,
         weekStart,
         followers: parseNum(row[2] ?? ''),
         followersGained: parseNum(row[3] ?? ''),
@@ -79,8 +80,11 @@ router.post('/sync', async (req, res) => {
         uniqueVisitors: parseNum(row[10] ?? ''),
       };
 
+      const existingWhere = siteId
+        ? and(eq(linkedinPage.weekStart, weekStart), eq(linkedinPage.siteId, siteId))
+        : eq(linkedinPage.weekStart, weekStart);
       const existing = await db.select().from(linkedinPage)
-        .where(eq(linkedinPage.weekStart, weekStart)).limit(1);
+        .where(existingWhere).limit(1);
       if (existing.length > 0) {
         await db.update(linkedinPage).set(record).where(eq(linkedinPage.id, existing[0].id));
       } else {

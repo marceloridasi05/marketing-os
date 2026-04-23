@@ -73,10 +73,14 @@ router.post('/sync', async (req, res) => {
       const weekStart = row[1]?.trim();
       if (!week || !weekStart) continue;
 
-      // Check if already exists
-      const existing = await db.select().from(siteData).where(eq(siteData.week, week)).limit(1);
+      // Check if already exists (scoped to this site)
+      const existingWhere = siteId
+        ? and(eq(siteData.week, week), eq(siteData.siteId, siteId))
+        : eq(siteData.week, week);
+      const existing = await db.select().from(siteData).where(existingWhere).limit(1);
 
       const record = {
+        siteId,
         week,
         weekStart: parseDate(weekStart),
         sessions: parseNum(row[2] ?? ''),
@@ -122,15 +126,17 @@ router.post('/sync', async (req, res) => {
       const pageViews = parseNum(row[19] ?? '');
       const sessions = parseNum(row[20] ?? '');
       const activeUsers = parseNum(row[21] ?? '');
+      const monthlyConditions = [eq(siteMonthly.year, currentYear), eq(siteMonthly.month, month)];
+      if (siteId) monthlyConditions.push(eq(siteMonthly.siteId, siteId));
       const existing = await db.select().from(siteMonthly)
-        .where(and(eq(siteMonthly.year, currentYear), eq(siteMonthly.month, month)))
+        .where(and(...monthlyConditions))
         .limit(1);
       if (existing.length > 0) {
         // Always update existing records (even to null) so cleared cells are reflected
-        await db.update(siteMonthly).set({ pageViews, sessions, activeUsers }).where(eq(siteMonthly.id, existing[0].id));
+        await db.update(siteMonthly).set({ siteId, pageViews, sessions, activeUsers }).where(eq(siteMonthly.id, existing[0].id));
       } else if (pageViews != null || sessions != null || activeUsers != null) {
         // Only insert new records if at least one value is non-null
-        await db.insert(siteMonthly).values({ year: currentYear, month, pageViews, sessions, activeUsers });
+        await db.insert(siteMonthly).values({ siteId, year: currentYear, month, pageViews, sessions, activeUsers });
       } else {
         continue; // skip empty new rows
       }

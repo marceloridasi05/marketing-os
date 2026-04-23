@@ -147,6 +147,7 @@ router.post('/sync', async (req, res) => {
 
       // Upsert Google Ads + LinkedIn aggregated
       const gaRecord = {
+        siteId,
         week, weekStart,
         gaImpressions: parseNum(row[2] ?? ''),
         gaClicks: parseNum(row[3] ?? ''),
@@ -162,7 +163,10 @@ router.post('/sync', async (req, res) => {
         liCost: Math.round(liCostTotal * 100) / 100,
       };
 
-      const existing = await db.select().from(adsKpis).where(eq(adsKpis.week, week)).limit(1);
+      const existingWhere = siteId
+        ? and(eq(adsKpis.week, week), eq(adsKpis.siteId, siteId))
+        : eq(adsKpis.week, week);
+      const existing = await db.select().from(adsKpis).where(existingWhere).limit(1);
       if (existing.length > 0) {
         await db.update(adsKpis).set(gaRecord).where(eq(adsKpis.id, existing[0].id));
       } else {
@@ -179,6 +183,7 @@ router.post('/sync', async (req, res) => {
         const cost = parseNum(row[camp.costCol ?? -1] ?? '');
 
         const liRecord = {
+          siteId,
           week, weekStart,
           campaignName: camp.name,
           accountType: camp.meta.accountType,
@@ -186,8 +191,11 @@ router.post('/sync', async (req, res) => {
           impressions: imp, clicks, ctr, frequency: freq, cpcAvg: cpc, cost,
         };
 
+        const existingLiWhere = siteId
+          ? and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name), eq(liCampaignKpis.siteId, siteId))
+          : and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name));
         const existingLi = await db.select().from(liCampaignKpis)
-          .where(and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name)))
+          .where(existingLiWhere)
           .limit(1);
         if (existingLi.length > 0) {
           await db.update(liCampaignKpis).set(liRecord).where(eq(liCampaignKpis.id, existingLi[0].id));
