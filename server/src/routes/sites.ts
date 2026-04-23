@@ -18,8 +18,14 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, url } = req.body;
-  const [row] = await db.update(sites).set({ name, url }).where(eq(sites.id, +req.params.id)).returning();
+  const { name, url, sheetConfig } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (name !== undefined) updates.name = name;
+  if (url !== undefined) updates.url = url;
+  if (sheetConfig !== undefined) {
+    updates.sheetConfig = typeof sheetConfig === 'string' ? sheetConfig : JSON.stringify(sheetConfig);
+  }
+  const [row] = await db.update(sites).set(updates).where(eq(sites.id, +req.params.id)).returning();
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });

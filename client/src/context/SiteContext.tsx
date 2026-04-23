@@ -4,6 +4,7 @@ export interface Site {
   id: number;
   name: string;
   url: string | null;
+  sheetConfig: string | null;
   createdAt: string;
 }
 

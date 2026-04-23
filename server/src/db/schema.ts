@@ -5,6 +5,8 @@ export const sites = sqliteTable('sites', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   url: text('url'),
+  // JSON: { spreadsheetId, gids: { siteData, adsKpis, linkedinPage, planSchedule, budgetItems, adsBudgets } }
+  sheetConfig: text('sheet_config'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 

@@ -2,12 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { adsBudgets } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { getSheetConfig } from '../lib/sheetConfig.js';
 
 const router = Router();
-
-const SHEET_ID = '1r1JVQCv2iQK3b3v6GjaFNDF7DHJNUDCfzZG80zHhGrg';
-const GID = '530264620';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 function parseMoney(v: string): number | null {
   if (!v || v.trim() === '' || v.trim() === '-') return null;
@@ -44,8 +41,11 @@ router.get('/', async (req, res) => {
 });
 
 // POST /sync
-router.post('/sync', async (_req, res) => {
+router.post('/sync', async (req, res) => {
   try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const { sheetId, gid } = await getSheetConfig(siteId, 'adsBudgets');
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
     const response = await fetch(CSV_URL);
     if (!response.ok) throw new Error(`Sheet fetch failed: ${response.status}`);
     const text = await response.text();

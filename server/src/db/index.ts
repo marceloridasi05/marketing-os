@@ -173,6 +173,25 @@ sqlite.exec(`
   );
 `);
 
+// Migration: add sheet_config to sites (idempotent)
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN sheet_config TEXT`); } catch { /* already exists */ }
+
+// Set default sheet config on sites that don't have one yet
+const NEW_SHEET_CONFIG = JSON.stringify({
+  spreadsheetId: '1xUb_3f8Cn3Ngpt2AjhnkGK6_KHmecpGAmE472ftuGBE',
+  gids: {
+    siteData: 114212584,
+    adsKpis: 495214981,
+    linkedinPage: 2058764939,
+    planSchedule: 1178599085,
+    budgetItems: 261492502,
+    adsBudgets: 1217583003,
+  },
+});
+try {
+  sqlite.exec(`UPDATE sites SET sheet_config = '${NEW_SHEET_CONFIG}' WHERE sheet_config IS NULL`);
+} catch { /* ignore */ }
+
 // Migrations: add site_id to all data tables (idempotent)
 const tablesNeedingSiteId = [
   'channels', 'performance_entries', 'budgets', 'fixed_costs',

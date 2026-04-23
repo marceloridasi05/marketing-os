@@ -2,12 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { planSchedule } from '../db/schema.js';
 import { eq, and, sql } from 'drizzle-orm';
+import { getSheetConfig } from '../lib/sheetConfig.js';
 
 const router = Router();
-
-const SHEET_ID = '1r1JVQCv2iQK3b3v6GjaFNDF7DHJNUDCfzZG80zHhGrg';
-const GID = '1215258222';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
@@ -30,24 +27,24 @@ function detectStatus(val: string): string | null {
   return 'planned';
 }
 
-// Cols 2-5 = Sep-Dec 2025, Cols 6-17 = Jan-Dec 2026
-const MONTH_MAP: { col: number; year: number; month: number }[] = [
-  { col: 2, year: 2025, month: 9 },
-  { col: 3, year: 2025, month: 10 },
-  { col: 4, year: 2025, month: 11 },
-  { col: 5, year: 2025, month: 12 },
-  { col: 6, year: 2026, month: 1 },
-  { col: 7, year: 2026, month: 2 },
-  { col: 8, year: 2026, month: 3 },
-  { col: 9, year: 2026, month: 4 },
-  { col: 10, year: 2026, month: 5 },
-  { col: 11, year: 2026, month: 6 },
-  { col: 12, year: 2026, month: 7 },
-  { col: 13, year: 2026, month: 8 },
-  { col: 14, year: 2026, month: 9 },
-  { col: 15, year: 2026, month: 10 },
-  { col: 16, year: 2026, month: 11 },
-  { col: 17, year: 2026, month: 12 },
+// Base month sequence (Sep 2025 → Dec 2026). Col index is relative to firstMonthCol.
+const MONTHS_SEQUENCE = [
+  { year: 2025, month: 9 },
+  { year: 2025, month: 10 },
+  { year: 2025, month: 11 },
+  { year: 2025, month: 12 },
+  { year: 2026, month: 1 },
+  { year: 2026, month: 2 },
+  { year: 2026, month: 3 },
+  { year: 2026, month: 4 },
+  { year: 2026, month: 5 },
+  { year: 2026, month: 6 },
+  { year: 2026, month: 7 },
+  { year: 2026, month: 8 },
+  { year: 2026, month: 9 },
+  { year: 2026, month: 10 },
+  { year: 2026, month: 11 },
+  { year: 2026, month: 12 },
 ];
 
 // GET /
@@ -62,18 +59,33 @@ router.get('/', async (req, res) => {
 // POST /sync — clean re-import from spreadsheet
 router.post('/sync', async (req, res) => {
   try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const { sheetId, gid } = await getSheetConfig(siteId, 'planSchedule');
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
     const response = await fetch(CSV_URL);
     if (!response.ok) throw new Error(`Sheet fetch failed: ${response.status}`);
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
     // Delete existing data for this site and re-import (fixes rename duplication)
-    const siteId = req.query.siteId ? +req.query.siteId : undefined;
     if (siteId) {
       await db.delete(planSchedule).where(eq(planSchedule.siteId, siteId));
     } else {
       await db.delete(planSchedule);
     }
+
+    // Auto-detect column structure from the header row (lines[2])
+    // Old format: Objetivo, Ação, [months from col 2]
+    // New format: Objetivo, Etapa do Funil, Ação, [months from col 3]
+    const headerRow = lines[2] || [];
+    const hasFunnelCol = headerRow[1]?.trim().toLowerCase().includes('funil') ||
+                         headerRow[1]?.trim().toLowerCase().includes('etapa');
+    const actionCol = hasFunnelCol ? 2 : 1;
+    const firstMonthCol = hasFunnelCol ? 3 : 2;
+
+    // Build MONTH_MAP with correct column indices
+    const MONTH_MAP = MONTHS_SEQUENCE.map((m, i) => ({ ...m, col: firstMonthCol + i }));
 
     let imported = 0;
     let currentObjective = '';
@@ -82,7 +94,7 @@ router.post('/sync', async (req, res) => {
     for (let i = 3; i < lines.length; i++) {
       const row = lines[i];
       const obj = row[0]?.trim();
-      const action = row[1]?.trim();
+      const action = row[actionCol]?.trim();
 
       // Stop at strategies section
       if (action === 'Estratégias') break;
@@ -93,18 +105,17 @@ router.post('/sync', async (req, res) => {
         return v && v !== '-';
       });
 
-      // Skip completely empty rows (no obj, no action, no data)
+      // Skip completely empty rows
       if (!obj && !action && !hasData) continue;
 
       // Track current objective (some rows inherit from above)
       if (obj) currentObjective = obj;
 
-      // Track current action — continuation rows (no action) inherit from above
+      // Track current action — continuation rows inherit from above
       if (action) {
         currentAction = action;
       } else if (hasData) {
-        // This is a continuation row (like Cases row 2 with Allseg)
-        // Keep currentObjective and currentAction from above
+        // Continuation row — keep currentObjective and currentAction
       } else {
         continue;
       }
@@ -116,7 +127,7 @@ router.post('/sync', async (req, res) => {
         const val = row[col]?.trim() || '';
         if (!val) continue;
 
-        // Dash means "intentionally empty" — save as marker so frontend knows not to merge-fill
+        // Dash means "intentionally empty"
         if (val === '-') {
           await db.insert(planSchedule).values({
             siteId,
@@ -124,7 +135,7 @@ router.post('/sync', async (req, res) => {
             action: currentAction,
             year, month,
             value: null,
-            status: 'empty', // marker: intentionally empty
+            status: 'empty',
           });
           imported++;
           continue;

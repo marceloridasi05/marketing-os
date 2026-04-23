@@ -3,7 +3,8 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { api } from '../lib/api';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ExternalLink, Save } from 'lucide-react';
+import { useSite } from '../context/SiteContext';
 
 // --- Types ---
 interface Channel { id: number; name: string; category: string; active: boolean; }
@@ -18,6 +19,137 @@ const REF_TYPE_LABELS: Record<string, string> = {
 const REF_TYPES = Object.keys(REF_TYPE_LABELS);
 
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
+
+// --- Sheet Config ---
+interface SheetGids {
+  siteData?: number; adsKpis?: number; linkedinPage?: number;
+  planSchedule?: number; budgetItems?: number; adsBudgets?: number;
+}
+interface SheetConfig { spreadsheetId: string; gids: SheetGids; }
+
+const GID_LABELS: { key: keyof SheetGids; label: string }[] = [
+  { key: 'siteData',     label: 'Desempenho do Site' },
+  { key: 'adsKpis',      label: 'KPIs Ads' },
+  { key: 'linkedinPage', label: 'LinkedIn Page' },
+  { key: 'planSchedule', label: 'Plano de Marketing' },
+  { key: 'adsBudgets',   label: 'Verbas Ads' },
+  { key: 'budgetItems',  label: 'Itens de Orçamento' },
+];
+
+function extractSheetId(input: string): string {
+  // Accept full URL or raw ID
+  const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : input.trim();
+}
+
+function SheetConfigCard() {
+  const { selectedSite, refreshSites } = useSite();
+  const [cfg, setCfg] = useState<SheetConfig>({ spreadsheetId: '', gids: {} });
+  const [urlInput, setUrlInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    try {
+      const parsed: SheetConfig = selectedSite.sheetConfig
+        ? JSON.parse(selectedSite.sheetConfig as unknown as string)
+        : { spreadsheetId: '', gids: {} };
+      setCfg(parsed);
+      setUrlInput(parsed.spreadsheetId
+        ? `https://docs.google.com/spreadsheets/d/${parsed.spreadsheetId}/edit`
+        : '');
+    } catch {
+      setCfg({ spreadsheetId: '', gids: {} });
+    }
+  }, [selectedSite]);
+
+  const handleSave = async () => {
+    if (!selectedSite) return;
+    const spreadsheetId = extractSheetId(urlInput);
+    const newCfg = { ...cfg, spreadsheetId };
+    setSaving(true);
+    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: newCfg });
+    await refreshSites();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const setGid = (key: keyof SheetGids, val: string) => {
+    const n = val === '' ? undefined : Number(val);
+    setCfg(c => ({ ...c, gids: { ...c.gids, [key]: n } }));
+  };
+
+  if (!selectedSite) return null;
+
+  return (
+    <Card className="mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-medium text-gray-700">Google Sheets — Planilha de Dados</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            A planilha deve ser pública (qualquer pessoa com o link pode ver).
+          </p>
+        </div>
+        {cfg.spreadsheetId && (
+          <a
+            href={`https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/edit`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
+          >
+            <ExternalLink size={13} /> Abrir planilha
+          </a>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">URL da planilha</label>
+          <input
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+            className={inputCls}
+          />
+          <p className="text-xs text-gray-400 mt-1">Cole a URL completa ou apenas o ID da planilha.</p>
+        </div>
+
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-2">IDs das abas (GID)</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {GID_LABELS.map(({ key, label }) => (
+              <div key={key}>
+                <label className="block text-xs text-gray-500 mb-0.5">{label}</label>
+                <input
+                  type="number"
+                  value={cfg.gids[key] ?? ''}
+                  onChange={e => setGid(key, e.target.value)}
+                  placeholder="ex: 114212584"
+                  className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            O GID de cada aba aparece na URL ao clicar na aba: <code className="bg-gray-100 px-1 rounded">…/edit?gid=<strong>114212584</strong></code>
+          </p>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar configuração'}
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 // --- Channel Form ---
 function ChannelFormModal({ initial, editId, onClose, onSaved }: {
@@ -217,6 +349,9 @@ export function SettingsPage() {
   return (
     <div>
       <PageHeader title="Configurações" description="Gerenciar dados de referência e configuração" />
+
+      {/* Google Sheets */}
+      <SheetConfigCard />
 
       {/* Canais */}
       <Card className="mb-6">

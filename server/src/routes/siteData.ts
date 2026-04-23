@@ -2,11 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { siteData, siteMonthly } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { getSheetConfig } from '../lib/sheetConfig.js';
 
 const router = Router();
-
-const SHEET_ID = '1r1JVQCv2iQK3b3v6GjaFNDF7DHJNUDCfzZG80zHhGrg';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
 function parseNum(v: string): number | null {
   if (!v || v.trim() === '') return null;
@@ -32,8 +30,11 @@ router.get('/', async (req, res) => {
 });
 
 // POST /sync — import from Google Sheets
-router.post('/sync', async (_req, res) => {
+router.post('/sync', async (req, res) => {
   try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const { sheetId, gid } = await getSheetConfig(siteId, 'siteData');
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
     const response = await fetch(CSV_URL);
     if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
     const text = await response.text();

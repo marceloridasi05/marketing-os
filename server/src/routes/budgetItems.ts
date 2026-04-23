@@ -2,12 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { budgetItems } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { getSheetConfig } from '../lib/sheetConfig.js';
 
 const router = Router();
-
-const SHEET_ID = '1r1JVQCv2iQK3b3v6GjaFNDF7DHJNUDCfzZG80zHhGrg';
-const GID = '554566232';
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
@@ -109,8 +106,11 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /sync - sync from spreadsheet
-router.post('/sync', async (_req, res) => {
+router.post('/sync', async (req, res) => {
   try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const { sheetId, gid } = await getSheetConfig(siteId, 'budgetItems');
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
     const response = await fetch(CSV_URL);
     if (!response.ok) throw new Error(`Sheet fetch failed: ${response.status}`);
     const text = await response.text();
