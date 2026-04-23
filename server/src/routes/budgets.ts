@@ -8,6 +8,7 @@ const router = Router();
 // List with optional year/month filter, joined with channel name
 router.get('/', async (req, res) => {
   const conditions = [];
+  if (req.query.siteId) conditions.push(eq(budgets.siteId, +req.query.siteId));
   if (req.query.year) conditions.push(eq(budgets.year, +req.query.year));
   if (req.query.month) conditions.push(eq(budgets.month, +req.query.month));
   if (req.query.engineType) conditions.push(eq(budgets.engineType, req.query.engineType as string));
@@ -35,8 +36,11 @@ router.get('/', async (req, res) => {
 // Monthly summary for a year (media budgets + fixed costs rollup)
 router.get('/annual-summary', async (req, res) => {
   const year = +(req.query.year || new Date().getFullYear());
+  const siteIdFilter = req.query.siteId ? +req.query.siteId : undefined;
 
   // Media budgets by month
+  const budgetConditions = [eq(budgets.year, year)];
+  if (siteIdFilter) budgetConditions.push(eq(budgets.siteId, siteIdFilter));
   const mediaSummary = await db
     .select({
       month: budgets.month,
@@ -44,14 +48,16 @@ router.get('/annual-summary', async (req, res) => {
       spent: sql<number>`coalesce(sum(${budgets.actualSpent}), 0)`,
     })
     .from(budgets)
-    .where(eq(budgets.year, year))
+    .where(and(...budgetConditions))
     .groupBy(budgets.month)
     .orderBy(budgets.month);
 
   // All active fixed costs (we compute monthly inclusion in response)
+  const fixedConditions = siteIdFilter ? [eq(fixedCosts.siteId, siteIdFilter)] : [];
   const allFixedCosts = await db
     .select()
-    .from(fixedCosts);
+    .from(fixedCosts)
+    .where(fixedConditions.length > 0 ? and(...fixedConditions) : undefined);
 
   // Build 12-month summary
   const months = [];
@@ -92,7 +98,8 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const [row] = await db.insert(budgets).values(req.body).returning();
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
+  const [row] = await db.insert(budgets).values({ ...req.body, siteId }).returning();
   res.status(201).json(row);
 });
 

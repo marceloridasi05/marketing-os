@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { linkedinPage } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -36,8 +36,11 @@ function parseCsvLine(line: string): string[] {
 }
 
 // GET /
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(linkedinPage).orderBy(linkedinPage.weekStart);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(linkedinPage.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(linkedinPage).where(where).orderBy(linkedinPage.weekStart);
   res.json(rows);
 });
 

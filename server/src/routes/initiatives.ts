@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   const conditions = [];
+  if (req.query.siteId) conditions.push(eq(initiatives.siteId, +req.query.siteId));
   if (req.query.year) conditions.push(eq(initiatives.year, +req.query.year));
   if (req.query.month) conditions.push(eq(initiatives.month, +req.query.month));
   if (req.query.status) conditions.push(eq(initiatives.status, req.query.status as string));
@@ -26,7 +27,8 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const [row] = await db.insert(initiatives).values(req.body).returning();
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
+  const [row] = await db.insert(initiatives).values({ ...req.body, siteId }).returning();
   res.status(201).json(row);
 });
 

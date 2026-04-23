@@ -51,21 +51,29 @@ const MONTH_MAP: { col: number; year: number; month: number }[] = [
 ];
 
 // GET /
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(planSchedule).orderBy(planSchedule.objective, planSchedule.action, planSchedule.year, planSchedule.month);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(planSchedule.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(planSchedule).where(where).orderBy(planSchedule.objective, planSchedule.action, planSchedule.year, planSchedule.month);
   res.json(rows);
 });
 
 // POST /sync — clean re-import from spreadsheet
-router.post('/sync', async (_req, res) => {
+router.post('/sync', async (req, res) => {
   try {
     const response = await fetch(CSV_URL);
     if (!response.ok) throw new Error(`Sheet fetch failed: ${response.status}`);
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    // Delete all existing data and re-import (fixes rename duplication)
-    await db.delete(planSchedule);
+    // Delete existing data for this site and re-import (fixes rename duplication)
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (siteId) {
+      await db.delete(planSchedule).where(eq(planSchedule.siteId, siteId));
+    } else {
+      await db.delete(planSchedule);
+    }
 
     let imported = 0;
     let currentObjective = '';
@@ -111,6 +119,7 @@ router.post('/sync', async (_req, res) => {
         // Dash means "intentionally empty" — save as marker so frontend knows not to merge-fill
         if (val === '-') {
           await db.insert(planSchedule).values({
+            siteId,
             objective: currentObjective,
             action: currentAction,
             year, month,
@@ -126,6 +135,7 @@ router.post('/sync', async (_req, res) => {
 
         if (cleanVal || status) {
           await db.insert(planSchedule).values({
+            siteId,
             objective: currentObjective,
             action: currentAction,
             year, month,
@@ -160,8 +170,9 @@ router.put('/:id', async (req, res) => {
 // POST / - create a new cell
 router.post('/', async (req, res) => {
   const { objective, action, year, month, value, status } = req.body;
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
   const result = await db.insert(planSchedule).values({
-    objective, action, year, month, value: value || null, status: status || null,
+    siteId, objective, action, year, month, value: value || null, status: status || null,
   }).returning();
   res.json(result[0]);
 });

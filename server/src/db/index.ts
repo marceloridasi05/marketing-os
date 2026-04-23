@@ -13,6 +13,12 @@ sqlite.pragma('foreign_keys = ON');
 
 // Auto-create tables if they don't exist
 sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS sites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS channels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -166,5 +172,27 @@ sqlite.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Migrations: add site_id to all data tables (idempotent)
+const tablesNeedingSiteId = [
+  'channels', 'performance_entries', 'budgets', 'fixed_costs',
+  'initiatives', 'goals', 'budget_items', 'ads_budgets',
+  'site_data', 'site_monthly', 'ads_kpis', 'li_campaign_kpis',
+  'linkedin_page', 'ideas', 'experiments', 'plan_schedule',
+  'suppliers', 'chart_annotations',
+];
+for (const table of tablesNeedingSiteId) {
+  try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN site_id INTEGER`); } catch { /* already exists */ }
+}
+
+// Create default site and migrate existing data if no sites exist
+const siteCount = (sqlite.prepare('SELECT COUNT(*) as count FROM sites').get() as { count: number }).count;
+if (siteCount === 0) {
+  sqlite.exec(`INSERT INTO sites (name) VALUES ('Site Padrão')`);
+  const defaultId = (sqlite.prepare('SELECT id FROM sites LIMIT 1').get() as { id: number }).id;
+  for (const table of tablesNeedingSiteId) {
+    try { sqlite.exec(`UPDATE ${table} SET site_id = ${defaultId} WHERE site_id IS NULL`); } catch { /* ignore */ }
+  }
+}
 
 export const db = drizzle(sqlite, { schema });

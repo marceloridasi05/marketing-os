@@ -7,6 +7,7 @@ const router = Router();
 
 function buildFilters(query: Record<string, string>) {
   const conditions = [];
+  if (query.siteId) conditions.push(eq(performanceEntries.siteId, +query.siteId));
   if (query.startDate) conditions.push(gte(performanceEntries.date, query.startDate));
   if (query.endDate) conditions.push(lte(performanceEntries.date, query.endDate));
   if (query.channelId) conditions.push(eq(performanceEntries.channelId, +query.channelId));
@@ -86,7 +87,8 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const [row] = await db.insert(performanceEntries).values(req.body).returning();
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
+  const [row] = await db.insert(performanceEntries).values({ ...req.body, siteId }).returning();
   res.status(201).json(row);
 });
 

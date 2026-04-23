@@ -1,19 +1,23 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { ideas } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(ideas).orderBy(sql`${ideas.createdAt} desc`);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(ideas.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(ideas).where(where).orderBy(sql`${ideas.createdAt} desc`);
   res.json(rows);
 });
 
 router.post('/', async (req, res) => {
   const { title, description, targetDate, relatedEvent, expectedOutcome, complexity, category, status, executed, executedDate, priority } = req.body;
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
   const result = await db.insert(ideas).values({
-    title, description: description || null, targetDate: targetDate || null,
+    siteId, title, description: description || null, targetDate: targetDate || null,
     relatedEvent: relatedEvent || null, expectedOutcome: expectedOutcome || null,
     complexity: complexity || 'medium', category: category || null,
     status: status || 'idea', executed: executed || false,

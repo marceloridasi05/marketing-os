@@ -7,15 +7,16 @@ const router = Router();
 
 // GET /?page=ads_kpis&chartKey=clicks
 router.get('/', async (req, res) => {
-  const { page, chartKey } = req.query as { page?: string; chartKey?: string };
+  const { page, chartKey, siteId } = req.query as { page?: string; chartKey?: string; siteId?: string };
+  const base = siteId ? [eq(chartAnnotations.siteId, +siteId)] : [];
   let rows;
   if (page && chartKey) {
     rows = await db.select().from(chartAnnotations)
-      .where(and(eq(chartAnnotations.page, page), eq(chartAnnotations.chartKey, chartKey)));
+      .where(and(...base, eq(chartAnnotations.page, page), eq(chartAnnotations.chartKey, chartKey)));
   } else if (page) {
-    rows = await db.select().from(chartAnnotations).where(eq(chartAnnotations.page, page));
+    rows = await db.select().from(chartAnnotations).where(and(...base, eq(chartAnnotations.page, page)));
   } else {
-    rows = await db.select().from(chartAnnotations);
+    rows = await db.select().from(chartAnnotations).where(base.length ? and(...base) : undefined);
   }
   res.json(rows);
 });
@@ -27,6 +28,8 @@ router.post('/', async (req, res) => {
   if (!page || !chartKey || !xValue || !comment) {
     return res.status(400).json({ error: 'page, chartKey, xValue, comment são obrigatórios' });
   }
+
+  const siteId = req.body.siteId ? +req.body.siteId : (req.query.siteId ? +req.query.siteId : undefined);
 
   if (replicateToAll) {
     // Get all distinct chartKeys for this page
@@ -45,13 +48,13 @@ router.post('/', async (req, res) => {
 
     const rows = [];
     for (const key of keys) {
-      const [row] = await db.insert(chartAnnotations).values({ page, chartKey: key, xValue, comment }).returning();
+      const [row] = await db.insert(chartAnnotations).values({ siteId, page, chartKey: key, xValue, comment }).returning();
       rows.push(row);
     }
     return res.status(201).json(rows);
   }
 
-  const [row] = await db.insert(chartAnnotations).values({ page, chartKey, xValue, comment }).returning();
+  const [row] = await db.insert(chartAnnotations).values({ siteId, page, chartKey, xValue, comment }).returning();
   res.status(201).json(row);
 });
 

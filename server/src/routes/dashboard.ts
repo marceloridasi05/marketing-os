@@ -7,6 +7,7 @@ const router = Router();
 
 function buildFilters(query: Record<string, string>) {
   const conditions = [];
+  if (query.siteId) conditions.push(eq(performanceEntries.siteId, +query.siteId));
   if (query.startDate) conditions.push(gte(performanceEntries.date, query.startDate));
   if (query.endDate) conditions.push(lte(performanceEntries.date, query.endDate));
   if (query.channelId) conditions.push(eq(performanceEntries.channelId, +query.channelId));

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { SiteProvider } from './context/SiteContext';
 import { Dashboard } from './pages/Dashboard';
 import { Performance } from './pages/Performance';
 import { Budget } from './pages/Budget';
@@ -14,6 +15,7 @@ import { Experiments } from './pages/Experiments';
 
 function App() {
   return (
+    <SiteProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -31,6 +33,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </SiteProvider>
   );
 }
 

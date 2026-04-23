@@ -55,14 +55,20 @@ function classifyCampaign(name: string): CampaignMeta {
 }
 
 // GET / - all ads kpis
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(adsKpis).orderBy(adsKpis.weekStart);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(adsKpis.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(adsKpis).where(where).orderBy(adsKpis.weekStart);
   res.json(rows);
 });
 
 // GET /linkedin - all linkedin campaign kpis
-router.get('/linkedin', async (_req, res) => {
-  const rows = await db.select().from(liCampaignKpis).orderBy(liCampaignKpis.weekStart);
+router.get('/linkedin', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(liCampaignKpis.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(liCampaignKpis).where(where).orderBy(liCampaignKpis.weekStart);
   res.json(rows);
 });
 

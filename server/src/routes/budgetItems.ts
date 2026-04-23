@@ -60,8 +60,9 @@ function isTotalOrSummaryRow(rowNum: number): boolean {
 
 // GET / - list all budget items with optional filters
 router.get('/', async (req, res) => {
-  const { year, month, section, strategy, expenseType } = req.query;
+  const { year, month, section, strategy, expenseType, siteId } = req.query;
   const conditions = [];
+  if (siteId) conditions.push(eq(budgetItems.siteId, Number(siteId)));
   if (year) conditions.push(eq(budgetItems.year, Number(year)));
   if (month) conditions.push(eq(budgetItems.month, Number(month)));
   if (section) conditions.push(eq(budgetItems.section, String(section)));
@@ -76,8 +77,9 @@ router.get('/', async (req, res) => {
 // POST / - create new item
 router.post('/', async (req, res) => {
   const { section, strategy, expenseType, name, year, month, planned, actual } = req.body;
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
   const result = await db.insert(budgetItems).values({
-    section, strategy, expenseType, name,
+    siteId, section, strategy, expenseType, name,
     year, month,
     planned: planned ?? 0,
     actual: actual ?? 0,

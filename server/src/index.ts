@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
 
+import sitesRouter from './routes/sites.js';
 import channelsRouter from './routes/channels.js';
 import performanceRouter from './routes/performance.js';
 import budgetsRouter from './routes/budgets.js';
@@ -33,6 +34,7 @@ app.use(cors());
 app.use(express.json());
 
 // API routes
+app.use('/api/sites', sitesRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/channels', channelsRouter);
 app.use('/api/performance', performanceRouter);

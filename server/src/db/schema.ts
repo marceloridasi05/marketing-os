@@ -1,8 +1,16 @@
 import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+export const sites = sqliteTable('sites', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  url: text('url'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const channels = sqliteTable('channels', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   name: text('name').notNull(),
   category: text('category').notNull(),
   active: integer('active', { mode: 'boolean' }).default(true).notNull(),
@@ -12,6 +20,7 @@ export const channels = sqliteTable('channels', {
 
 export const performanceEntries = sqliteTable('performance_entries', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   date: text('date').notNull(),
   periodType: text('period_type').notNull(),
   channelId: integer('channel_id').references(() => channels.id).notNull(),
@@ -33,6 +42,7 @@ export const performanceEntries = sqliteTable('performance_entries', {
 
 export const budgets = sqliteTable('budgets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
   channelId: integer('channel_id').references(() => channels.id).notNull(),
@@ -46,6 +56,7 @@ export const budgets = sqliteTable('budgets', {
 
 export const fixedCosts = sqliteTable('fixed_costs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   name: text('name').notNull(),
   category: text('category').notNull(),
   monthlyCost: real('monthly_cost').notNull(),
@@ -59,6 +70,7 @@ export const fixedCosts = sqliteTable('fixed_costs', {
 
 export const siteMonthly = sqliteTable('site_monthly', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
   pageViews: integer('page_views'),
@@ -69,6 +81,7 @@ export const siteMonthly = sqliteTable('site_monthly', {
 
 export const planSchedule = sqliteTable('plan_schedule', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   objective: text('objective').notNull(),
   action: text('action').notNull(),
   year: integer('year').notNull(),
@@ -80,6 +93,7 @@ export const planSchedule = sqliteTable('plan_schedule', {
 
 export const initiatives = sqliteTable('initiatives', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   name: text('name').notNull(),
   objective: text('objective').notNull(),
   actionType: text('action_type').notNull(),
@@ -106,6 +120,7 @@ export const referenceItems = sqliteTable('reference_items', {
 
 export const siteData = sqliteTable('site_data', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   week: text('week').notNull(),
   weekStart: text('week_start').notNull(),
   // Site Brick + Blog
@@ -130,6 +145,7 @@ export const siteData = sqliteTable('site_data', {
 
 export const suppliers = sqliteTable('suppliers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   name: text('name').notNull(),
   category: text('category').notNull(),
   type: text('type').default('fornecedor').notNull(), // 'fornecedor' or 'tool'
@@ -144,6 +160,7 @@ export const suppliers = sqliteTable('suppliers', {
 
 export const adsKpis = sqliteTable('ads_kpis', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   week: text('week').notNull(),
   weekStart: text('week_start').notNull(),
   // Google Ads
@@ -165,6 +182,7 @@ export const adsKpis = sqliteTable('ads_kpis', {
 
 export const liCampaignKpis = sqliteTable('li_campaign_kpis', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   week: text('week').notNull(),
   weekStart: text('week_start').notNull(),
   campaignName: text('campaign_name').notNull(),
@@ -181,6 +199,7 @@ export const liCampaignKpis = sqliteTable('li_campaign_kpis', {
 
 export const linkedinPage = sqliteTable('linkedin_page', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   weekStart: text('week_start').notNull(),
   followers: integer('followers'),
   followersGained: integer('followers_gained'),
@@ -196,6 +215,7 @@ export const linkedinPage = sqliteTable('linkedin_page', {
 
 export const ideas = sqliteTable('ideas', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   title: text('title').notNull(),
   description: text('description'),
   targetDate: text('target_date'),
@@ -213,6 +233,7 @@ export const ideas = sqliteTable('ideas', {
 
 export const experiments = sqliteTable('experiments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   hypothesis: text('hypothesis').notNull(),
   expectedResult: text('expected_result'),
   duration: text('duration'), // ex: "2 semanas", "1 mês"
@@ -232,6 +253,7 @@ export const experiments = sqliteTable('experiments', {
 
 export const goals = sqliteTable('goals', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
   metricName: text('metric_name').notNull(),
@@ -243,6 +265,7 @@ export const goals = sqliteTable('goals', {
 
 export const budgetItems = sqliteTable('budget_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   section: text('section').notNull(),
   strategy: text('strategy'),
   expenseType: text('expense_type'),
@@ -257,6 +280,7 @@ export const budgetItems = sqliteTable('budget_items', {
 
 export const adsBudgets = sqliteTable('ads_budgets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   year: integer('year').notNull(),
   month: integer('month').notNull(), // 1-12, or 0 for "Disponível" row
   dailyGoogle: real('daily_google'),
@@ -271,6 +295,7 @@ export const adsBudgets = sqliteTable('ads_budgets', {
 
 export const chartAnnotations = sqliteTable('chart_annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
   page: text('page').notNull(),
   chartKey: text('chart_key').notNull(),
   xValue: text('x_value').notNull(),

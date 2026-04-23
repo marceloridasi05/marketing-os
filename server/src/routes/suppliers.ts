@@ -1,21 +1,25 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { suppliers } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
 // GET /
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(suppliers).orderBy(suppliers.name);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(suppliers.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(suppliers).where(where).orderBy(suppliers.name);
   res.json(rows);
 });
 
 // POST /
 router.post('/', async (req, res) => {
   const { name, category, type, contactName, website, whatsapp, notes, active } = req.body;
+  const siteId = req.query.siteId ? +req.query.siteId : undefined;
   const result = await db.insert(suppliers).values({
-    name, category, type: type || 'fornecedor', contactName: contactName || null,
+    siteId, name, category, type: type || 'fornecedor', contactName: contactName || null,
     website: website || null, whatsapp: whatsapp || null,
     notes: notes || null, active: active !== false,
   }).returning();

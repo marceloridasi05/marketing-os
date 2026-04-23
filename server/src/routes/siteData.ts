@@ -23,8 +23,11 @@ function parseDate(v: string): string {
 }
 
 // GET / — list all site data
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(siteData).orderBy(siteData.weekStart);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(siteData.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(siteData).where(where).orderBy(siteData.weekStart);
   res.json(rows);
 });
 
@@ -141,8 +144,11 @@ router.post('/sync', async (_req, res) => {
 });
 
 // GET /monthly - monthly data from planilha columns R-V
-router.get('/monthly', async (_req, res) => {
-  const rows = await db.select().from(siteMonthly).orderBy(siteMonthly.year, siteMonthly.month);
+router.get('/monthly', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(siteMonthly.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(siteMonthly).where(where).orderBy(siteMonthly.year, siteMonthly.month);
   res.json(rows);
 });
 

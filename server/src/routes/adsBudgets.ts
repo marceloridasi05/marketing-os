@@ -35,8 +35,11 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 // GET /
-router.get('/', async (_req, res) => {
-  const rows = await db.select().from(adsBudgets).orderBy(adsBudgets.year, adsBudgets.month);
+router.get('/', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(adsBudgets.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(adsBudgets).where(where).orderBy(adsBudgets.year, adsBudgets.month);
   res.json(rows);
 });
 
