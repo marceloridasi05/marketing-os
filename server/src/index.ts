@@ -25,6 +25,7 @@ import suppliersRouter from './routes/suppliers.js';
 import ideasRouter from './routes/ideas.js';
 import experimentsRouter from './routes/experiments.js';
 import planScheduleRouter from './routes/planSchedule.js';
+import sheetInspectRouter from './routes/sheetInspect.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -55,6 +56,7 @@ app.use('/api/suppliers', suppliersRouter);
 app.use('/api/ideas', ideasRouter);
 app.use('/api/experiments', experimentsRouter);
 app.use('/api/plan-schedule', planScheduleRouter);
+app.use('/api/sheet-inspect', sheetInspectRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

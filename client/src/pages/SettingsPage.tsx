@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { api } from '../lib/api';
-import { Plus, Pencil, Trash2, X, ExternalLink, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ExternalLink, Save, Link2, Loader2, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 
 // --- Types ---
@@ -21,83 +21,96 @@ const REF_TYPES = Object.keys(REF_TYPE_LABELS);
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
 // --- Sheet Config ---
-interface SheetGids {
-  siteData?: number; adsKpis?: number; linkedinPage?: number;
-  planSchedule?: number; budgetItems?: number; adsBudgets?: number;
+interface SheetConfig {
+  spreadsheetId: string;
+  gids: Record<string, number>;
+  tabs?: string[];
+  columns?: Record<string, string[]>;
 }
-interface SheetConfig { spreadsheetId: string; gids: SheetGids; }
 
-const GID_LABELS: { key: keyof SheetGids; label: string }[] = [
-  { key: 'siteData',     label: 'Desempenho do Site' },
-  { key: 'adsKpis',      label: 'KPIs Ads' },
-  { key: 'linkedinPage', label: 'LinkedIn Page' },
-  { key: 'planSchedule', label: 'Plano de Marketing' },
-  { key: 'adsBudgets',   label: 'Verbas Ads' },
-  { key: 'budgetItems',  label: 'Itens de Orçamento' },
-];
-
-function extractSheetId(input: string): string {
-  // Accept full URL or raw ID
-  const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? m[1] : input.trim();
+interface InspectResult {
+  config: SheetConfig;
+  tabDetails: { name: string; gid: number; type: string | null }[];
 }
+
+const SECTION_LABELS: Record<string, string> = {
+  siteData: 'Desempenho do Site', adsKpis: 'KPIs Ads',
+  linkedinPage: 'LinkedIn Page',  planSchedule: 'Plano de Marketing',
+  adsBudgets: 'Verbas Ads',       budgetItems: 'Orçamento',
+};
+const ALL_SECTIONS = Object.keys(SECTION_LABELS);
 
 function SheetConfigCard() {
   const { selectedSite, refreshSites } = useSite();
-  const [cfg, setCfg] = useState<SheetConfig>({ spreadsheetId: '', gids: {} });
   const [urlInput, setUrlInput] = useState('');
+  const [inspecting, setInspecting] = useState(false);
+  const [inspectResult, setInspectResult] = useState<InspectResult | null>(null);
+  const [inspectError, setInspectError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Seed URL input from existing config
   useEffect(() => {
-    if (!selectedSite) return;
+    if (!selectedSite?.sheetConfig) { setUrlInput(''); return; }
     try {
-      const parsed: SheetConfig = selectedSite.sheetConfig
-        ? JSON.parse(selectedSite.sheetConfig as unknown as string)
-        : { spreadsheetId: '', gids: {} };
-      setCfg(parsed);
+      const parsed = JSON.parse(selectedSite.sheetConfig as string);
       setUrlInput(parsed.spreadsheetId
         ? `https://docs.google.com/spreadsheets/d/${parsed.spreadsheetId}/edit`
         : '');
-    } catch {
-      setCfg({ spreadsheetId: '', gids: {} });
-    }
+    } catch { setUrlInput(''); }
   }, [selectedSite]);
+
+  const handleInspect = async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    setInspecting(true);
+    setInspectError('');
+    setInspectResult(null);
+    try {
+      const res = await fetch('/api/sheet-inspect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || res.statusText); }
+      setInspectResult(await res.json());
+    } catch (e) {
+      setInspectError(e instanceof Error ? e.message : String(e));
+    } finally { setInspecting(false); }
+  };
 
   const handleSave = async () => {
     if (!selectedSite) return;
-    const spreadsheetId = extractSheetId(urlInput);
-    const newCfg = { ...cfg, spreadsheetId };
+    const config = inspectResult?.config;
+    if (!config) return;
     setSaving(true);
-    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: newCfg });
+    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: config });
     await refreshSites();
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const setGid = (key: keyof SheetGids, val: string) => {
-    const n = val === '' ? undefined : Number(val);
-    setCfg(c => ({ ...c, gids: { ...c.gids, [key]: n } }));
+    setTimeout(() => setSaved(false), 2500);
   };
 
   if (!selectedSite) return null;
+
+  const detected = inspectResult?.config.tabs ?? [];
+  const missing = ALL_SECTIONS.filter(s => !detected.includes(s));
+
+  // Extract current spreadsheet ID for the "open" link
+  let currentSpreadsheetId = '';
+  try { currentSpreadsheetId = JSON.parse(selectedSite.sheetConfig ?? '{}').spreadsheetId ?? ''; } catch { /* */ }
 
   return (
     <Card className="mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-medium text-gray-700">Google Sheets — Planilha de Dados</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            A planilha deve ser pública (qualquer pessoa com o link pode ver).
-          </p>
+          <p className="text-xs text-gray-400 mt-0.5">A planilha deve ser pública (qualquer pessoa com o link pode ver).</p>
         </div>
-        {cfg.spreadsheetId && (
-          <a
-            href={`https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/edit`}
+        {currentSpreadsheetId && (
+          <a href={`https://docs.google.com/spreadsheets/d/${currentSpreadsheetId}/edit`}
             target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
-          >
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800">
             <ExternalLink size={13} /> Abrir planilha
           </a>
         )}
@@ -106,44 +119,68 @@ function SheetConfigCard() {
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">URL da planilha</label>
-          <input
-            value={urlInput}
-            onChange={e => setUrlInput(e.target.value)}
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-            className={inputCls}
-          />
-          <p className="text-xs text-gray-400 mt-1">Cole a URL completa ou apenas o ID da planilha.</p>
+          <div className="flex gap-2">
+            <input
+              value={urlInput}
+              onChange={e => { setUrlInput(e.target.value); setInspectResult(null); setInspectError(''); }}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className={`${inputCls} flex-1`}
+            />
+            <button
+              onClick={handleInspect}
+              disabled={!urlInput.trim() || inspecting}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-md transition-colors"
+            >
+              {inspecting ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+              {inspecting ? 'Analisando…' : 'Inspecionar'}
+            </button>
+          </div>
         </div>
 
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">IDs das abas (GID)</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {GID_LABELS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="block text-xs text-gray-500 mb-0.5">{label}</label>
-                <input
-                  type="number"
-                  value={cfg.gids[key] ?? ''}
-                  onChange={e => setGid(key, e.target.value)}
-                  placeholder="ex: 114212584"
-                  className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono"
-                />
+        {inspectError && (
+          <p className="text-xs text-red-500">{inspectError}</p>
+        )}
+
+        {inspectResult && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-600">
+              {detected.length} seção{detected.length !== 1 ? 'ões' : ''} detectada{detected.length !== 1 ? 's' : ''}
+            </p>
+            {detected.length > 0 && (
+              <div className="space-y-1">
+                {detected.map(s => (
+                  <div key={s} className="flex items-center gap-2 text-xs text-green-700">
+                    <CheckCircle2 size={12} />
+                    <span>{SECTION_LABELS[s] ?? s}</span>
+                    {inspectResult.config.columns?.[s] && (
+                      <span className="text-gray-400">· {inspectResult.config.columns[s].length} cols</span>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            {missing.length > 0 && (
+              <div className="space-y-1 pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-400">Não encontrado:</p>
+                {missing.map(s => (
+                  <div key={s} className="flex items-center gap-2 text-xs text-gray-400">
+                    <CircleDashed size={12} />
+                    <span>{SECTION_LABELS[s] ?? s}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            O GID de cada aba aparece na URL ao clicar na aba: <code className="bg-gray-100 px-1 rounded">…/edit?gid=<strong>114212584</strong></code>
-          </p>
-        </div>
+        )}
 
         <div className="flex justify-end">
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+            disabled={saving || !inspectResult}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-40"
           >
             <Save size={14} />
-            {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar configuração'}
+            {saving ? 'Salvando…' : saved ? 'Salvo!' : 'Salvar configuração'}
           </button>
         </div>
       </div>
