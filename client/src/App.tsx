@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { SiteProvider } from './context/SiteContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './pages/Dashboard';
 import { Performance } from './pages/Performance';
 import { Budget } from './pages/Budget';
@@ -15,6 +16,7 @@ import { Experiments } from './pages/Experiments';
 
 function App() {
   return (
+    <ErrorBoundary>
     <SiteProvider>
     <BrowserRouter>
       <Routes>
@@ -34,6 +36,7 @@ function App() {
       </Routes>
     </BrowserRouter>
     </SiteProvider>
+    </ErrorBoundary>
   );
 }
 
