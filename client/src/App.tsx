@@ -12,6 +12,7 @@ import { AdsBudgets } from './pages/AdsBudgets';
 import { Suppliers } from './pages/Suppliers';
 import { Ideas } from './pages/Ideas';
 import { Experiments } from './pages/Experiments';
+import { SheetDataPage } from './pages/SheetDataPage';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/sheet/:gid" element={<SheetDataPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

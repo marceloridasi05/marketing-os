@@ -26,6 +26,7 @@ import ideasRouter from './routes/ideas.js';
 import experimentsRouter from './routes/experiments.js';
 import planScheduleRouter from './routes/planSchedule.js';
 import sheetInspectRouter from './routes/sheetInspect.js';
+import sheetDataRouter from './routes/sheetData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/ideas', ideasRouter);
 app.use('/api/experiments', experimentsRouter);
 app.use('/api/plan-schedule', planScheduleRouter);
 app.use('/api/sheet-inspect', sheetInspectRouter);
+app.use('/api/sheet-data', sheetDataRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

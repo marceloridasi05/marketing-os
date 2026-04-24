@@ -8,31 +8,49 @@ export interface Site {
   createdAt: string;
 }
 
-/** Which sections + columns were discovered in the connected sheet */
+export interface ColumnMeta {
+  index: number;
+  name: string;
+  type: 'text' | 'number' | 'date' | 'percentage' | 'currency';
+}
+
+export interface SheetMeta {
+  gid: number;
+  name: string;
+  /** Known specialised section type, or null = generic tab */
+  type: string | null;
+  headerRows: number;
+  columns: ColumnMeta[];
+}
+
 export interface SiteSchema {
   spreadsheetId?: string;
   gids?: Record<string, number>;
-  /** null = no sheet configured → show all sections (don't hide anything) */
-  tabs: string[] | null;
-  columns: Record<string, string[]>;
+  /** Full discovered sheet list — drives sidebar nav when present */
+  sheets?: SheetMeta[];
+  /** Legacy field: array of recognised section keys (kept for backward compat) */
+  tabs?: string[] | null;
+  columns?: Record<string, string[]>;
 }
 
-export const ALL_SECTIONS = ['siteData', 'adsKpis', 'linkedinPage', 'planSchedule', 'budgetItems', 'adsBudgets'] as const;
-export type SectionKey = typeof ALL_SECTIONS[number];
+export const LEGACY_SECTIONS = [
+  'siteData', 'adsKpis', 'linkedinPage', 'planSchedule', 'budgetItems', 'adsBudgets',
+] as const;
+export type SectionKey = typeof LEGACY_SECTIONS[number];
 
 function parseSiteSchema(sheetConfig: string | null): SiteSchema {
-  if (!sheetConfig) return { tabs: null, columns: {} };
+  if (!sheetConfig) return { sheets: undefined, tabs: null, columns: {} };
   try {
     const cfg = JSON.parse(sheetConfig);
     return {
       spreadsheetId: cfg.spreadsheetId,
-      gids: cfg.gids,
-      // tabs array present → scoped; missing → legacy config → show all
-      tabs: Array.isArray(cfg.tabs) ? cfg.tabs : null,
+      gids:   cfg.gids,
+      sheets: Array.isArray(cfg.sheets) ? cfg.sheets : undefined,
+      tabs:   Array.isArray(cfg.tabs)   ? cfg.tabs   : null,
       columns: cfg.columns ?? {},
     };
   } catch {
-    return { tabs: null, columns: {} };
+    return { sheets: undefined, tabs: null, columns: {} };
   }
 }
 
@@ -43,9 +61,12 @@ interface SiteContextType {
   loading: boolean;
   refreshSites: () => Promise<void>;
   siteSchema: SiteSchema;
-  /** Returns true when a section should be visible for the selected site */
+  /**
+   * Returns true if a legacy section should be shown.
+   * Only used when `siteSchema.sheets` is absent (legacy/unconfigured sites).
+   * When `sheets` is present the sidebar drives nav from that instead.
+   */
   hasSection: (key: SectionKey) => boolean;
-  /** Returns the detected columns for a section, or null if all should show */
   sectionColumns: (key: SectionKey) => string[] | null;
 }
 
@@ -69,9 +90,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
-  useEffect(() => {
-    loadSites().finally(() => setLoading(false));
-  }, []);
+  useEffect(() => { loadSites().finally(() => setLoading(false)); }, []);
 
   const setSelectedSite = (site: Site) => {
     setSelectedSiteState(site);
@@ -83,13 +102,12 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const siteSchema = useMemo(() => parseSiteSchema(selectedSite?.sheetConfig ?? null), [selectedSite]);
 
   const hasSection = (key: SectionKey): boolean => {
-    // No tabs array → legacy site or no sheet → show everything
-    if (siteSchema.tabs === null) return true;
-    return siteSchema.tabs.includes(key);
+    if (siteSchema.tabs === null) return true; // no config → show all
+    return siteSchema.tabs?.includes(key) ?? false;
   };
 
   const sectionColumns = (key: SectionKey): string[] | null => {
-    const cols = siteSchema.columns[key];
+    const cols = siteSchema.columns?.[key];
     return cols && cols.length > 0 ? cols : null;
   };
 

@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { api } from '../lib/api';
-import { Plus, Pencil, Trash2, X, ExternalLink, Save, Link2, Loader2, CheckCircle2, CircleDashed } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ExternalLink, Save, Link2, Loader2, Table2 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 
 // --- Types ---
@@ -21,24 +21,16 @@ const REF_TYPES = Object.keys(REF_TYPE_LABELS);
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
 // --- Sheet Config ---
-interface SheetConfig {
-  spreadsheetId: string;
-  gids: Record<string, number>;
-  tabs?: string[];
-  columns?: Record<string, string[]>;
-}
-
+interface SheetMeta { gid: number; name: string; type: string | null; headerRows: number; columns: { index: number; name: string; type: string }[] }
 interface InspectResult {
-  config: SheetConfig;
-  tabDetails: { name: string; gid: number; type: string | null }[];
+  config: { spreadsheetId: string; gids: Record<string, number>; tabs: string[]; sheets: SheetMeta[]; columns: Record<string, string[]> };
+  sheets: SheetMeta[];
 }
 
-const SECTION_LABELS: Record<string, string> = {
-  siteData: 'Desempenho do Site', adsKpis: 'KPIs Ads',
-  linkedinPage: 'LinkedIn Page',  planSchedule: 'Plano de Marketing',
-  adsBudgets: 'Verbas Ads',       budgetItems: 'Orçamento',
+const KNOWN_TYPE_LABELS: Record<string, string> = {
+  siteData: 'Desempenho do Site', adsKpis: 'KPIs Ads', linkedinPage: 'LinkedIn Page',
+  planSchedule: 'Plano de Marketing', adsBudgets: 'Verbas Ads', budgetItems: 'Orçamento',
 };
-const ALL_SECTIONS = Object.keys(SECTION_LABELS);
 
 function SheetConfigCard() {
   const { selectedSite, refreshSites } = useSite();
@@ -49,7 +41,6 @@ function SheetConfigCard() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Seed URL input from existing config
   useEffect(() => {
     if (!selectedSite?.sheetConfig) { setUrlInput(''); return; }
     try {
@@ -63,40 +54,29 @@ function SheetConfigCard() {
   const handleInspect = async () => {
     const url = urlInput.trim();
     if (!url) return;
-    setInspecting(true);
-    setInspectError('');
-    setInspectResult(null);
+    setInspecting(true); setInspectError(''); setInspectResult(null);
     try {
       const res = await fetch('/api/sheet-inspect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || res.statusText); }
-      setInspectResult(await res.json());
-    } catch (e) {
-      setInspectError(e instanceof Error ? e.message : String(e));
-    } finally { setInspecting(false); }
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || res.statusText);
+      setInspectResult(d);
+    } catch (e) { setInspectError(e instanceof Error ? e.message : String(e)); }
+    finally { setInspecting(false); }
   };
 
   const handleSave = async () => {
-    if (!selectedSite) return;
-    const config = inspectResult?.config;
-    if (!config) return;
+    if (!selectedSite || !inspectResult?.config) return;
     setSaving(true);
-    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: config });
+    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: inspectResult.config });
     await refreshSites();
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500);
   };
 
   if (!selectedSite) return null;
 
-  const detected = inspectResult?.config.tabs ?? [];
-  const missing = ALL_SECTIONS.filter(s => !detected.includes(s));
-
-  // Extract current spreadsheet ID for the "open" link
+  const sheets = inspectResult?.sheets ?? [];
   let currentSpreadsheetId = '';
   try { currentSpreadsheetId = JSON.parse(selectedSite.sheetConfig ?? '{}').spreadsheetId ?? ''; } catch { /* */ }
 
@@ -126,49 +106,38 @@ function SheetConfigCard() {
               placeholder="https://docs.google.com/spreadsheets/d/..."
               className={`${inputCls} flex-1`}
             />
-            <button
-              onClick={handleInspect}
-              disabled={!urlInput.trim() || inspecting}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-md transition-colors"
-            >
+            <button onClick={handleInspect} disabled={!urlInput.trim() || inspecting}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-md transition-colors">
               {inspecting ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
               {inspecting ? 'Analisando…' : 'Inspecionar'}
             </button>
           </div>
         </div>
 
-        {inspectError && (
-          <p className="text-xs text-red-500">{inspectError}</p>
-        )}
+        {inspectError && <p className="text-xs text-red-500">{inspectError}</p>}
 
         {inspectResult && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-            <p className="text-xs font-semibold text-gray-600">
-              {detected.length} seção{detected.length !== 1 ? 'ões' : ''} detectada{detected.length !== 1 ? 's' : ''}
-            </p>
-            {detected.length > 0 && (
-              <div className="space-y-1">
-                {detected.map(s => (
-                  <div key={s} className="flex items-center gap-2 text-xs text-green-700">
-                    <CheckCircle2 size={12} />
-                    <span>{SECTION_LABELS[s] ?? s}</span>
-                    {inspectResult.config.columns?.[s] && (
-                      <span className="text-gray-400">· {inspectResult.config.columns[s].length} cols</span>
-                    )}
-                  </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+            <div className="px-4 py-2 border-b border-gray-200">
+              <p className="text-xs font-semibold text-gray-600">
+                {sheets.length} aba{sheets.length !== 1 ? 's' : ''} descoberta{sheets.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            {sheets.length > 0 ? (
+              <ul className="divide-y divide-gray-100">
+                {sheets.map(s => (
+                  <li key={s.gid} className="flex items-center justify-between px-4 py-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Table2 size={12} className="text-gray-400" />
+                      <span className="text-gray-700">{s.name}</span>
+                      {s.type && <span className="text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{KNOWN_TYPE_LABELS[s.type] ?? s.type}</span>}
+                    </div>
+                    <span className="text-gray-400">{s.columns.length} cols</span>
+                  </li>
                 ))}
-              </div>
-            )}
-            {missing.length > 0 && (
-              <div className="space-y-1 pt-2 border-t border-gray-200">
-                <p className="text-xs text-gray-400">Não encontrado:</p>
-                {missing.map(s => (
-                  <div key={s} className="flex items-center gap-2 text-xs text-gray-400">
-                    <CircleDashed size={12} />
-                    <span>{SECTION_LABELS[s] ?? s}</span>
-                  </div>
-                ))}
-              </div>
+              </ul>
+            ) : (
+              <p className="px-4 py-3 text-xs text-yellow-600">Nenhuma aba com dados encontrada.</p>
             )}
           </div>
         )}
