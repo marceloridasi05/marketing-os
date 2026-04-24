@@ -218,7 +218,28 @@ export function Dashboard() {
   const [aiError, setAiError] = useState<string | null>(null);
   const aiCardRef = useRef<HTMLDivElement>(null);
 
-  // Sync state
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    const [site, ads, liCamp, liPage, budget, adsB] = await Promise.all([
+      api.get<SiteRow[]>('/site-data'),
+      api.get<AdsKpiRow[]>('/ads-kpis'),
+      api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
+      api.get<LinkedinPageRow[]>('/linkedin-page'),
+      api.get<BudgetItemRow[]>('/budget-items'),
+      api.get<AdsBudgetRow[]>('/ads-budgets'),
+    ]);
+    setSiteData(site);
+    setAdsKpis(ads);
+    setLiCampaigns(liCamp);
+    setLinkedinPage(liPage);
+    setBudgetItems(budget);
+    setAdsBudgets(adsB);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Sync state — must be declared AFTER fetchAll
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
@@ -246,27 +267,6 @@ export function Dashboard() {
     setSyncing(false);
     await fetchAll();
   }, [fetchAll]);
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    const [site, ads, liCamp, liPage, budget, adsB] = await Promise.all([
-      api.get<SiteRow[]>('/site-data'),
-      api.get<AdsKpiRow[]>('/ads-kpis'),
-      api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
-      api.get<LinkedinPageRow[]>('/linkedin-page'),
-      api.get<BudgetItemRow[]>('/budget-items'),
-      api.get<AdsBudgetRow[]>('/ads-budgets'),
-    ]);
-    setSiteData(site);
-    setAdsKpis(ads);
-    setLiCampaigns(liCamp);
-    setLinkedinPage(liPage);
-    setBudgetItems(budget);
-    setAdsBudgets(adsB);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // Fetch ABM data separately (external API, may be slow)
   useEffect(() => {
