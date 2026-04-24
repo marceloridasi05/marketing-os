@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap, Eye, EyeOff } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 
@@ -217,6 +217,35 @@ export function Dashboard() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const aiCardRef = useRef<HTMLDivElement>(null);
+
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  const handleSyncAll = useCallback(async () => {
+    setSyncing(true);
+    setSyncStatus(null);
+    const syncRoutes = [
+      { label: 'Dados do Site', path: '/site-data/sync' },
+      { label: 'KPIs Ads', path: '/ads-kpis/sync' },
+      { label: 'LinkedIn Page', path: '/linkedin-page/sync' },
+      { label: 'Itens de Budget', path: '/budget-items/sync' },
+      { label: 'Verbas Ads', path: '/ads-budgets/sync' },
+      { label: 'Plano', path: '/plan-schedule/sync' },
+    ];
+    const results: string[] = [];
+    for (const route of syncRoutes) {
+      try {
+        await api.post(route.path, {});
+        results.push(`✓ ${route.label}`);
+      } catch (e) {
+        results.push(`✗ ${route.label}: ${String(e)}`);
+      }
+    }
+    setSyncStatus(results.join('\n'));
+    setSyncing(false);
+    await fetchAll();
+  }, [fetchAll]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -573,14 +602,25 @@ export function Dashboard() {
         title="Painel"
         description="Consciência situacional e tomada de decisão"
         actions={
-          <button
-            onClick={handleAiAnalysis}
-            disabled={aiLoading || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-sm"
-          >
-            {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
-            Analise IA
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncAll}
+              disabled={syncing || loading}
+              title="Sincronizar todas as abas da planilha"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 disabled:opacity-50 border border-gray-200 transition-colors"
+            >
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Sincronizar
+            </button>
+            <button
+              onClick={handleAiAnalysis}
+              disabled={aiLoading || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-sm"
+            >
+              {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
+              Analise IA
+            </button>
+          </div>
         }
       />
 
@@ -589,10 +629,39 @@ export function Dashboard() {
         <TimeFilter {...filterProps} />
       </div>
 
+      {/* Sync status toast */}
+      {syncStatus && (
+        <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="flex items-start justify-between gap-2">
+            <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{syncStatus}</pre>
+            <button onClick={() => setSyncStatus(null)} className="text-gray-400 hover:text-gray-600 shrink-0 mt-0.5">✕</button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="py-12 text-center text-gray-400">Carregando...</div>
       ) : (
         <>
+          {/* Empty state: no data synced yet */}
+          {siteData.length === 0 && adsKpis.length === 0 && budgetItems.length === 0 && (
+            <div className="mb-6 flex flex-col items-center justify-center py-12 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-center">
+              <RefreshCw size={32} className="text-gray-300 mb-3" />
+              <p className="text-sm font-medium text-gray-600 mb-1">Nenhum dado encontrado para este site</p>
+              <p className="text-xs text-gray-400 mb-4 max-w-xs">
+                Configure a planilha Google Sheets em <strong>Configurações</strong> e clique em <strong>Sincronizar</strong> para importar os dados.
+              </p>
+              <button
+                onClick={handleSyncAll}
+                disabled={syncing}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                Sincronizar agora
+              </button>
+            </div>
+          )}
+
           {/* Row 1: KPI Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
             <KpiTile label="Sessoes Site" value={fmtNum(totalSessions)}
