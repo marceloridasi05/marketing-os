@@ -246,14 +246,6 @@ sqlite.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
-  CREATE TABLE IF NOT EXISTS sheet_tab_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    site_id INTEGER,
-    gid INTEGER NOT NULL,
-    row_index INTEGER NOT NULL,
-    row_data TEXT NOT NULL,
-    synced_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
   CREATE TABLE IF NOT EXISTS experiments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     hypothesis TEXT NOT NULL,

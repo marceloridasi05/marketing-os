@@ -11,12 +11,9 @@ router.get('/', async (_req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, url, sheetConfig } = req.body;
+  const { name, url } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
-  const configStr = sheetConfig
-    ? (typeof sheetConfig === 'string' ? sheetConfig : JSON.stringify(sheetConfig))
-    : null;
-  const [row] = await db.insert(sites).values({ name, url, sheetConfig: configStr }).returning();
+  const [row] = await db.insert(sites).values({ name, url }).returning();
   res.status(201).json(row);
 });
 

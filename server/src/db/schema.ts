@@ -304,14 +304,3 @@ export const chartAnnotations = sqliteTable('chart_annotations', {
   comment: text('comment').notNull(),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
-
-/** Generic row storage for any Google Sheets tab that doesn't match a specialised section */
-export const sheetTabData = sqliteTable('sheet_tab_data', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  siteId: integer('site_id'),
-  gid: integer('gid').notNull(),
-  rowIndex: integer('row_index').notNull(),
-  /** JSON object: { "Column Name": "cell value", ... } */
-  rowData: text('row_data').notNull(),
-  syncedAt: text('synced_at').default(sql`(datetime('now'))`).notNull(),
-});
