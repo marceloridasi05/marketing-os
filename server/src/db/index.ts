@@ -171,10 +171,120 @@ sqlite.exec(`
     li_cost REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS site_monthly (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    page_views INTEGER,
+    sessions INTEGER,
+    active_users INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS linkedin_page (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_start TEXT NOT NULL,
+    followers INTEGER,
+    followers_gained INTEGER,
+    followers_lost INTEGER,
+    impressions INTEGER,
+    reactions INTEGER,
+    comments INTEGER,
+    shares INTEGER,
+    page_views INTEGER,
+    unique_visitors INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS ads_budgets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    daily_google REAL,
+    monthly_google REAL,
+    daily_linkedin REAL,
+    monthly_linkedin REAL,
+    daily_total REAL,
+    monthly_total_used REAL,
+    monthly_available REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS plan_schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    objective TEXT NOT NULL,
+    action TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    value TEXT,
+    status TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'fornecedor',
+    contact_name TEXT,
+    website TEXT,
+    whatsapp TEXT,
+    notes TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS ideas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    target_date TEXT,
+    related_event TEXT,
+    expected_outcome TEXT,
+    complexity TEXT NOT NULL DEFAULT 'medium',
+    category TEXT,
+    status TEXT NOT NULL DEFAULT 'idea',
+    executed INTEGER NOT NULL DEFAULT 0,
+    executed_date TEXT,
+    priority TEXT DEFAULT 'medium',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS experiments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hypothesis TEXT NOT NULL,
+    expected_result TEXT,
+    duration TEXT,
+    start_date TEXT,
+    end_date TEXT,
+    channel TEXT,
+    metric TEXT,
+    baseline_value TEXT,
+    result_value TEXT,
+    learning TEXT,
+    status TEXT NOT NULL DEFAULT 'planned',
+    successful TEXT,
+    category TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Migration: add sheet_config to sites (idempotent)
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN sheet_config TEXT`); } catch { /* already exists */ }
+
+// Migrations: add missing columns to site_data (idempotent)
+const siteDataCols = [
+  'ALTER TABLE site_data ADD COLUMN paid_clicks INTEGER',
+  'ALTER TABLE site_data ADD COLUMN unpaid_sessions INTEGER',
+  'ALTER TABLE site_data ADD COLUMN weekly_gains INTEGER',
+  'ALTER TABLE site_data ADD COLUMN blog_new_users INTEGER',
+  'ALTER TABLE site_data ADD COLUMN blog_new_users_pct TEXT',
+  'ALTER TABLE site_data ADD COLUMN ai_sessions INTEGER',
+  'ALTER TABLE site_data ADD COLUMN ai_total_users INTEGER',
+  'ALTER TABLE performance_entries ADD COLUMN engine_type TEXT',
+  'ALTER TABLE budgets ADD COLUMN engine_type TEXT',
+  'ALTER TABLE initiatives ADD COLUMN engine_type TEXT',
+];
+for (const stmt of siteDataCols) {
+  try { sqlite.exec(stmt); } catch { /* already exists */ }
+}
 
 // Set default sheet config on sites that don't have one yet
 const NEW_SHEET_CONFIG = JSON.stringify({
