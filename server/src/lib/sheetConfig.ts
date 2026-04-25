@@ -31,6 +31,7 @@ export async function getSheetConfig(
   siteId: number | undefined,
   key: keyof SheetGids,
 ): Promise<{ sheetId: string; gid: number }> {
+  // Start with legacy defaults (used only when no siteId is given)
   let sheetId = DEFAULT_SHEET_ID;
   let gid = DEFAULT_GIDS[key];
 
@@ -39,12 +40,20 @@ export async function getSheetConfig(
       .select({ sheetConfig: sites.sheetConfig })
       .from(sites)
       .where(eq(sites.id, siteId));
+
     if (site?.sheetConfig) {
       try {
         const cfg: Partial<SheetConfig> = JSON.parse(site.sheetConfig);
-        if (cfg.spreadsheetId) sheetId = cfg.spreadsheetId;
+        // Site exists but has no spreadsheetId → no sheet configured, return nothing
+        if (!cfg.spreadsheetId) {
+          throw new Error('Nenhuma planilha configurada para este site. Adicione um Google Sheets em Configurações.');
+        }
+        sheetId = cfg.spreadsheetId;
         if (cfg.gids?.[key] != null) gid = cfg.gids[key]!;
-      } catch { /* ignore malformed JSON */ }
+      } catch (e) {
+        // Re-throw meaningful errors; ignore malformed JSON by falling through
+        if (e instanceof Error && e.message.startsWith('Nenhuma')) throw e;
+      }
     }
   }
 

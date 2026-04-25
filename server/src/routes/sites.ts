@@ -13,9 +13,11 @@ router.get('/', async (_req, res) => {
 router.post('/', async (req, res) => {
   const { name, url, sheetConfig } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
+  // If no sheet provided, store '{}' explicitly so the DB migration
+  // (which only patches NULL rows) doesn't assign the default sheet to this site.
   const sheetConfigStr = sheetConfig !== undefined
     ? (typeof sheetConfig === 'string' ? sheetConfig : JSON.stringify(sheetConfig))
-    : undefined;
+    : '{}';
   const [row] = await db.insert(sites).values({ name, url, sheetConfig: sheetConfigStr }).returning();
   res.status(201).json(row);
 });
