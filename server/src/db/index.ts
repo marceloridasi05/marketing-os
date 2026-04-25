@@ -298,7 +298,7 @@ const NEW_SHEET_CONFIG = JSON.stringify({
     adsKpis: 495214981,
     linkedinPage: 2058764939,
     planSchedule: 1178599085,
-    budgetItems: 261492502,
+    budgetItems: 1316516870,
     adsBudgets: 1217583003,
   },
 });
@@ -327,6 +327,18 @@ if (siteCount === 0) {
 // Set default sheet config on all sites that don't have one (runs after site creation)
 try {
   sqlite.exec(`UPDATE sites SET sheet_config = '${NEW_SHEET_CONFIG}' WHERE sheet_config IS NULL`);
+} catch { /* ignore */ }
+
+// Migration: update budgetItems GID from old value (261492502) to correct tab (1316516870)
+try {
+  const sitesWithOldGid = sqlite.prepare(`SELECT id, sheet_config FROM sites WHERE sheet_config LIKE '%261492502%'`).all() as { id: number; sheet_config: string }[];
+  for (const site of sitesWithOldGid) {
+    const cfg = JSON.parse(site.sheet_config);
+    if (cfg?.gids?.budgetItems === 261492502) {
+      cfg.gids.budgetItems = 1316516870;
+      sqlite.prepare(`UPDATE sites SET sheet_config = ? WHERE id = ?`).run(JSON.stringify(cfg), site.id);
+    }
+  }
 } catch { /* ignore */ }
 
 export const db = drizzle(sqlite, { schema });

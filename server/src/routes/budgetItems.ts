@@ -29,32 +29,6 @@ function parseMoney(v: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-// Section detection based on row ranges
-const SECTIONS = [
-  { name: 'Headcount', startRow: 8, endRow: 9, totalRow: 10 },
-  { name: 'Ferramentas', startRow: 13, endRow: 26, totalRow: 27 },
-  { name: 'Eventos', startRow: 31, endRow: 47, totalRow: 48 },
-  { name: 'Mídia', startRow: 51, endRow: 58, totalRow: 59 },
-  { name: 'Viagens', startRow: 62, endRow: 68, totalRow: 69 },
-  { name: 'Brindes & Promo', startRow: 72, endRow: 80, totalRow: 81 },
-  { name: 'Terceiros', startRow: 84, endRow: 89, totalRow: 90 },
-];
-
-function getSectionForRow(rowNum: number): string | null {
-  for (const s of SECTIONS) {
-    if (rowNum >= s.startRow && rowNum <= s.endRow) return s.name;
-  }
-  return null;
-}
-
-function isTotalOrSummaryRow(rowNum: number): boolean {
-  // Total rows for each section
-  const totalRows = SECTIONS.map(s => s.totalRow);
-  // Summary rows: 91 (empty), 92 (Grand Total), 93 (Total budget), 94 (Budget savings), 95 (Savings acum)
-  const summaryRows = [91, 92, 93, 94, 95];
-  return totalRows.includes(rowNum) || summaryRows.includes(rowNum);
-}
-
 // GET / - list all budget items with optional filters
 router.get('/', async (req, res) => {
   const { year, month, section, strategy, expenseType, siteId } = req.query;
@@ -105,7 +79,18 @@ router.delete('/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// POST /sync - sync from spreadsheet
+// POST /sync - sync planned budget from "Custos e Ferramentas" sheet tab
+//
+// Grid layout (GID 1316516870):
+//   Row 0        : "Marketing" title (ignored)
+//   Row 3        : column headers — Estratégia, Tipo de Gasto, Custo com, Jan…Dec 2025, Total 2025, Jan…Dec 2026, Total 2026
+//   Section rows : col[0]=section name, col[2] empty  → update currentSection
+//   Sub-header   : col[0]="Estratégia" / "Estrategia" → skip
+//   Total rows   : col[2].startsWith("Total ")        → skip
+//   Data rows    : col[0]=strategy, col[1]=expenseType, col[2]=name
+//                  col[3..14]  = planned Jan–Dec 2025
+//                  col[16..27] = planned Jan–Dec 2026
+//   Stop at      : col[0] starts with "Total Geral", "Budget Savings", "Realizado"
 router.post('/sync', async (req, res) => {
   try {
     const siteId = req.query.siteId ? +req.query.siteId : undefined;
@@ -116,53 +101,60 @@ router.post('/sync', async (req, res) => {
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    // Column mapping:
-    // A(0)=Strategy, B(1)=Expense Type, C(2)=Name
-    // D-O(3-14) = Jan-Dec 2025
-    // P(15) = Total 2025
-    // Q-AB(16-27) = Jan-Dec 2026
-    // AC(28) = Total 2026
+    // Year → starting column index for Jan (12 monthly cols follow)
+    const YEAR_OFFSETS: Array<{ year: number; startCol: number }> = [
+      { year: 2025, startCol: 3 },
+      { year: 2026, startCol: 16 },
+    ];
 
+    let currentSection = '';
     let imported = 0;
 
-    for (let i = 1; i < lines.length; i++) {
-      const rowNum = i + 1; // 1-indexed row number (header is row 1)
+    for (let i = 0; i < lines.length; i++) {
       const row = lines[i];
       if (!row || row.length < 3) continue;
 
-      const name = row[2]?.trim();
-      if (!name) continue;
+      const col0 = row[0]?.trim() ?? '';
+      const col1 = row[1]?.trim() ?? '';
+      const col2 = row[2]?.trim() ?? '';
+      const col0Lower = col0.toLowerCase();
 
-      // Skip total and summary rows
-      if (isTotalOrSummaryRow(rowNum)) {
-        // But handle budget line (row 85)
-        if (rowNum === 93) {
-          // "Total budget" row — DO NOT sync from sheet.
-          // Budget is managed locally at R$ 100.000/month (Sep/2025 – Dec/2026).
-          // User adjusts manually if needed.
-        }
+      // Stop when we reach grand-total / actuals area
+      if (
+        col0Lower.startsWith('total geral') ||
+        col0Lower.startsWith('budget savings') ||
+        col0Lower === 'realizado' ||
+        col0Lower.startsWith('realizado ')
+      ) break;
+
+      // Section header: col[0] non-empty, col[2] blank
+      if (col0 && !col2) {
+        currentSection = col0;
         continue;
       }
 
-      const section = getSectionForRow(rowNum);
-      if (!section) continue;
+      // Sub-header row inside a section (repeats "Estratégia / Tipo de Gasto / Custo com")
+      if (col0Lower === 'estratégia' || col0Lower === 'estrategia') continue;
 
-      const strategy = row[0]?.trim() || null;
-      const expenseType = row[1]?.trim() || null;
+      // Row-level total (e.g. "Total Headcount", "Total Ferramentas")
+      if (col2.toLowerCase().startsWith('total ')) continue;
 
-      // Process 2025 months (cols 3-14) - values are actual spend
-      for (let m = 0; m < 12; m++) {
-        const val = parseMoney(row[3 + m] ?? '');
-        // Always upsert (even 0) to correct stale data in DB
-        await upsertBudgetItem(siteId, section, strategy, expenseType, name, 2025, m + 1, 0, val);
-        if (val !== 0) imported++;
-      }
+      // Skip rows with no item name
+      if (!col2) continue;
 
-      // Process 2026 months (cols 16-27) - values are actual spend
-      for (let m = 0; m < 12; m++) {
-        const val = parseMoney(row[16 + m] ?? '');
-        await upsertBudgetItem(siteId, section, strategy, expenseType, name, 2026, m + 1, 0, val);
-        if (val !== 0) imported++;
+      // ── Data row ──────────────────────────────────────────────────
+      const strategy = col0 || null;
+      const expenseType = col1 || null;
+      const name = col2;
+      const section = currentSection || 'Outros';
+
+      for (const { year, startCol } of YEAR_OFFSETS) {
+        for (let m = 0; m < 12; m++) {
+          const planned = parseMoney(row[startCol + m] ?? '');
+          if (planned === 0) continue; // skip empty/zero months
+          await upsertBudgetItemPlanned(siteId, section, strategy, expenseType, name, year, m + 1, planned);
+          imported++;
+        }
       }
     }
 
@@ -173,10 +165,14 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-async function upsertBudgetItem(
+/**
+ * Upsert a budget item updating only the planned value.
+ * Existing actual values are preserved; new rows get actual=0.
+ */
+async function upsertBudgetItemPlanned(
   siteId: number | undefined,
   section: string, strategy: string | null, expenseType: string | null,
-  name: string, year: number, month: number, planned: number, actual: number
+  name: string, year: number, month: number, planned: number,
 ) {
   const conditions = [
     eq(budgetItems.section, section),
@@ -190,12 +186,12 @@ async function upsertBudgetItem(
 
   if (existing.length > 0) {
     await db.update(budgetItems).set({
-      strategy, expenseType, planned, actual,
+      strategy, expenseType, planned,
       updatedAt: new Date().toISOString(),
     }).where(eq(budgetItems.id, existing[0].id));
   } else {
     await db.insert(budgetItems).values({
-      siteId, section, strategy, expenseType, name, year, month, planned, actual,
+      siteId, section, strategy, expenseType, name, year, month, planned, actual: 0,
     });
   }
 }
