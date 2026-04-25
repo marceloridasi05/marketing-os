@@ -220,21 +220,24 @@ export function Dashboard() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [site, ads, liCamp, liPage, budget, adsB] = await Promise.all([
-      api.get<SiteRow[]>('/site-data'),
-      api.get<AdsKpiRow[]>('/ads-kpis'),
-      api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
-      api.get<LinkedinPageRow[]>('/linkedin-page'),
-      api.get<BudgetItemRow[]>('/budget-items'),
-      api.get<AdsBudgetRow[]>('/ads-budgets'),
-    ]);
-    setSiteData(site);
-    setAdsKpis(ads);
-    setLiCampaigns(liCamp);
-    setLinkedinPage(liPage);
-    setBudgetItems(budget);
-    setAdsBudgets(adsB);
-    setLoading(false);
+    try {
+      const [site, ads, liCamp, liPage, budget, adsB] = await Promise.allSettled([
+        api.get<SiteRow[]>('/site-data'),
+        api.get<AdsKpiRow[]>('/ads-kpis'),
+        api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
+        api.get<LinkedinPageRow[]>('/linkedin-page'),
+        api.get<BudgetItemRow[]>('/budget-items'),
+        api.get<AdsBudgetRow[]>('/ads-budgets'),
+      ]);
+      if (site.status === 'fulfilled') setSiteData(site.value);
+      if (ads.status === 'fulfilled') setAdsKpis(ads.value);
+      if (liCamp.status === 'fulfilled') setLiCampaigns(liCamp.value);
+      if (liPage.status === 'fulfilled') setLinkedinPage(liPage.value);
+      if (budget.status === 'fulfilled') setBudgetItems(budget.value);
+      if (adsB.status === 'fulfilled') setAdsBudgets(adsB.value);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);

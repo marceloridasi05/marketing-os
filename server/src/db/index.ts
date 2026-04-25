@@ -278,6 +278,10 @@ const siteDataCols = [
   'ALTER TABLE site_data ADD COLUMN blog_new_users_pct TEXT',
   'ALTER TABLE site_data ADD COLUMN ai_sessions INTEGER',
   'ALTER TABLE site_data ADD COLUMN ai_total_users INTEGER',
+  // Drizzle schema uses new_users_pct; original CREATE TABLE used pct_new_users
+  'ALTER TABLE site_data ADD COLUMN new_users_pct TEXT',
+  // goals table: schema uses metric_name, original CREATE TABLE used metric
+  'ALTER TABLE goals ADD COLUMN metric_name TEXT',
   'ALTER TABLE performance_entries ADD COLUMN engine_type TEXT',
   'ALTER TABLE budgets ADD COLUMN engine_type TEXT',
   'ALTER TABLE initiatives ADD COLUMN engine_type TEXT',

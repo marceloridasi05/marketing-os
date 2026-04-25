@@ -135,13 +135,16 @@ export function SiteData() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [rows, monthly] = await Promise.all([
-      api.get<SiteRow[]>('/site-data'),
-      api.get<SiteMonthlyRow[]>('/site-data/monthly'),
-    ]);
-    setRawData(rows);
-    setMonthlyRaw(monthly);
-    setLoading(false);
+    try {
+      const [rows, monthly] = await Promise.allSettled([
+        api.get<SiteRow[]>('/site-data'),
+        api.get<SiteMonthlyRow[]>('/site-data/monthly'),
+      ]);
+      if (rows.status === 'fulfilled') setRawData(rows.value);
+      if (monthly.status === 'fulfilled') setMonthlyRaw(monthly.value);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);

@@ -60,6 +60,12 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Catch unhandled errors from async route handlers (Express 4 doesn't do this automatically)
+app.use((err: Error, _req: import('express').Request, res: import('express').Response, _next: import('express').NextFunction) => {
+  console.error('[route error]', err.message, err.stack);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
 // Serve static frontend in production
 const clientDist = path.join(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
