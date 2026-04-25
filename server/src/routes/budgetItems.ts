@@ -90,7 +90,10 @@ router.delete('/:id', async (req, res) => {
 //   Data rows    : col[0]=strategy, col[1]=expenseType, col[2]=name
 //                  col[3..14]  = planned Jan–Dec 2025
 //                  col[16..27] = planned Jan–Dec 2026
-//   Stop at      : col[0] starts with "Total Geral", "Budget Savings", "Realizado"
+//   Formula rows (after all item rows):
+//                  col[0]=""  col[1]=label  (values shifted: 2025 at col[2..13], 2026 at col[15..26])
+//                  Labels: "Grand Total Mkt", "Total budget", "Budget savings", "Savings acumulados"
+//   Stop at      : col[1]="Realizado" or col[0]="Realizado"
 router.post('/sync', async (req, res) => {
   try {
     const siteId = req.query.siteId ? +req.query.siteId : undefined;
@@ -101,10 +104,19 @@ router.post('/sync', async (req, res) => {
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    // Year → starting column index for Jan (12 monthly cols follow)
-    const YEAR_OFFSETS: Array<{ year: number; startCol: number }> = [
+    // Column offsets for regular item rows:
+    //   col[0]=strategy  col[1]=expenseType  col[2]=name
+    //   col[3..14]=Jan-Dec 2025  col[15]=Total2025  col[16..27]=Jan-Dec 2026  col[28]=Total2026
+    const ITEM_YEAR_OFFSETS: Array<{ year: number; startCol: number }> = [
       { year: 2025, startCol: 3 },
       { year: 2026, startCol: 16 },
+    ];
+
+    // Column offsets for formula rows (col[0]="", col[1]=label, values shifted left by 1):
+    //   col[2..13]=Jan-Dec 2025  col[14]=Total2025  col[15..26]=Jan-Dec 2026  col[27]=Total2026
+    const FORMULA_YEAR_OFFSETS: Array<{ year: number; startCol: number }> = [
+      { year: 2025, startCol: 2 },
+      { year: 2026, startCol: 15 },
     ];
 
     let currentSection = '';
@@ -118,25 +130,41 @@ router.post('/sync', async (req, res) => {
       const col1 = row[1]?.trim() ?? '';
       const col2 = row[2]?.trim() ?? '';
       const col0Lower = col0.toLowerCase();
-
+      const col1Lower = col1.toLowerCase();
       const col2Lower = col2.toLowerCase();
 
-      // Hard stop only when we hit the "Realizado" (ContaAzul) section at the bottom
-      if (col0Lower === 'realizado' || col0Lower.startsWith('realizado ')) break;
+      // Hard stop when we hit the "Realizado" (ContaAzul actuals) section
+      if (col0Lower === 'realizado' || col0Lower.startsWith('realizado ') ||
+          col1Lower === 'realizado' || col1Lower.startsWith('realizado ')) break;
 
-      // BUDGET (envelope) row → import as section='Budget' / name='Total Budget'.
-      // Used by the front-end footer to compute Savings = Budget − Gasto.
-      if (col2Lower === 'budget' || col2Lower === 'orçamento' || col2Lower === 'orcamento') {
-        for (const { year, startCol } of YEAR_OFFSETS) {
-          for (let m = 0; m < 12; m++) {
-            const planned = parseMoney(row[startCol + m] ?? '');
-            if (planned === 0) continue;
-            await upsertBudgetItemPlanned(siteId, 'Budget', null, null, 'Total Budget', year, m + 1, planned);
-            imported++;
+      // ── Formula rows (col[0] empty, label in col[1]) ──────────────
+      if (col0 === '') {
+        // BUDGET (envelope) row — import as section='Budget' / name='Total Budget'
+        if (col1Lower === 'total budget' || col1Lower === 'budget' ||
+            col1Lower === 'orçamento' || col1Lower === 'orcamento') {
+          for (const { year, startCol } of FORMULA_YEAR_OFFSETS) {
+            for (let m = 0; m < 12; m++) {
+              const planned = parseMoney(row[startCol + m] ?? '');
+              if (planned === 0) continue;
+              await upsertBudgetItemPlanned(siteId, 'Budget', null, null, 'Total Budget', year, m + 1, planned);
+              imported++;
+            }
           }
+          continue;
         }
+
+        // Grand Total, Budget Savings, Savings — frontend recomputes these, skip
+        if (col1Lower.startsWith('grand total') || col1Lower.startsWith('total geral') ||
+            col1Lower.startsWith('budget savings') || col1Lower.startsWith('savings ') ||
+            col1Lower === 'savings' || col1Lower.startsWith('savings acum')) {
+          continue;
+        }
+
+        // Any other empty-col0 row: skip
         continue;
       }
+
+      // ── Regular section/item rows (col[0] non-empty) ──────────────
 
       // Section header: col[0] non-empty, col[2] blank
       if (col0 && !col2) {
@@ -147,20 +175,11 @@ router.post('/sync', async (req, res) => {
       // Sub-header row inside a section (repeats "Estratégia / Tipo de Gasto / Custo com")
       if (col0Lower === 'estratégia' || col0Lower === 'estrategia') continue;
 
-      // Row-level total (e.g. "Total Headcount", "Total Ferramentas")
-      if (col2Lower.startsWith('total ')) continue;
-
-      // Formula / summary rows we ignore (frontend recomputes them)
-      if (
-        col0Lower.startsWith('total geral') ||
-        col0Lower.startsWith('grand total') ||
-        col2Lower.startsWith('grand total') ||
-        col2Lower.startsWith('total geral') ||
-        col2Lower.startsWith('budget savings') ||
-        col2Lower.startsWith('savings ') ||
-        col2Lower === 'savings' ||
-        col2Lower === 'savings acumulado'
-      ) continue;
+      // Row-level totals and other formula names in col[2]
+      if (col2Lower.startsWith('total ') ||
+          col2Lower.startsWith('grand total') ||
+          col2Lower.startsWith('budget') ||
+          col2Lower.startsWith('savings')) continue;
 
       // Skip rows with no item name
       if (!col2) continue;
@@ -171,7 +190,7 @@ router.post('/sync', async (req, res) => {
       const name = col2;
       const section = currentSection || 'Outros';
 
-      for (const { year, startCol } of YEAR_OFFSETS) {
+      for (const { year, startCol } of ITEM_YEAR_OFFSETS) {
         for (let m = 0; m < 12; m++) {
           const planned = parseMoney(row[startCol + m] ?? '');
           if (planned === 0) continue; // skip empty/zero months
