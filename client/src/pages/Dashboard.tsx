@@ -293,7 +293,7 @@ export function Dashboard() {
   const totalLeads = fSite.reduce((s, r) => s + (r.leadsGenerated ?? 0), 0);
   const totalGaConversions = fAds.reduce((s, r) => s + (r.gaConversions ?? 0), 0);
   const totalLiImpressions = fLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
-  const latestFollowers = fLiPage.length > 0 ? (fLiPage[fLiPage.length - 1].followers ?? 0) : 0;
+  const latestFollowers = [...fLiPage].reverse().find(r => r.followers != null)?.followers ?? 0;
   const totalAdsSpend = fAdsBudgets.reduce((s, r) => s + (r.monthlyTotalUsed ?? 0), 0);
   const isNotTotalRow = (r: BudgetItemRow) => !r.name.startsWith('Total ') && r.name !== 'Grand Total Mkt';
   const totalMktgSpend = fBudget.filter(r => r.section !== 'Budget' && r.section !== 'Headcount' && isNotTotalRow(r)).reduce((s, r) => s + r.actual, 0);

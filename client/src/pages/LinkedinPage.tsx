@@ -148,7 +148,7 @@ export function LinkedinPage() {
   const totalReactions = withData.reduce((s, r) => s + (r.reactions ?? 0), 0);
   const totalPageViews = withData.reduce((s, r) => s + (r.pageViews ?? 0), 0);
   const totalVisitors = withData.reduce((s, r) => s + (r.uniqueVisitors ?? 0), 0);
-  const currentFollowers = data.length > 0 ? data[data.length - 1].followers ?? 0 : 0;
+  const currentFollowers = [...data].reverse().find(r => r.followers != null)?.followers ?? 0;
   const totalFollowersGained = withData.reduce((s, r) => s + (r.followersGained ?? 0), 0);
 
   const chartData = filtered.map(r => ({
