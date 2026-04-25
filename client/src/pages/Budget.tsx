@@ -30,6 +30,8 @@ const MONTHS = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
 const SECTIONS = ['Headcount', 'Ferramentas', 'Eventos', 'Mídia', 'Viagens', 'Brindes & Promo', 'Terceiros'];
+// Show actual spending if available, otherwise fall back to planned budget amount
+const displayVal = (d: BudgetItem) => d.actual > 0 ? d.actual : d.planned;
 const isSensitiveRow = (name: string, section: string) =>
   section === 'Headcount' || /head|salário/i.test(name);
 const SAVINGS_START = '2025-09'; // Savings only count from Sep 2025 onwards
@@ -284,7 +286,8 @@ function EditableCell({ value, options, onSave, align = 'center', bold = false, 
 }
 
 // Inline editable money cell — click to edit the value
-function EditableMoneyCell({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+// isPlanned=true means the value comes from planned (budget estimate) not actual spending
+function EditableMoneyCell({ value, onSave, isPlanned }: { value: number; onSave: (v: number) => void; isPlanned?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value || ''));
 
@@ -305,8 +308,9 @@ function EditableMoneyCell({ value, onSave }: { value: number; onSave: (v: numbe
   }
 
   return (
-    <td className="py-2 px-2 text-center text-gray-900 whitespace-nowrap cursor-pointer hover:bg-blue-50"
-      onClick={() => { setDraft(String(value || '')); setEditing(true); }}>
+    <td className={`py-2 px-2 text-center whitespace-nowrap cursor-pointer hover:bg-blue-50 ${isPlanned ? 'text-blue-500' : 'text-gray-900'}`}
+      onClick={() => { setDraft(String(value || '')); setEditing(true); }}
+      title={isPlanned ? 'Valor previsto (sem realizado ainda)' : undefined}>
       {value > 0 ? fmtMoney(value) : '—'}
     </td>
   );
@@ -336,9 +340,12 @@ export function Budget() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const rows = await api.get<BudgetItem[]>('/budget-items');
-    setAllData(rows);
-    setLoading(false);
+    try {
+      const rows = await api.get<BudgetItem[]>('/budget-items');
+      setAllData(rows);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -415,6 +422,7 @@ export function Budget() {
 
   // KPIs — always reflect the selected time period
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
+  const totalPrevisto = filtered.reduce((s, d) => s + d.planned, 0);
   // Budget: only from SAVINGS_START, filtered by selected period
   const filteredBudgetInPeriod = filteredBudget.filter(d => {
     const ym = `${d.year}-${String(d.month).padStart(2, '0')}`;
@@ -439,7 +447,9 @@ export function Budget() {
   const [detailYear, setDetailYear] = useState(currentYear);
   const availableYears = useMemo(() => {
     const set = new Set<number>();
-    filtered.forEach(d => set.add(d.year));
+    // Include years that have either actual or planned data
+    filtered.forEach(d => { if (d.actual > 0 || d.planned > 0) set.add(d.year); });
+    if (set.size === 0) filtered.forEach(d => set.add(d.year)); // fallback
     return [...set].sort();
   }, [filtered]);
 
@@ -510,17 +520,16 @@ export function Budget() {
   const sumQuarter = (months: Record<string, number>, qk: string) =>
     (quarterMonths[qk] || []).reduce((s, mk) => s + (months[mk] || 0), 0);
 
-  // Chart data: stacked bar by section/month
+  // Chart data: stacked bar by section/month — use actual if available, else planned
   const stackedBarData = useMemo(() => {
     if (tableView === 'quarterly') {
-      // Aggregate by quarter
       return quarterKeys.map(qk => {
         const row: Record<string, unknown> = { name: `${qk} ${detailYear}` };
         SECTIONS.forEach(s => {
           const qMonths = quarterMonths[qk] || [];
           (row as Record<string, number>)[s] = detailFiltered
             .filter(d => { const mk = `${d.year}-${String(d.month).padStart(2, '0')}`; return qMonths.includes(mk) && d.section === s; })
-            .reduce((sum, d) => sum + d.actual, 0);
+            .reduce((sum, d) => sum + displayVal(d), 0);
         });
         return row;
       });
@@ -537,29 +546,29 @@ export function Budget() {
         map.set(sortKey, row);
       }
       const row = map.get(sortKey)!;
-      row[d.section] = (row[d.section] || 0) + d.actual;
+      row[d.section] = (row[d.section] || 0) + displayVal(d);
     });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
   }, [detailFiltered, tableView, detailYear, quarterKeys, quarterMonths]);
 
-  // Breakdown tiles: by section, strategy, expense type — uses detailYear
+  // Breakdown tiles: by section, strategy, expense type — uses detailYear, actual→planned fallback
   const bySection = useMemo(() => {
     const map = new Map<string, number>();
-    detailFiltered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + d.actual));
+    detailFiltered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + displayVal(d)));
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [detailFiltered]);
 
   const byStrategy = useMemo(() => {
     const map = new Map<string, number>();
-    detailFiltered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + d.actual); });
+    detailFiltered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + displayVal(d)); });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [detailFiltered]);
 
   const byExpenseType = useMemo(() => {
     const map = new Map<string, number>();
-    detailFiltered.forEach(d => { const k = d.expenseType || 'Sem tipo'; map.set(k, (map.get(k) || 0) + d.actual); });
+    detailFiltered.forEach(d => { const k = d.expenseType || 'Sem tipo'; map.set(k, (map.get(k) || 0) + displayVal(d)); });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  }, [filtered]);
+  }, [detailFiltered]);
 
   const STRATEGY_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
@@ -604,8 +613,11 @@ export function Budget() {
     section: string;
     strategy: string;
     expenseType: string;
-    total: number;
-    months: Record<string, number>;
+    total: number;        // sum of displayVal (actual > 0 ? actual : planned)
+    totalActual: number;  // sum of actual only
+    months: Record<string, number>;         // displayVal per month
+    monthsActual: Record<string, number>;   // actual per month
+    monthsPlanned: Record<string, number>;  // planned per month
   }
 
   const itemRows = useMemo(() => {
@@ -619,13 +631,20 @@ export function Budget() {
           strategy: d.strategy || '',
           expenseType: d.expenseType || '',
           total: 0,
+          totalActual: 0,
           months: {},
+          monthsActual: {},
+          monthsPlanned: {},
         });
       }
       const row = map.get(key)!;
       const mKey = `${d.year}-${String(d.month).padStart(2, '0')}`;
-      row.months[mKey] = (row.months[mKey] || 0) + d.actual;
-      row.total += d.actual;
+      const dv = displayVal(d);
+      row.months[mKey] = (row.months[mKey] || 0) + dv;
+      row.monthsActual[mKey] = (row.monthsActual[mKey] || 0) + d.actual;
+      row.monthsPlanned[mKey] = (row.monthsPlanned[mKey] || 0) + d.planned;
+      row.total += dv;
+      row.totalActual += d.actual;
     });
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
   }, [detailFiltered]);
@@ -644,8 +663,9 @@ export function Budget() {
       }
       const row = map.get(d.section)!;
       const mKey = `${d.year}-${String(d.month).padStart(2, '0')}`;
-      row.months[mKey] = (row.months[mKey] || 0) + d.actual;
-      row.total += d.actual;
+      const dv = displayVal(d);
+      row.months[mKey] = (row.months[mKey] || 0) + dv;
+      row.total += dv;
     });
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section));
   }, [detailFiltered]);
@@ -803,14 +823,18 @@ export function Budget() {
           {/* KPI Tiles */}
           <div className={`grid grid-cols-2 md:grid-cols-3 ${activeTab === 'Todos' ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-3 mb-6`}>
             <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Gasto</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalGasto)}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase">Total Previsto</p>
+              <p className="text-xs text-gray-400 mt-0.5">orçado no período</p>
+              <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalPrevisto)}</p>
+              {totalGasto > 0 && (
+                <p className="text-xs text-gray-500 mt-1">Realizado: {fmtMoney(totalGasto)}</p>
+              )}
             </Card>
             {activeTab === 'Todos' && (
               <>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
-                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
+                  <p className="text-xs text-gray-400 mt-0.5">envelope mensal</p>
                   <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
                 </Card>
                 <Card className="min-w-0">
@@ -1195,6 +1219,10 @@ export function Budget() {
                     const colVals = tableView === 'monthly'
                       ? monthKeys.map(mk => r.months[mk] || 0)
                       : quarterKeys.map(qk => sumQuarter(r.months, qk));
+                    // Track whether each cell is a planned estimate (actual=0) or real actual
+                    const colActuals = tableView === 'monthly'
+                      ? monthKeys.map(mk => r.monthsActual[mk] || 0)
+                      : quarterKeys.map(qk => (quarterMonths[qk] || []).reduce((s, mk) => s + (r.monthsActual[mk] || 0), 0));
                     const colKeys = tableView === 'monthly' ? monthKeys : quarterKeys;
                     const prevTotal = ri > 0 ? itemRows[ri - 1].total : 0;
                     const sensitive = isSensitiveRow(r.name, r.section);
@@ -1205,21 +1233,25 @@ export function Budget() {
                         <EditableCell value={r.section} options={SECTIONS} onSave={v => updateItemMeta(r.name, r.section, 'section', v)} tagColor={getTagColor(r.section, 'section', SECTIONS)} />
                         <EditableCell value={r.strategy} options={strategies} onSave={v => updateItemMeta(r.name, r.section, 'strategy', v)} tagColor={r.strategy ? getTagColor(r.strategy, 'strategy', strategies) : undefined} />
                         <EditableCell value={r.expenseType} options={expenseTypes} onSave={v => updateItemMeta(r.name, r.section, 'expenseType', v)} tagColor={r.expenseType ? getTagColor(r.expenseType, 'type', expenseTypes) : undefined} />
-                        {tableView === 'monthly' ? colVals.map((v, mi) => (
-                          sensitive && !showHC ? (
+                        {tableView === 'monthly' ? colVals.map((v, mi) => {
+                          const isPlanned = v > 0 && colActuals[mi] === 0;
+                          return sensitive && !showHC ? (
                             <td key={colKeys[mi]} className="py-2 px-2 text-center text-gray-400 whitespace-nowrap" style={blurStyle}>
                               {v > 0 ? fmtMoney(v) : '—'}
                             </td>
                           ) : (
-                            <EditableMoneyCell key={colKeys[mi]} value={v}
+                            <EditableMoneyCell key={colKeys[mi]} value={v} isPlanned={isPlanned}
                               onSave={newVal => updateItemMonthValue(r.name, r.section, colKeys[mi], newVal)} />
-                          )
-                        )) : colVals.map((v, qi) => (
-                          <td key={colKeys[qi]} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap" style={blurStyle}>
-                            {v > 0 ? fmtMoney(v) : '—'}
-                          </td>
-                        ))}
-                        <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap" style={blurStyle}>
+                          );
+                        }) : colVals.map((v, qi) => {
+                          const isPlanned = v > 0 && colActuals[qi] === 0;
+                          return (
+                            <td key={colKeys[qi]} className={`py-2 px-2 text-center whitespace-nowrap ${isPlanned ? 'text-blue-500' : 'text-gray-900'}`} style={blurStyle}>
+                              {v > 0 ? fmtMoney(v) : '—'}
+                            </td>
+                          );
+                        })}
+                        <td className={`py-2 px-2 text-center font-medium whitespace-nowrap ${r.totalActual === 0 && r.total > 0 ? 'text-blue-500' : 'text-gray-900'}`} style={blurStyle}>
                           {fmtMoney(r.total)}
                         </td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`} style={blurStyle}>
