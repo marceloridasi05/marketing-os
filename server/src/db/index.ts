@@ -269,6 +269,10 @@ sqlite.exec(`
 // Migration: add sheet_config to sites (idempotent)
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN sheet_config TEXT`); } catch { /* already exists */ }
 
+// Migration: add client_config to sites (idempotent)
+// JSON: { clientName, businessType, growthModel, mainObjectives }
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN client_config TEXT`); } catch { /* already exists */ }
+
 // Migrations: add missing columns to site_data (idempotent)
 const siteDataCols = [
   'ALTER TABLE site_data ADD COLUMN paid_clicks INTEGER',

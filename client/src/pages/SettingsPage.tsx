@@ -20,6 +20,121 @@ const REF_TYPES = Object.keys(REF_TYPE_LABELS);
 
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
+// --- Client Config ---
+interface ClientConfig {
+  clientName?: string;
+  businessType?: string;
+  growthModel?: string;
+  mainObjectives?: string;
+}
+
+const BUSINESS_TYPES = ['B2B', 'B2C', 'B2B2C', 'B2G', 'D2C', 'Marketplace', 'SaaS', 'E-commerce', 'Outro'];
+const GROWTH_MODELS = ['Product-Led (PLG)', 'Sales-Led', 'Marketing-Led', 'Community-Led', 'Channel/Partner-Led', 'Hybrid', 'Outro'];
+
+function ClientConfigCard() {
+  const { selectedSite, refreshSites } = useSite();
+  const [cfg, setCfg] = useState<ClientConfig>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    try {
+      const parsed: ClientConfig = selectedSite.clientConfig
+        ? JSON.parse(selectedSite.clientConfig as unknown as string)
+        : {};
+      setCfg(parsed);
+    } catch {
+      setCfg({});
+    }
+  }, [selectedSite]);
+
+  const handleSave = async () => {
+    if (!selectedSite) return;
+    setSaving(true);
+    await api.put(`/sites/${selectedSite.id}`, { clientConfig: cfg });
+    await refreshSites();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const update = <K extends keyof ClientConfig>(key: K, val: ClientConfig[K]) =>
+    setCfg(c => ({ ...c, [key]: val }));
+
+  if (!selectedSite) return null;
+
+  return (
+    <Card className="mb-6">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-gray-700">Configuração do Cliente</h3>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Informações do cliente disponíveis em todo o app.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Nome do cliente</label>
+            <input
+              value={cfg.clientName ?? ''}
+              onChange={e => update('clientName', e.target.value)}
+              placeholder="Ex.: Acme Corp"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de negócio</label>
+            <select
+              value={cfg.businessType ?? ''}
+              onChange={e => update('businessType', e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Selecione...</option>
+              {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Modelo de crescimento</label>
+          <select
+            value={cfg.growthModel ?? ''}
+            onChange={e => update('growthModel', e.target.value)}
+            className={inputCls}
+          >
+            <option value="">Selecione...</option>
+            {GROWTH_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Objetivos principais</label>
+          <textarea
+            value={cfg.mainObjectives ?? ''}
+            onChange={e => update('mainObjectives', e.target.value)}
+            placeholder="Liste os objetivos principais (um por linha)..."
+            rows={4}
+            className={inputCls}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar configuração'}
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // --- Sheet Config ---
 interface SheetGids {
   siteData?: number; adsKpis?: number; linkedinPage?: number;
@@ -52,10 +167,10 @@ function SheetConfigCard() {
   useEffect(() => {
     if (!selectedSite) return;
     try {
-      const parsed: SheetConfig = selectedSite.sheetConfig
+      const raw = selectedSite.sheetConfig
         ? JSON.parse(selectedSite.sheetConfig as unknown as string)
-        : { spreadsheetId: '', gids: {} };
-      setCfg(parsed);
+        : {};
+      setCfg({ spreadsheetId: raw.spreadsheetId ?? '', gids: raw.gids ?? {} });
       setUrlInput(parsed.spreadsheetId
         ? `https://docs.google.com/spreadsheets/d/${parsed.spreadsheetId}/edit`
         : '');
@@ -349,6 +464,9 @@ export function SettingsPage() {
   return (
     <div>
       <PageHeader title="Configurações" description="Gerenciar dados de referência e configuração" />
+
+      {/* Configuração do Cliente */}
+      <ClientConfigCard />
 
       {/* Google Sheets */}
       <SheetConfigCard />

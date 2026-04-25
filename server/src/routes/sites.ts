@@ -5,31 +5,36 @@ import { eq } from 'drizzle-orm';
 
 const router = Router();
 
+const stringify = (v: unknown) =>
+  v === undefined ? undefined : (typeof v === 'string' ? v : JSON.stringify(v));
+
 router.get('/', async (_req, res) => {
   const rows = await db.select().from(sites).orderBy(sites.name);
   res.json(rows);
 });
 
 router.post('/', async (req, res) => {
-  const { name, url, sheetConfig } = req.body;
+  const { name, url, sheetConfig, clientConfig } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   // If no sheet provided, store '{}' explicitly so the DB migration
   // (which only patches NULL rows) doesn't assign the default sheet to this site.
-  const sheetConfigStr = sheetConfig !== undefined
-    ? (typeof sheetConfig === 'string' ? sheetConfig : JSON.stringify(sheetConfig))
-    : '{}';
-  const [row] = await db.insert(sites).values({ name, url, sheetConfig: sheetConfigStr }).returning();
+  const sheetConfigStr = sheetConfig !== undefined ? stringify(sheetConfig) : '{}';
+  const clientConfigStr = clientConfig !== undefined ? stringify(clientConfig) : null;
+  const [row] = await db.insert(sites).values({
+    name, url,
+    sheetConfig: sheetConfigStr,
+    clientConfig: clientConfigStr,
+  }).returning();
   res.status(201).json(row);
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, url, sheetConfig } = req.body;
+  const { name, url, sheetConfig, clientConfig } = req.body;
   const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name;
   if (url !== undefined) updates.url = url;
-  if (sheetConfig !== undefined) {
-    updates.sheetConfig = typeof sheetConfig === 'string' ? sheetConfig : JSON.stringify(sheetConfig);
-  }
+  if (sheetConfig !== undefined) updates.sheetConfig = stringify(sheetConfig);
+  if (clientConfig !== undefined) updates.clientConfig = stringify(clientConfig);
   const [row] = await db.update(sites).set(updates).where(eq(sites.id, +req.params.id)).returning();
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);

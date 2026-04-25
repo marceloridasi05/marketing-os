@@ -7,6 +7,8 @@ export const sites = sqliteTable('sites', {
   url: text('url'),
   // JSON: { spreadsheetId, gids: { siteData, adsKpis, linkedinPage, planSchedule, budgetItems, adsBudgets } }
   sheetConfig: text('sheet_config'),
+  // JSON: { clientName, businessType, growthModel, mainObjectives }
+  clientConfig: text('client_config'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
