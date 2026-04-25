@@ -599,7 +599,7 @@ export function Budget() {
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
-      return { ym, name: `${MONTHS[m]} ${y}`, Gasto: monthCost, Savings: monthSavings, OrÃ§amento: monthBudget, 'Savings Acum.': cumSavings };
+      return { ym, name: `${MONTHS[m]} ${y}`, Gasto: monthCost, Savings: monthSavings, Orçamento: monthBudget, 'Savings Acum.': cumSavings };
     });
 
     if (tableView === 'quarterly') {
@@ -607,10 +607,10 @@ export function Budget() {
         const qms = quarterMonths[qk] || [];
         const points = monthlyPoints.filter(p => qms.includes(p.ym));
         const gasto = points.reduce((s, p) => s + p.Gasto, 0);
-        const orc = points.reduce((s, p) => s + p.OrÃ§amento, 0);
+        const orc = points.reduce((s, p) => s + p.Orçamento, 0);
         const savings = orc - gasto;
         const lastPoint = points[points.length - 1];
-        return { name: `${qk} ${detailYear}`, Gasto: gasto, Savings: savings, OrÃ§amento: orc, 'Savings Acum.': lastPoint?.['Savings Acum.'] ?? 0 };
+        return { name: `${qk} ${detailYear}`, Gasto: gasto, Savings: savings, Orçamento: orc, 'Savings Acum.': lastPoint?.['Savings Acum.'] ?? 0 };
       });
     }
 
@@ -808,7 +808,7 @@ export function Budget() {
 
   return (
     <div>
-      <PageHeader title="OrÃ§amento" description="Controle de custos, investimentos e savings"
+      <PageHeader title="Orçamento" description="Controle de custos, investimentos e savings"
         actions={
           <div className="flex items-center gap-2">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}
@@ -843,7 +843,7 @@ export function Budget() {
             {activeTab === 'Todos' && (
               <>
                 <Card className="min-w-0">
-                  <p className="text-xs font-medium text-gray-500 uppercase">Total OrÃ§amento</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
                   <p className="text-xs text-gray-400 mt-0.5">envelope mensal</p>
                   <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
                 </Card>
@@ -866,7 +866,7 @@ export function Budget() {
           </div>
 
           {/* Monthly Budget Editor */}
-          <CollapsibleCard title="OrÃ§amento Mensal" subtitle="Defina o orÃ§amento disponÃ­vel mÃªs a mÃªs" className="mb-6"
+          <CollapsibleCard title="Orçamento Mensal" subtitle="Defina o orçamento disponível mês a mês" className="mb-6"
             actions={
               !showBudgetEditor ? (
                 <button onClick={openBudgetEditor}
@@ -1029,7 +1029,7 @@ export function Budget() {
                 xKey="name"
                 lines={[
                   { dataKey: 'Gasto', color: '#ef4444', name: 'Gasto' },
-                  { dataKey: 'OrÃ§amento', color: '#3b82f6', name: 'OrÃ§amento' },
+                  { dataKey: 'Orçamento', color: '#3b82f6', name: 'Orçamento' },
                   { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
                   { dataKey: 'Savings Acum.', color: '#f59e0b', name: 'Savings Acum.' },
                 ]}
@@ -1449,7 +1449,7 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <SavSH k="sortKey" label="MÃªs" />
-                    <SavSH k="budget" label="OrÃ§amento" />
+                    <SavSH k="budget" label="Orçamento" />
                     <SavSH k="gasto" label="Gasto" />
                     <SavSH k="savings" label="Savings" />
                     <SavSH k="savingsAcum" label="Savings Acumulado" />
