@@ -279,7 +279,7 @@ export function SiteData() {
 
   return (
     <div>
-      <PageHeader title="Desempenho do Site" description="Métricas semanais do Site Brick + Blog"
+      <PageHeader title="Desempenho do Site" description="Métricas semanais do site e blog"
         actions={
           <div className="flex items-center gap-3">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}
@@ -363,8 +363,8 @@ export function SiteData() {
               page="site_data" chartKey="blog_sessions_users" />
           </div>
 
-          {/* Site Brick + Blog table */}
-          <CollapsibleCard title="Site Brick + Blog" className="mb-6">
+          {/* Site + Blog table */}
+          <CollapsibleCard title="Site + Blog" className="mb-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

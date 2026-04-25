@@ -79,7 +79,7 @@ function IdeaFormModal({ initial, editId, onClose, onSaved }: { initial: FormDat
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Ligado a qual evento</label>
-              <input value={form.relatedEvent} onChange={set('relatedEvent')} className={inputCls} placeholder="Ex: Brick Sessions, CQCS..." />
+              <input value={form.relatedEvent} onChange={set('relatedEvent')} className={inputCls} placeholder="Ex: CQCS, evento interno..." />
             </div>
           </div>
           <div>

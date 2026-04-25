@@ -186,7 +186,7 @@ export function LinkedinPage() {
 
   return (
     <div>
-      <PageHeader title="LinkedIn Page" description="Métricas da página LinkedIn Brick"
+      <PageHeader title="LinkedIn Page" description="Métricas da página LinkedIn"
         actions={
           <div className="flex items-center gap-2">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}
