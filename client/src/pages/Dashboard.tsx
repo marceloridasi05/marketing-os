@@ -434,7 +434,7 @@ export function Dashboard() {
     const withData = fSite.filter(r => r.sessions != null && (r.sessions ?? 0) > 0);
     return withData.slice(-20).map(r => ({
       week: r.week?.replace('Semana ', 'S') ?? r.weekStart,
-      'Sessoes': r.sessions ?? 0,
+      'Sessões': r.sessions ?? 0,
       'Leads': r.leadsGenerated ?? 0,
     }));
   }, [fSite]);
@@ -444,7 +444,7 @@ export function Dashboard() {
     return withData.slice(-20).map(r => ({
       week: r.week?.replace('Semana ', 'S') ?? r.weekStart,
       'Cliques': r.gaClicks ?? 0,
-      'Conversoes': r.gaConversions ?? 0,
+      'Conversões': r.gaConversions ?? 0,
     }));
   }, [fAds]);
 
@@ -452,7 +452,7 @@ export function Dashboard() {
     const withData = fLiPage.filter(r => (r.impressions ?? 0) > 0);
     return withData.slice(-20).map(r => ({
       week: r.weekStart,
-      'Impressoes': r.impressions ?? 0,
+      'Impressões': r.impressions ?? 0,
     }));
   }, [fLiPage]);
 
@@ -621,7 +621,7 @@ export function Dashboard() {
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-sm"
             >
               {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
-              Analise IA
+              Análise IA
             </button>
           </div>
         }
@@ -667,13 +667,13 @@ export function Dashboard() {
 
           {/* Row 1: KPI Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-            <KpiTile label="Sessoes Site" value={fmtNum(totalSessions)}
+            <KpiTile label="Sessões Site" value={fmtNum(totalSessions)}
               icon={<TrendingUp size={14} className="text-blue-500" />} />
             <KpiTile label="Leads Inbound" value={fmtNum(totalLeads)}
               icon={<TrendingUp size={14} className="text-green-500" />} />
-            <KpiTile label="GA Conversoes" value={fmtNum(totalGaConversions)}
+            <KpiTile label="GA Conversões" value={fmtNum(totalGaConversions)}
               icon={<TrendingUp size={14} className="text-orange-500" />} />
-            <KpiTile label="LI Impressoes" value={fmtNum(totalLiImpressions)}
+            <KpiTile label="LI Impressões" value={fmtNum(totalLiImpressions)}
               icon={<TrendingUp size={14} className="text-sky-500" />} />
             <KpiTile label="Seguidores LI" value={fmtNum(latestFollowers)}
               icon={<Minus size={14} className="text-sky-500" />} />
@@ -803,36 +803,36 @@ export function Dashboard() {
           {/* Row 2: Mini sparkline charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <AnnotatedChart
-              title="Sessoes & Leads"
+              title="Sessões & Leads"
               data={siteChartData}
               xKey="week"
               lines={[
-                { dataKey: 'Sessoes', color: '#3b82f6', name: 'Sessoes' },
+                { dataKey: 'Sessões', color: '#3b82f6', name: 'Sessões' },
                 { dataKey: 'Leads', color: '#10b981', name: 'Leads' },
               ]}
               page="dashboard" chartKey="site-sessions-leads" height={150}
             />
             <AnnotatedChart
-              title="Google Ads — Cliques & Conversoes"
+              title="Google Ads — Cliques & Conversões"
               data={adsChartData}
               xKey="week"
               lines={[
                 { dataKey: 'Cliques', color: '#f59e0b', name: 'Cliques' },
-                { dataKey: 'Conversoes', color: '#ef4444', name: 'Conversoes' },
+                { dataKey: 'Conversões', color: '#ef4444', name: 'Conversões' },
               ]}
               page="dashboard" chartKey="ads-clicks-conv" height={150}
             />
             <AnnotatedChart
-              title="LinkedIn Page — Impressoes"
+              title="LinkedIn Page — Impressões"
               data={liPageChartData}
               xKey="week"
               lines={[
-                { dataKey: 'Impressoes', color: '#0077b5', name: 'Impressoes' },
+                { dataKey: 'Impressões', color: '#0077b5', name: 'Impressões' },
               ]}
               page="dashboard" chartKey="li-impressions" height={150}
             />
             <AnnotatedChart
-              title="Orcamento — Gasto vs Budget"
+              title="Orçamento — Gasto vs Budget"
               data={budgetChartData}
               xKey="month"
               lines={[
@@ -1129,7 +1129,7 @@ export function Dashboard() {
           {/* AI Analysis Section */}
           <div ref={aiCardRef}>
             <CollapsibleCard
-              title="Analise IA"
+              title="Análise IA"
               subtitle={aiTimestamp ? `Ultima analise: ${new Date(aiTimestamp).toLocaleString('pt-BR')}` : undefined}
               defaultOpen={!!aiAnalysis || aiLoading}
               actions={
@@ -1160,7 +1160,7 @@ export function Dashboard() {
                 <div className="py-8 text-center">
                   <Brain size={32} className="mx-auto text-gray-300 mb-2" />
                   <p className="text-sm text-gray-400">
-                    Clique em &quot;Analise IA&quot; para gerar uma analise completa dos dados do painel
+                    Clique em &quot;Análise IA&quot; para gerar uma analise completa dos dados do painel
                   </p>
                 </div>
               )}
