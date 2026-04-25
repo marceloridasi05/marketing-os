@@ -119,12 +119,17 @@ router.post('/sync', async (req, res) => {
       const col2 = row[2]?.trim() ?? '';
       const col0Lower = col0.toLowerCase();
 
+      const col2Lower = col2.toLowerCase();
+
       // Stop when we reach grand-total / actuals area
       if (
         col0Lower.startsWith('total geral') ||
+        col0Lower.startsWith('grand total') ||
         col0Lower.startsWith('budget savings') ||
         col0Lower === 'realizado' ||
-        col0Lower.startsWith('realizado ')
+        col0Lower.startsWith('realizado ') ||
+        col2Lower.startsWith('grand total') ||
+        col2Lower.startsWith('total geral')
       ) break;
 
       // Section header: col[0] non-empty, col[2] blank
@@ -137,7 +142,18 @@ router.post('/sync', async (req, res) => {
       if (col0Lower === 'estratégia' || col0Lower === 'estrategia') continue;
 
       // Row-level total (e.g. "Total Headcount", "Total Ferramentas")
-      if (col2.toLowerCase().startsWith('total ')) continue;
+      if (col2Lower.startsWith('total ')) continue;
+
+      // Formula / summary rows that are not real items
+      if (
+        col2Lower === 'budget' ||
+        col2Lower.startsWith('budget savings') ||
+        col2Lower.startsWith('savings ') ||
+        col2Lower === 'savings' ||
+        col2Lower === 'savings acumulado' ||
+        col2Lower === 'realizado' ||
+        col2Lower.startsWith('realizado ')
+      ) continue;
 
       // Skip rows with no item name
       if (!col2) continue;
@@ -158,9 +174,57 @@ router.post('/sync', async (req, res) => {
       }
     }
 
-    res.json({ success: true, imported });
+    // Auto-clean any pre-existing formula rows from previous syncs
+    const all = await db.select().from(budgetItems);
+    let cleaned = 0;
+    for (const it of all) {
+      if (siteId && it.siteId !== siteId) continue;
+      const n = (it.name || '').toLowerCase();
+      if (
+        n.startsWith('budget savings') ||
+        n.startsWith('savings ') || n === 'savings' || n === 'savings acumulado' ||
+        n === 'budget' ||
+        n.startsWith('grand total') || n.startsWith('total geral') ||
+        n === 'realizado' || n.startsWith('realizado ')
+      ) {
+        await db.delete(budgetItems).where(eq(budgetItems.id, it.id));
+        cleaned++;
+      }
+    }
+
+    res.json({ success: true, imported, cleaned });
   } catch (err) {
     console.error('Budget items sync error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /cleanup-formulas - delete rows that were imported as items but are actually formulas
+router.post('/cleanup-formulas', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const all = await db.select().from(budgetItems);
+    const toDelete = all.filter(it => {
+      if (siteId && it.siteId !== siteId) return false;
+      const n = (it.name || '').toLowerCase();
+      return (
+        n.startsWith('budget savings') ||
+        n.startsWith('savings ') ||
+        n === 'savings' ||
+        n === 'savings acumulado' ||
+        n === 'budget' ||
+        n.startsWith('grand total') ||
+        n.startsWith('total geral') ||
+        n === 'realizado' ||
+        n.startsWith('realizado ')
+      );
+    });
+    for (const it of toDelete) {
+      await db.delete(budgetItems).where(eq(budgetItems.id, it.id));
+    }
+    res.json({ success: true, deleted: toDelete.length });
+  } catch (err) {
+    console.error('cleanup-formulas error:', err);
     res.status(500).json({ error: String(err) });
   }
 });

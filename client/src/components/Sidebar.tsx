@@ -18,6 +18,7 @@ import {
   Check,
   Trash2,
   X,
+  Pencil,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import type { Site } from '../context/SiteContext';
@@ -167,6 +168,8 @@ function SiteSelector() {
   const [open, setOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -209,6 +212,32 @@ function SiteSelector() {
     }
   };
 
+  const startRename = (e: React.MouseEvent, site: Site) => {
+    e.stopPropagation();
+    setEditingId(site.id);
+    setEditingName(site.name);
+    setDeletingId(null);
+  };
+
+  const cancelRename = () => {
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const saveRename = async (site: Site) => {
+    const trimmed = editingName.trim();
+    if (!trimmed || trimmed === site.name) { cancelRename(); return; }
+    try {
+      await api.put(`/sites/${site.id}`, { name: trimmed });
+      await refreshSites();
+      // Update selected site reference if we renamed the active one
+      if (selectedSite?.id === site.id) {
+        setSelectedSite({ ...site, name: trimmed });
+      }
+    } catch { /* ignore */ }
+    cancelRename();
+  };
+
   const handleCreated = async (site: Site) => {
     await refreshSites();
     setSelectedSite(site);
@@ -236,24 +265,63 @@ function SiteSelector() {
                 key={site.id}
                 className="flex items-center gap-1 hover:bg-gray-700 transition-colors group"
               >
-                <button
-                  onClick={() => handleSelect(site)}
-                  className="flex-1 flex items-center gap-2 px-3 py-2 text-xs text-gray-300 text-left min-w-0"
-                >
-                  {selectedSite?.id === site.id && <Check size={12} className="text-indigo-400 shrink-0" />}
-                  <span className={`truncate ${selectedSite?.id === site.id ? 'text-white font-medium' : ''}`}>{site.name}</span>
-                </button>
-                <button
-                  onClick={(e) => handleDelete(e, site)}
-                  title={deletingId === site.id ? 'Clique para confirmar exclusão' : 'Excluir site'}
-                  className={`px-2 py-2 transition-colors shrink-0 ${
-                    deletingId === site.id
-                      ? 'text-red-400 hover:text-red-300'
-                      : 'text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100'
-                  }`}
-                >
-                  <Trash2 size={12} />
-                </button>
+                {editingId === site.id ? (
+                  <div className="flex-1 flex items-center gap-1 px-2 py-1.5">
+                    <input
+                      autoFocus
+                      value={editingName}
+                      onChange={e => setEditingName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveRename(site);
+                        if (e.key === 'Escape') cancelRename();
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="flex-1 min-w-0 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-400"
+                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); saveRename(site); }}
+                      title="Salvar"
+                      className="px-1.5 py-1 text-green-400 hover:text-green-300 shrink-0"
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); cancelRename(); }}
+                      title="Cancelar"
+                      className="px-1.5 py-1 text-gray-400 hover:text-gray-200 shrink-0"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleSelect(site)}
+                      className="flex-1 flex items-center gap-2 px-3 py-2 text-xs text-gray-300 text-left min-w-0"
+                    >
+                      {selectedSite?.id === site.id && <Check size={12} className="text-indigo-400 shrink-0" />}
+                      <span className={`truncate ${selectedSite?.id === site.id ? 'text-white font-medium' : ''}`}>{site.name}</span>
+                    </button>
+                    <button
+                      onClick={(e) => startRename(e, site)}
+                      title="Renomear site"
+                      className="px-1.5 py-2 text-gray-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-colors shrink-0"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(e, site)}
+                      title={deletingId === site.id ? 'Clique para confirmar exclusão' : 'Excluir site'}
+                      className={`px-2 py-2 transition-colors shrink-0 ${
+                        deletingId === site.id
+                          ? 'text-red-400 hover:text-red-300'
+                          : 'text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
             {deletingId !== null && (

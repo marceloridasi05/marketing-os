@@ -383,8 +383,18 @@ export function Budget() {
 
   // Filter data
 
-  // Exclude "Total X" summary rows to avoid double-counting
-  const isNotTotalRow = (d: BudgetItem) => !d.name.startsWith('Total ') && d.name !== 'Grand Total Mkt';
+  // Exclude formula/summary rows (these come from the sheet but are not real items)
+  const FORMULA_NAMES = new Set([
+    'Grand Total Mkt', 'Total Geral', 'Total Geral Mkt',
+    'Budget', 'Budget Savings', 'Budget Savings Acumulado',
+    'Savings', 'Savings Acumulado', 'Savings Acum.',
+    'Realizado', 'Realizado Acumulado',
+  ]);
+  const isNotTotalRow = (d: BudgetItem) =>
+    !d.name.startsWith('Total ') &&
+    !d.name.toLowerCase().startsWith('budget savings') &&
+    !d.name.toLowerCase().startsWith('savings ') &&
+    !FORMULA_NAMES.has(d.name);
   const costItems = useMemo(() => allData.filter(d => d.section !== 'Budget' && isNotTotalRow(d)), [allData]);
   const costItemsExclHC = useMemo(() => allData.filter(d => d.section !== 'Budget' && d.section !== 'Headcount' && isNotTotalRow(d)), [allData]);
   const budgetLineItems = useMemo(() => allData.filter(d => d.section === 'Budget'), [allData]);
@@ -1260,8 +1270,8 @@ export function Budget() {
                       </tr>
                     );
                   })}
-                  {/* Footer rows: Grand Total, Budget, Savings, Savings Acum */}
-                  {itemRows.length > 0 && (() => {
+                  {/* Footer rows: Grand Total, Budget, Savings, Savings Acum — only when "Todos" tab is active */}
+                  {itemRows.length > 0 && activeTab === 'Todos' && (() => {
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
                     const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
                     const lastMk = monthKeys.filter(mk => monthBudgetSavings[mk]).pop();
@@ -1372,8 +1382,8 @@ export function Budget() {
                       </tr>
                     );
                   })}
-                  {/* Grand Total Mkt + Budget + Savings rows */}
-                  {sectionRows.length > 0 && (() => {
+                  {/* Grand Total Mkt + Budget + Savings rows — only when "Todos" tab is active */}
+                  {sectionRows.length > 0 && activeTab === 'Todos' && (() => {
                     const excHC = sectionRows.filter(r => r.section !== 'Headcount');
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
                     const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
