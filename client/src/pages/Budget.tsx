@@ -29,17 +29,17 @@ const fmtNum = (n: number) => n.toLocaleString('pt-BR');
 const MONTHS = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
-const SECTIONS = ['Headcount', 'Ferramentas', 'Eventos', 'Mídia', 'Viagens', 'Brindes & Promo', 'Terceiros'];
+const SECTIONS = ['Headcount', 'Ferramentas', 'Eventos', 'MÃ­dia', 'Viagens', 'Brindes & Promo', 'Terceiros'];
 // Show actual spending if available, otherwise fall back to planned budget amount
 const displayVal = (d: BudgetItem) => d.actual > 0 ? d.actual : d.planned;
 const isSensitiveRow = (name: string, section: string) =>
-  section === 'Headcount' || /head|salário/i.test(name);
+  section === 'Headcount' || /head|salÃ¡rio/i.test(name);
 const SAVINGS_START = '2025-09'; // Savings only count from Sep 2025 onwards
 const SECTION_COLORS: Record<string, string> = {
   'Headcount': '#3b82f6',
   'Ferramentas': '#10b981',
   'Eventos': '#f59e0b',
-  'Mídia': '#8b5cf6',
+  'MÃ­dia': '#8b5cf6',
   'Viagens': '#ef4444',
   'Brindes & Promo': '#ec4899',
   'Terceiros': '#06b6d4',
@@ -111,7 +111,7 @@ function useSort<T>(data: T[], defaultKey: string) {
   const SH = ({ k, label }: { k: string; label: string }) => (
     <th className="text-center py-2.5 px-2 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 whitespace-nowrap text-sm"
       onClick={() => handleSort(k)}>
-      {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
+      {label} {sortKey === k ? (sortAsc ? 'â†‘' : 'â†“') : ''}
     </th>
   );
   return { sorted, SH };
@@ -196,7 +196,7 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Seção *</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">SeÃ§Ã£o *</label>
             <select required value={form.section} onChange={set('section')} className={inputCls}>
               <option value="">Selecione...</option>
               {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -208,7 +208,7 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Estratégia</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">EstratÃ©gia</label>
               <ComboInput value={form.strategy} onChange={v => setForm(f => ({ ...f, strategy: v }))} options={strategies} placeholder="Digite ou selecione..." />
             </div>
             <div>
@@ -224,7 +224,7 @@ function BudgetItemFormModal({ initial, editId, onClose, onSaved, strategies, ex
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Mês</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">MÃªs</label>
               <select value={form.month} onChange={set('month')} className={inputCls}>
                 {MONTHS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
               </select>
@@ -267,7 +267,7 @@ function EditableCell({ value, options, onSave, align = 'center', bold = false, 
           <button onClick={() => { onSave(draft); setEditing(false); }}
             className="text-[10px] px-1.5 py-0.5 bg-gray-900 text-white rounded">OK</button>
           <button onClick={() => { setDraft(value); setEditing(false); }}
-            className="text-[10px] px-1.5 py-0.5 border border-gray-300 rounded text-gray-600">✕</button>
+            className="text-[10px] px-1.5 py-0.5 border border-gray-300 rounded text-gray-600">âœ•</button>
         </div>
       </td>
     );
@@ -279,13 +279,13 @@ function EditableCell({ value, options, onSave, align = 'center', bold = false, 
       {tagColor && value ? (
         <TagBadge value={value} color={tagColor} />
       ) : (
-        <span className={`group-hover:underline group-hover:decoration-dotted ${bold ? 'font-medium text-gray-700' : 'text-gray-600'}`}>{value || '—'}</span>
+        <span className={`group-hover:underline group-hover:decoration-dotted ${bold ? 'font-medium text-gray-700' : 'text-gray-600'}`}>{value || 'â€”'}</span>
       )}
     </td>
   );
 }
 
-// Inline editable money cell — click to edit the value
+// Inline editable money cell â€” click to edit the value
 // isPlanned=true means the value comes from planned (budget estimate) not actual spending
 function EditableMoneyCell({ value, onSave, isPlanned }: { value: number; onSave: (v: number) => void; isPlanned?: boolean }) {
   const [editing, setEditing] = useState(false);
@@ -311,7 +311,7 @@ function EditableMoneyCell({ value, onSave, isPlanned }: { value: number; onSave
     <td className={`py-2 px-2 text-center whitespace-nowrap cursor-pointer hover:bg-blue-50 ${isPlanned ? 'text-blue-500' : 'text-gray-900'}`}
       onClick={() => { setDraft(String(value || '')); setEditing(true); }}
       title={isPlanned ? 'Valor previsto (sem realizado ainda)' : undefined}>
-      {value > 0 ? fmtMoney(value) : '—'}
+      {value > 0 ? fmtMoney(value) : 'â€”'}
     </td>
   );
 }
@@ -430,7 +430,7 @@ export function Budget() {
     return items;
   }, [budgetLineItems, dateRange]);
 
-  // KPIs — always reflect the selected time period
+  // KPIs â€” always reflect the selected time period
   const totalGasto = filtered.reduce((s, d) => s + d.actual, 0);
   const totalPrevisto = filtered.reduce((s, d) => s + d.planned, 0);
   // Budget: only from SAVINGS_START, filtered by selected period
@@ -448,7 +448,7 @@ export function Budget() {
     const startNum = parseInt(dateRange.start.slice(0, 4)) * 100 + parseInt(dateRange.start.slice(5, 7));
     const endNum = parseInt(dateRange.end.slice(0, 4)) * 100 + parseInt(dateRange.end.slice(5, 7));
     return ymNum >= startNum && ymNum <= endNum;
-  }).reduce((s, d) => s + d.actual, 0);
+  }).reduce((s, d) => s + displayVal(d), 0);
   const savings = totalOrcamento - gastoExclHCInPeriod;
   const activeItems = new Set(filtered.map(d => d.name)).size;
 
@@ -481,7 +481,7 @@ export function Budget() {
     let cumSavings = 0;
     for (const ym of sortedMonths) {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + displayVal(d), 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       cumSavings += (monthBudget - monthCost);
     }
@@ -504,7 +504,7 @@ export function Budget() {
       const [y, m] = ym.split('-').map(Number);
       // Reset cumulative at start of each year (or start of savings period)
       if (m === 1 || (y === 2025 && m === 9)) cumSavings = 0;
-      const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const mc = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + displayVal(d), 0);
       const mb = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const ms = mb - mc;
       cumSavings += ms;
@@ -530,7 +530,7 @@ export function Budget() {
   const sumQuarter = (months: Record<string, number>, qk: string) =>
     (quarterMonths[qk] || []).reduce((s, mk) => s + (months[mk] || 0), 0);
 
-  // Chart data: stacked bar by section/month — use actual if available, else planned
+  // Chart data: stacked bar by section/month â€” use actual if available, else planned
   const stackedBarData = useMemo(() => {
     if (tableView === 'quarterly') {
       return quarterKeys.map(qk => {
@@ -561,7 +561,7 @@ export function Budget() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
   }, [detailFiltered, tableView, detailYear, quarterKeys, quarterMonths]);
 
-  // Breakdown tiles: by section, strategy, expense type — uses detailYear, actual→planned fallback
+  // Breakdown tiles: by section, strategy, expense type â€” uses detailYear, actualâ†’planned fallback
   const bySection = useMemo(() => {
     const map = new Map<string, number>();
     detailFiltered.forEach(d => map.set(d.section, (map.get(d.section) || 0) + displayVal(d)));
@@ -570,7 +570,7 @@ export function Budget() {
 
   const byStrategy = useMemo(() => {
     const map = new Map<string, number>();
-    detailFiltered.forEach(d => { const k = d.strategy || 'Sem estratégia'; map.set(k, (map.get(k) || 0) + displayVal(d)); });
+    detailFiltered.forEach(d => { const k = d.strategy || 'Sem estratÃ©gia'; map.set(k, (map.get(k) || 0) + displayVal(d)); });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
   }, [detailFiltered]);
 
@@ -584,7 +584,7 @@ export function Budget() {
   const TYPE_COLORS = ['#0ea5e9', '#14b8a6', '#eab308', '#a855f7', '#f43f5e', '#d946ef', '#22d3ee', '#65a30d', '#fb923c', '#818cf8'];
 
   // Savings line chart data (only from SAVINGS_START, excl Headcount, filtered by detailYear)
-  // Savings chart: cumulative resets each year — supports monthly/quarterly view
+  // Savings chart: cumulative resets each year â€” supports monthly/quarterly view
   const savingsChartData = useMemo(() => {
     const allMonths = new Set<string>();
     costItemsExclHC.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
@@ -595,11 +595,11 @@ export function Budget() {
     let cumSavings = 0;
     const monthlyPoints = sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + displayVal(d), 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
-      return { ym, name: `${MONTHS[m]} ${y}`, Gasto: monthCost, Savings: monthSavings, Orçamento: monthBudget, 'Savings Acum.': cumSavings };
+      return { ym, name: `${MONTHS[m]} ${y}`, Gasto: monthCost, Savings: monthSavings, OrÃ§amento: monthBudget, 'Savings Acum.': cumSavings };
     });
 
     if (tableView === 'quarterly') {
@@ -607,17 +607,17 @@ export function Budget() {
         const qms = quarterMonths[qk] || [];
         const points = monthlyPoints.filter(p => qms.includes(p.ym));
         const gasto = points.reduce((s, p) => s + p.Gasto, 0);
-        const orc = points.reduce((s, p) => s + p.Orçamento, 0);
+        const orc = points.reduce((s, p) => s + p.OrÃ§amento, 0);
         const savings = orc - gasto;
         const lastPoint = points[points.length - 1];
-        return { name: `${qk} ${detailYear}`, Gasto: gasto, Savings: savings, Orçamento: orc, 'Savings Acum.': lastPoint?.['Savings Acum.'] ?? 0 };
+        return { name: `${qk} ${detailYear}`, Gasto: gasto, Savings: savings, OrÃ§amento: orc, 'Savings Acum.': lastPoint?.['Savings Acum.'] ?? 0 };
       });
     }
 
     return monthlyPoints;
   }, [costItemsExclHC, budgetLineItems, detailYear, tableView, quarterKeys, quarterMonths]);
 
-  // Aggregated: by item across months (for detail table) — filtered by detailYear
+  // Aggregated: by item across months (for detail table) â€” filtered by detailYear
   interface ItemRow {
     name: string;
     section: string;
@@ -659,7 +659,7 @@ export function Budget() {
     return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
   }, [detailFiltered]);
 
-  // Section summary — uses detailYear
+  // Section summary â€” uses detailYear
   interface SectionRow {
     section: string;
     total: number;
@@ -696,12 +696,12 @@ export function Budget() {
     budgetLineItems.forEach(d => allMonths.add(`${d.year}-${String(d.month).padStart(2, '0')}`));
     const sortedMonths = [...allMonths].sort().filter(ym => ym >= SAVINGS_START && ym.startsWith(String(detailYear)));
 
-    // Cumulative resets each year — no carry-over from previous years
+    // Cumulative resets each year â€” no carry-over from previous years
     let cumSavings = 0;
 
     return sortedMonths.map(ym => {
       const [y, m] = ym.split('-').map(Number);
-      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.actual, 0);
+      const monthCost = costItemsExclHC.filter(d => d.year === y && d.month === m).reduce((s, d) => s + displayVal(d), 0);
       const monthBudget = budgetLineItems.filter(d => d.year === y && d.month === m).reduce((s, d) => s + d.planned, 0);
       const monthSavings = monthBudget - monthCost;
       cumSavings += monthSavings;
@@ -808,7 +808,7 @@ export function Budget() {
 
   return (
     <div>
-      <PageHeader title="Orçamento" description="Controle de custos, investimentos e savings"
+      <PageHeader title="OrÃ§amento" description="Controle de custos, investimentos e savings"
         actions={
           <div className="flex items-center gap-2">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}
@@ -834,7 +834,7 @@ export function Budget() {
           <div className={`grid grid-cols-2 md:grid-cols-3 ${activeTab === 'Todos' ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-3 mb-6`}>
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Total Previsto</p>
-              <p className="text-xs text-gray-400 mt-0.5">orçado no período</p>
+              <p className="text-xs text-gray-400 mt-0.5">orÃ§ado no perÃ­odo</p>
               <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalPrevisto)}</p>
               {totalGasto > 0 && (
                 <p className="text-xs text-gray-500 mt-1">Realizado: {fmtMoney(totalGasto)}</p>
@@ -843,18 +843,18 @@ export function Budget() {
             {activeTab === 'Todos' && (
               <>
                 <Card className="min-w-0">
-                  <p className="text-xs font-medium text-gray-500 uppercase">Total Orçamento</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase">Total OrÃ§amento</p>
                   <p className="text-xs text-gray-400 mt-0.5">envelope mensal</p>
                   <p className="text-2xl font-semibold text-gray-900 mt-1">{fmtMoney(totalOrcamento)}</p>
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Savings</p>
-                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
+                  <p className="text-xs text-gray-400 mt-0.5">no perÃ­odo selecionado</p>
                   <p className={`text-2xl font-semibold mt-1 ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savings)}</p>
                 </Card>
                 <Card className="min-w-0">
                   <p className="text-xs font-medium text-gray-500 uppercase">Savings Acumulado</p>
-                  <p className="text-xs text-gray-400 mt-0.5">no período selecionado</p>
+                  <p className="text-xs text-gray-400 mt-0.5">no perÃ­odo selecionado</p>
                   <p className={`text-2xl font-semibold mt-1 ${savingsAcumulado >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(savingsAcumulado)}</p>
                 </Card>
               </>
@@ -866,7 +866,7 @@ export function Budget() {
           </div>
 
           {/* Monthly Budget Editor */}
-          <CollapsibleCard title="Orçamento Mensal" subtitle="Defina o orçamento disponível mês a mês" className="mb-6"
+          <CollapsibleCard title="OrÃ§amento Mensal" subtitle="Defina o orÃ§amento disponÃ­vel mÃªs a mÃªs" className="mb-6"
             actions={
               !showBudgetEditor ? (
                 <button onClick={openBudgetEditor}
@@ -901,7 +901,7 @@ export function Budget() {
                               className="w-full border border-gray-300 rounded px-1.5 py-1 text-xs text-center" />
                           ) : (
                             <p className={`text-sm font-semibold ${bm.item && bm.item.planned > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
-                              {bm.item && bm.item.planned > 0 ? fmtMoney(bm.item.planned) : '—'}
+                              {bm.item && bm.item.planned > 0 ? fmtMoney(bm.item.planned) : 'â€”'}
                             </p>
                           )}
                         </div>
@@ -926,7 +926,7 @@ export function Budget() {
                       <div className="border-t border-gray-200 pt-3 mt-3">
                         <button onClick={() => setShowPrevYears(!showPrevYears)}
                           className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                          {showPrevYears ? '▾' : '▸'} Anos anteriores ({prevYears.join(', ')})
+                          {showPrevYears ? 'â–¾' : 'â–¸'} Anos anteriores ({prevYears.join(', ')})
                         </button>
                         {showPrevYears && prevYears.map(yr => renderYear(yr))}
                       </div>
@@ -940,14 +940,14 @@ export function Budget() {
           {/* Filters */}
           <div className="flex items-end gap-3 mb-6 p-4 bg-white rounded-lg border border-gray-200">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Seção</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">SeÃ§Ã£o</label>
               <select value={filterSection} onChange={e => setFilterSection(e.target.value)} className={inputCls}>
                 <option value="Todos">Todos</option>
                 {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Estratégia</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">EstratÃ©gia</label>
               <select value={filterStrategy} onChange={e => setFilterStrategy(e.target.value)} className={inputCls}>
                 <option value="Todos">Todos</option>
                 {strategies.map(s => <option key={s} value={s}>{s}</option>)}
@@ -981,7 +981,7 @@ export function Budget() {
 
           {/* Charts */}
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-500">Gráficos — {detailYear}</h3>
+            <h3 className="text-sm font-medium text-gray-500">GrÃ¡ficos â€” {detailYear}</h3>
             <div className="flex gap-1">
               {availableYears.map(y => (
                 <button key={y} onClick={() => setDetailYear(y)}
@@ -994,7 +994,7 @@ export function Budget() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Stacked bar */}
             <Card className="min-h-48">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por Seção/Mês</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por SeÃ§Ã£o/MÃªs</h3>
               {stackedBarData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={stackedBarData}>
@@ -1017,19 +1017,19 @@ export function Budget() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes para o gráfico</p>
+                <p className="text-sm text-gray-400 py-8 text-center">Dados insuficientes para o grÃ¡fico</p>
               )}
             </Card>
 
             {/* Savings line chart - only when Todos */}
             {activeTab === 'Todos' && (
               <AnnotatedChart
-                title="Savings Mensal (no período selecionado)"
+                title="Savings Mensal (no perÃ­odo selecionado)"
                 data={savingsChartData}
                 xKey="name"
                 lines={[
                   { dataKey: 'Gasto', color: '#ef4444', name: 'Gasto' },
-                  { dataKey: 'Orçamento', color: '#3b82f6', name: 'Orçamento' },
+                  { dataKey: 'OrÃ§amento', color: '#3b82f6', name: 'OrÃ§amento' },
                   { dataKey: 'Savings', color: '#10b981', name: 'Savings' },
                   { dataKey: 'Savings Acum.', color: '#f59e0b', name: 'Savings Acum.' },
                 ]}
@@ -1043,7 +1043,7 @@ export function Budget() {
           {/* Charts row 2: by strategy and by type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card className="min-h-48">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por Estratégia</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Gasto por EstratÃ©gia</h3>
               {byStrategy.length > 0 ? (
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={byStrategy} layout="vertical">
@@ -1083,7 +1083,7 @@ export function Budget() {
           {/* Breakdown Tiles */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="min-w-0">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Seção</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por SeÃ§Ã£o</h3>
               <div className="space-y-2">
                 {bySection.map(item => {
                   const hcBlur = item.name === 'Headcount' && !showHC;
@@ -1101,7 +1101,7 @@ export function Budget() {
               </div>
             </Card>
             <Card className="min-w-0">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por Estratégia</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Gasto por EstratÃ©gia</h3>
               <div className="space-y-2">
                 {byStrategy.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
@@ -1135,14 +1135,14 @@ export function Budget() {
           {/* Filters before detail table */}
           <div className="flex items-end gap-3 mb-4 p-3 bg-white rounded-lg border border-gray-200">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Seção</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">SeÃ§Ã£o</label>
               <select value={filterSection} onChange={e => setFilterSection(e.target.value)} className={inputCls}>
                 <option value="Todos">Todos</option>
                 {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Estratégia</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">EstratÃ©gia</label>
               <select value={filterStrategy} onChange={e => setFilterStrategy(e.target.value)} className={inputCls}>
                 <option value="Todos">Todos</option>
                 {strategies.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1188,7 +1188,7 @@ export function Budget() {
                 </div>
                 <button onClick={() => setShowHC(!showHC)}
                   className="flex items-center gap-1 px-2 py-1.5 text-xs border border-gray-300 rounded-md text-gray-500 hover:text-gray-700 hover:border-gray-400 transition-colors"
-                  title={showHC ? 'Ocultar Headcount/Salários' : 'Revelar Headcount/Salários'}>
+                  title={showHC ? 'Ocultar Headcount/SalÃ¡rios' : 'Revelar Headcount/SalÃ¡rios'}>
                   {showHC ? <EyeOff size={12} /> : <Eye size={12} />}
                   {showHC ? 'Ocultar HC' : 'Revelar HC'}
                 </button>
@@ -1203,8 +1203,8 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Item</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Seção</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Estratégia</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">SeÃ§Ã£o</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">EstratÃ©gia</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Tipo</th>
                     {tableView === 'monthly' ? monthKeys.map(mk => {
                       const [y, m] = mk.split('-').map(Number);
@@ -1219,7 +1219,7 @@ export function Budget() {
                       </th>
                     ))}
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Total</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Δ%</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Î”%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1247,7 +1247,7 @@ export function Budget() {
                           const isPlanned = v > 0 && colActuals[mi] === 0;
                           return sensitive && !showHC ? (
                             <td key={colKeys[mi]} className="py-2 px-2 text-center text-gray-400 whitespace-nowrap" style={blurStyle}>
-                              {v > 0 ? fmtMoney(v) : '—'}
+                              {v > 0 ? fmtMoney(v) : 'â€”'}
                             </td>
                           ) : (
                             <EditableMoneyCell key={colKeys[mi]} value={v} isPlanned={isPlanned}
@@ -1257,7 +1257,7 @@ export function Budget() {
                           const isPlanned = v > 0 && colActuals[qi] === 0;
                           return (
                             <td key={colKeys[qi]} className={`py-2 px-2 text-center whitespace-nowrap ${isPlanned ? 'text-blue-500' : 'text-gray-900'}`} style={blurStyle}>
-                              {v > 0 ? fmtMoney(v) : '—'}
+                              {v > 0 ? fmtMoney(v) : 'â€”'}
                             </td>
                           );
                         })}
@@ -1270,7 +1270,7 @@ export function Budget() {
                       </tr>
                     );
                   })}
-                  {/* Footer rows: Grand Total, Budget, Savings, Savings Acum — only when "Todos" tab is active */}
+                  {/* Footer rows: Grand Total, Budget, Savings, Savings Acum â€” only when "Todos" tab is active */}
                   {itemRows.length > 0 && activeTab === 'Todos' && (() => {
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
                     const savingsTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.savings ?? 0), 0);
@@ -1300,7 +1300,7 @@ export function Budget() {
                         <td className="py-2 px-2" colSpan={3}></td>
                         {vals.map((v, i) => {
                           const cls = colorFn ? colorFn(v) : textCls;
-                          return <td key={i} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : '—'}</td>;
+                          return <td key={i} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : 'â€”'}</td>;
                         })}
                         <td className={`py-2 px-2 text-center whitespace-nowrap ${colorFn ? colorFn(totalVal) : textCls}`}>{fmtMoney(totalVal)}</td>
                         <td className="py-2 px-2"></td>
@@ -1323,7 +1323,7 @@ export function Budget() {
           </CollapsibleCard>
 
           {/* Section Summary */}
-          <CollapsibleCard title="Resumo por Seção" className="mb-6"
+          <CollapsibleCard title="Resumo por SeÃ§Ã£o" className="mb-6"
             actions={
               <div className="flex items-center gap-2">
                 <div className="flex gap-0.5 bg-gray-100 rounded-md p-0.5">
@@ -1350,7 +1350,7 @@ export function Budget() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Seção</th>
+                    <th className="text-left py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">SeÃ§Ã£o</th>
                     {tableView === 'monthly' ? monthKeys.map(mk => {
                       const [y, m] = mk.split('-').map(Number);
                       return <th key={mk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">{MONTHS[m]} {y}</th>;
@@ -1358,7 +1358,7 @@ export function Budget() {
                       <th key={qk} className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">{qk} {detailYear}</th>
                     ))}
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 whitespace-nowrap text-sm">Total</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Δ%</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-400 text-xs whitespace-nowrap">Î”%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1375,14 +1375,14 @@ export function Budget() {
                         </td>
                         {secCols.map(ck => {
                           const v = tableView === 'monthly' ? (r.months[ck] || 0) : sumQuarter(r.months, ck);
-                          return <td key={ck} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap" style={blurS}>{v > 0 ? fmtMoney(v) : '—'}</td>;
+                          return <td key={ck} className="py-2 px-2 text-center text-gray-900 whitespace-nowrap" style={blurS}>{v > 0 ? fmtMoney(v) : 'â€”'}</td>;
                         })}
                         <td className="py-2 px-2 text-center text-gray-900 font-medium whitespace-nowrap" style={blurS}>{fmtMoney(r.total)}</td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.total, prevTotal)}`} style={blurS}>{delta(r.total, prevTotal)}</td>
                       </tr>
                     );
                   })}
-                  {/* Grand Total Mkt + Budget + Savings rows — only when "Todos" tab is active */}
+                  {/* Grand Total Mkt + Budget + Savings rows â€” only when "Todos" tab is active */}
                   {sectionRows.length > 0 && activeTab === 'Todos' && (() => {
                     const excHC = sectionRows.filter(r => r.section !== 'Headcount');
                     const budgetTotal = monthKeys.reduce((s, mk) => s + (monthBudgetSavings[mk]?.budget ?? 0), 0);
@@ -1398,7 +1398,7 @@ export function Budget() {
                         {sCols.map(ck => {
                           const v = colFn(ck);
                           const cls = colorFn ? colorFn(v) : textCls;
-                          return <td key={ck} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : '—'}</td>;
+                          return <td key={ck} className={`py-2 px-2 text-center whitespace-nowrap ${cls}`}>{v != null && v !== 0 ? fmtMoney(v) : 'â€”'}</td>;
                         })}
                         <td className={`py-2 px-2 text-center whitespace-nowrap ${colorFn ? colorFn(totalVal) : textCls}`}>{fmtMoney(totalVal)}</td>
                         <td></td>
@@ -1433,7 +1433,7 @@ export function Budget() {
           </CollapsibleCard>
 
           {/* Savings Table - only when Todos */}
-          {activeTab === 'Todos' && <CollapsibleCard title="Savings por Mês (no período selecionado)" className="mb-6"
+          {activeTab === 'Todos' && <CollapsibleCard title="Savings por MÃªs (no perÃ­odo selecionado)" className="mb-6"
             actions={
               <div className="flex gap-1">
                 {availableYears.map(y => (
@@ -1448,8 +1448,8 @@ export function Budget() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <SavSH k="sortKey" label="Mês" />
-                    <SavSH k="budget" label="Orçamento" />
+                    <SavSH k="sortKey" label="MÃªs" />
+                    <SavSH k="budget" label="OrÃ§amento" />
                     <SavSH k="gasto" label="Gasto" />
                     <SavSH k="savings" label="Savings" />
                     <SavSH k="savingsAcum" label="Savings Acumulado" />
@@ -1463,8 +1463,8 @@ export function Budget() {
                     return (
                       <tr key={r.sortKey} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-2 px-2 text-left font-medium text-gray-700 whitespace-nowrap">{r.label}</td>
-                        <td className="py-2 px-2 text-center text-gray-900">{r.budget > 0 ? fmtMoney(r.budget) : '—'}</td>
-                        <td className="py-2 px-2 text-center text-gray-900">{r.gasto > 0 ? fmtMoney(r.gasto) : '—'}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{r.budget > 0 ? fmtMoney(r.budget) : 'â€”'}</td>
+                        <td className="py-2 px-2 text-center text-gray-900">{r.gasto > 0 ? fmtMoney(r.gasto) : 'â€”'}</td>
                         <td className={`py-2 px-2 text-center font-medium ${r.savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {fmtMoney(r.savings)}
                         </td>
@@ -1483,7 +1483,7 @@ export function Budget() {
                       <td className={`py-2.5 px-2 text-center font-semibold ${sortedSavings.reduce((s, r) => s + r.savings, 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {fmtMoney(sortedSavings.reduce((s, r) => s + r.savings, 0))}
                       </td>
-                      <td className="py-2.5 px-2 text-center text-gray-400">—</td>
+                      <td className="py-2.5 px-2 text-center text-gray-400">â€”</td>
                     </tr>
                   )}
                 </tbody>
@@ -1504,11 +1504,11 @@ export function Budget() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2.5 px-2 font-medium text-gray-500">Item</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">Seção</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">Estratégia</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">SeÃ§Ã£o</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">EstratÃ©gia</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Tipo</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Ano</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">Mês</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500">MÃªs</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Previsto</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500">Realizado</th>
                     <th className="py-2.5 px-2 w-20"></th>
@@ -1520,9 +1520,9 @@ export function Budget() {
                   ) : filtered.slice(0, 100).map(d => (
                     <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 text-left font-medium text-gray-700">{d.name}</td>
-                      <td className="py-2 px-2 text-center">{d.section ? <TagBadge value={d.section} color={getTagColor(d.section, 'section', SECTIONS)} /> : '—'}</td>
-                      <td className="py-2 px-2 text-center">{d.strategy ? <TagBadge value={d.strategy} color={getTagColor(d.strategy, 'strategy', strategies)} /> : '—'}</td>
-                      <td className="py-2 px-2 text-center">{d.expenseType ? <TagBadge value={d.expenseType} color={getTagColor(d.expenseType, 'type', expenseTypes)} /> : '—'}</td>
+                      <td className="py-2 px-2 text-center">{d.section ? <TagBadge value={d.section} color={getTagColor(d.section, 'section', SECTIONS)} /> : 'â€”'}</td>
+                      <td className="py-2 px-2 text-center">{d.strategy ? <TagBadge value={d.strategy} color={getTagColor(d.strategy, 'strategy', strategies)} /> : 'â€”'}</td>
+                      <td className="py-2 px-2 text-center">{d.expenseType ? <TagBadge value={d.expenseType} color={getTagColor(d.expenseType, 'type', expenseTypes)} /> : 'â€”'}</td>
                       <td className="py-2 px-2 text-center text-gray-600">{d.year}</td>
                       <td className="py-2 px-2 text-center text-gray-600">{MONTHS[d.month]}</td>
                       <td className="py-2 px-2 text-center text-gray-900">{fmtMoney(d.planned)}</td>

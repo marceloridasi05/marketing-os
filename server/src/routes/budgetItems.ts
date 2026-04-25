@@ -121,16 +121,22 @@ router.post('/sync', async (req, res) => {
 
       const col2Lower = col2.toLowerCase();
 
-      // Stop when we reach grand-total / actuals area
-      if (
-        col0Lower.startsWith('total geral') ||
-        col0Lower.startsWith('grand total') ||
-        col0Lower.startsWith('budget savings') ||
-        col0Lower === 'realizado' ||
-        col0Lower.startsWith('realizado ') ||
-        col2Lower.startsWith('grand total') ||
-        col2Lower.startsWith('total geral')
-      ) break;
+      // Hard stop only when we hit the "Realizado" (ContaAzul) section at the bottom
+      if (col0Lower === 'realizado' || col0Lower.startsWith('realizado ')) break;
+
+      // BUDGET (envelope) row → import as section='Budget' / name='Total Budget'.
+      // Used by the front-end footer to compute Savings = Budget − Gasto.
+      if (col2Lower === 'budget' || col2Lower === 'orçamento' || col2Lower === 'orcamento') {
+        for (const { year, startCol } of YEAR_OFFSETS) {
+          for (let m = 0; m < 12; m++) {
+            const planned = parseMoney(row[startCol + m] ?? '');
+            if (planned === 0) continue;
+            await upsertBudgetItemPlanned(siteId, 'Budget', null, null, 'Total Budget', year, m + 1, planned);
+            imported++;
+          }
+        }
+        continue;
+      }
 
       // Section header: col[0] non-empty, col[2] blank
       if (col0 && !col2) {
@@ -144,15 +150,16 @@ router.post('/sync', async (req, res) => {
       // Row-level total (e.g. "Total Headcount", "Total Ferramentas")
       if (col2Lower.startsWith('total ')) continue;
 
-      // Formula / summary rows that are not real items
+      // Formula / summary rows we ignore (frontend recomputes them)
       if (
-        col2Lower === 'budget' ||
+        col0Lower.startsWith('total geral') ||
+        col0Lower.startsWith('grand total') ||
+        col2Lower.startsWith('grand total') ||
+        col2Lower.startsWith('total geral') ||
         col2Lower.startsWith('budget savings') ||
         col2Lower.startsWith('savings ') ||
         col2Lower === 'savings' ||
-        col2Lower === 'savings acumulado' ||
-        col2Lower === 'realizado' ||
-        col2Lower.startsWith('realizado ')
+        col2Lower === 'savings acumulado'
       ) continue;
 
       // Skip rows with no item name
