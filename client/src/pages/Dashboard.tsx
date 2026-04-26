@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Zap, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Activity, BarChart3, Target, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { STAGE_META, STAGE_ORDER, groupByStage, type FunnelStage } from '../lib/metricClassification';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 
@@ -412,17 +413,23 @@ export function Dashboard() {
   const healthStatus = healthScore >= 7 ? 'Saudável' : healthScore >= 4 ? 'Atenção' : 'Crítico';
   const healthColor = healthScore >= 7 ? 'green' : healthScore >= 4 ? 'yellow' : 'red';
 
-  // ── Grouped metrics (acquisition / conversion / revenue) ──────────────────
+  // ── Grouped metrics — driven by the universal classification registry ────────
   const metricGroups = useMemo(() => {
     const gaClicks  = fAds.reduce((s, r) => s + (r.gaClicks  ?? 0), 0);
     const gaImp     = fAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
     const liImp     = fLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
+    const liReact   = fLiPage.reduce((s, r) => s + (r.reactions ?? 0), 0);
+    const liComments= fLiPage.reduce((s, r) => s + (r.comments  ?? 0), 0);
+    const liShares  = fLiPage.reduce((s, r) => s + (r.shares    ?? 0), 0);
     const newUsers  = fSite.reduce((s, r) => s + (r.newUsers ?? 0), 0);
 
-    const pGaClicks = pAds.reduce((s, r) => s + (r.gaClicks  ?? 0), 0);
-    const pGaImp    = pAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
-    const pLiImp    = pLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
-    const pNewUsers = pSite.reduce((s, r) => s + (r.newUsers ?? 0), 0);
+    const pGaClicks  = pAds.reduce((s, r) => s + (r.gaClicks  ?? 0), 0);
+    const pGaImp     = pAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
+    const pLiImp     = pLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
+    const pLiReact   = pLiPage.reduce((s, r) => s + (r.reactions ?? 0), 0);
+    const pLiComments= pLiPage.reduce((s, r) => s + (r.comments  ?? 0), 0);
+    const pLiShares  = pLiPage.reduce((s, r) => s + (r.shares    ?? 0), 0);
+    const pNewUsers  = pSite.reduce((s, r) => s + (r.newUsers ?? 0), 0);
 
     const ctr  = safeDivide(gaClicks, gaImp);
     const pCtr = safeDivide(pGaClicks, pGaImp);
@@ -431,51 +438,56 @@ export function Dashboard() {
     const cpl  = safeDivide(totalAdsSpend, totalLeads);
     const pCpl = safeDivide(prevAdsSpend, prevLeads);
 
-    type Metric = {
-      key: string; label: string;
-      value: number | null; prev: number | null;
+    type DashMetric = {
+      key: string;            // must match a key in REGISTRY or be overridden
+      label: string;
+      value: number | null;
+      prev: number | null;
       fmt: 'num' | 'money' | 'pct';
       lowerIsBetter?: boolean;
       available: boolean;
+      classification?: FunnelStage; // explicit override (optional)
     };
 
-    const acquisition: Metric[] = [
-      { key: 'sessions',   label: 'Sessões',         value: totalSessions,  prev: prevSessions,  fmt: 'num',   available: totalSessions > 0  },
-      { key: 'new_users',  label: 'Novos Usuários',  value: newUsers,       prev: pNewUsers,     fmt: 'num',   available: newUsers > 0       },
-      { key: 'ga_clicks',  label: 'Cliques (GA)',    value: gaClicks,       prev: pGaClicks,     fmt: 'num',   available: gaClicks > 0       },
-      { key: 'ga_imp',     label: 'Impressões (GA)', value: gaImp,          prev: pGaImp,        fmt: 'num',   available: gaImp > 0          },
-      { key: 'li_imp',     label: 'Impressões (LI)', value: liImp,          prev: pLiImp,        fmt: 'num',   available: liImp > 0          },
+    const all: DashMetric[] = [
+      // ── Awareness ────────────────────────────────────────────────────────
+      { key: 'impressions',  label: 'Impressões (GA)',   value: gaImp,        prev: pGaImp,        fmt: 'num',   available: gaImp > 0                },
+      { key: 'li_impressions',label:'Impressões (LI)',   value: liImp,        prev: pLiImp,        fmt: 'num',   available: liImp > 0                },
+      { key: 'followers',    label: 'Seguidores LI',     value: latestFollowers, prev: null,       fmt: 'num',   available: latestFollowers > 0      },
+      // ── Acquisition ──────────────────────────────────────────────────────
+      { key: 'sessions',     label: 'Sessões',           value: totalSessions, prev: prevSessions, fmt: 'num',   available: totalSessions > 0        },
+      { key: 'new_users',    label: 'Novos Usuários',    value: newUsers,     prev: pNewUsers,     fmt: 'num',   available: newUsers > 0             },
+      { key: 'clicks',       label: 'Cliques (GA)',      value: gaClicks,     prev: pGaClicks,     fmt: 'num',   available: gaClicks > 0             },
+      // ── Conversion ───────────────────────────────────────────────────────
+      { key: 'leads',        label: 'Leads',             value: totalLeads,   prev: prevLeads,     fmt: 'num',   available: totalLeads > 0           },
+      { key: 'conversions',  label: 'Conversões GA',     value: totalGaConversions, prev: prevGaConv, fmt: 'num', available: totalGaConversions > 0  },
+      { key: 'ctr',          label: 'CTR',               value: ctr  != null ? ctr  * 100 : null, prev: pCtr != null ? pCtr * 100 : null, fmt: 'pct', available: ctr != null },
+      { key: 'cvr',          label: 'Taxa Conv.',        value: cvr  != null ? cvr  * 100 : null, prev: pCvr != null ? pCvr * 100 : null, fmt: 'pct', available: cvr != null },
+      { key: 'cpl',          label: 'CPL',               value: cpl,          prev: pCpl,          fmt: 'money', lowerIsBetter: true, available: cpl != null },
+      // ── Revenue ───────────────────────────────────────────────────────────
+      { key: 'ads_spend',    label: 'Gasto Ads',         value: totalAdsSpend,  prev: prevAdsSpend, fmt: 'money', lowerIsBetter: true, available: totalAdsSpend > 0  },
+      { key: 'mktg_spend',   label: 'Gasto Mktg',        value: totalMktgSpend, prev: null,         fmt: 'money', lowerIsBetter: true, available: totalMktgSpend > 0 },
+      { key: 'savings',      label: 'Savings',           value: totalSavings,   prev: null,         fmt: 'money', available: fBudget.length > 0       },
+      // ── Retention ─────────────────────────────────────────────────────────
+      { key: 'reactions',    label: 'Reações LI',        value: liReact,      prev: pLiReact,      fmt: 'num',   available: liReact > 0              },
+      { key: 'comments',     label: 'Comentários LI',    value: liComments,   prev: pLiComments,   fmt: 'num',   available: liComments > 0           },
+      { key: 'shares',       label: 'Compartilhamentos', value: liShares,     prev: pLiShares,     fmt: 'num',   available: liShares > 0             },
     ];
 
-    const conversion: Metric[] = [
-      { key: 'leads',       label: 'Leads',          value: totalLeads,         prev: prevLeads,   fmt: 'num',   available: totalLeads > 0     },
-      { key: 'ga_conv',     label: 'Conversões GA',  value: totalGaConversions, prev: prevGaConv,  fmt: 'num',   available: totalGaConversions > 0 },
-      { key: 'ctr',         label: 'CTR',            value: ctr  != null ? ctr  * 100 : null, prev: pCtr != null ? pCtr * 100 : null, fmt: 'pct', available: ctr != null },
-      { key: 'cvr',         label: 'Taxa Conv.',     value: cvr  != null ? cvr  * 100 : null, prev: pCvr != null ? pCvr * 100 : null, fmt: 'pct', available: cvr != null },
-      { key: 'cpl',         label: 'CPL',            value: cpl,                prev: pCpl,        fmt: 'money', lowerIsBetter: true, available: cpl != null },
-    ];
-
-    const revenue: Metric[] = [
-      { key: 'ads_spend',   label: 'Gasto Ads',      value: totalAdsSpend,  prev: prevAdsSpend,  fmt: 'money', lowerIsBetter: true, available: totalAdsSpend > 0  },
-      { key: 'mktg_spend',  label: 'Gasto Mktg',     value: totalMktgSpend, prev: null,          fmt: 'money', lowerIsBetter: true, available: totalMktgSpend > 0 },
-      { key: 'savings',     label: 'Savings',        value: totalSavings,   prev: null,          fmt: 'money', available: fBudget.length > 0 },
-    ];
-
-    return { acquisition, conversion, revenue };
+    // Use groupByStage — respects any per-metric classification override
+    return groupByStage(all.filter(m => m.available));
   }, [
     fAds, pAds, fLiPage, pLiPage, fSite, pSite,
-    totalSessions, prevSessions, totalLeads, prevLeads,
+    totalSessions, prevSessions, totalLeads, prevLeads, latestFollowers,
     totalGaConversions, prevGaConv, totalAdsSpend, prevAdsSpend,
     totalMktgSpend, totalSavings, fBudget,
   ]);
 
   // ── Biggest drop / growth across all metrics ───────────────────────────────
   const momentum = useMemo(() => {
-    const all = [
-      ...metricGroups.acquisition,
-      ...metricGroups.conversion,
-      ...metricGroups.revenue,
-    ].filter(m => m.available && m.value != null && m.prev != null && (m.prev ?? 0) > 0);
+    const all = Array.from(metricGroups.values())
+      .flat()
+      .filter(m => m.value != null && m.prev != null && (m.prev ?? 0) > 0);
 
     const withPct = all.map(m => {
       const raw = safePct(m.value!, m.prev!);
@@ -743,7 +755,7 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── Grouped Metric Groups ──────────────────────────────────────── */}
+          {/* ── Grouped Metric Groups — driven by universal classification ── */}
           {(() => {
             const fmtV = (v: number | null, fmt: 'num' | 'money' | 'pct') => {
               if (v == null) return '—';
@@ -752,15 +764,9 @@ export function Dashboard() {
               return fmtNum(v);
             };
 
-            type Metric = {
-              key: string; label: string;
-              value: number | null; prev: number | null;
-              fmt: 'num' | 'money' | 'pct';
-              lowerIsBetter?: boolean;
-              available: boolean;
-            };
+            type DashM = { key: string; label: string; value: number | null; prev: number | null; fmt: 'num'|'money'|'pct'; lowerIsBetter?: boolean; available: boolean };
 
-            const MetricRow = ({ m }: { m: Metric }) => {
+            const MetricRow = ({ m }: { m: DashM }) => {
               const diff = (m.value ?? 0) - (m.prev ?? 0);
               const pct  = (m.prev ?? 0) > 0 ? safePct(m.value ?? 0, m.prev ?? 0) : null;
               const up   = diff > 0;
@@ -789,38 +795,26 @@ export function Dashboard() {
               );
             };
 
-            const groups = [
-              {
-                key: 'acquisition', label: 'Aquisição',
-                color: 'border-t-blue-500', badge: 'bg-blue-50 text-blue-700',
-                icon: <Activity size={14} className="text-blue-500" />,
-                metrics: metricGroups.acquisition.filter(m => m.available),
-              },
-              {
-                key: 'conversion', label: 'Conversão',
-                color: 'border-t-orange-500', badge: 'bg-orange-50 text-orange-700',
-                icon: <Target size={14} className="text-orange-500" />,
-                metrics: metricGroups.conversion.filter(m => m.available),
-              },
-              {
-                key: 'revenue', label: 'Orçamento',
-                color: 'border-t-emerald-500', badge: 'bg-emerald-50 text-emerald-700',
-                icon: <BarChart3 size={14} className="text-emerald-500" />,
-                metrics: metricGroups.revenue.filter(m => m.available),
-              },
-            ].filter(g => g.metrics.length > 0);
+            const stagesWithData = STAGE_ORDER.filter(s => (metricGroups.get(s)?.length ?? 0) > 0);
+            const cols = stagesWithData.length <= 2 ? stagesWithData.length : stagesWithData.length <= 3 ? 3 : stagesWithData.length <= 4 ? 4 : 3;
 
             return (
-              <div className={`grid grid-cols-1 gap-4 mb-6 ${groups.length === 3 ? 'md:grid-cols-3' : groups.length === 2 ? 'md:grid-cols-2' : ''}`}>
-                {groups.map(g => (
-                  <Card key={g.key} className={`border-t-2 ${g.color} pt-3`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      {g.icon}
-                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{g.label}</h3>
-                    </div>
-                    {g.metrics.map(m => <MetricRow key={m.key} m={m} />)}
-                  </Card>
-                ))}
+              <div className={`grid grid-cols-1 gap-4 mb-6 md:grid-cols-${cols}`}>
+                {stagesWithData.map(stage => {
+                  const meta = STAGE_META[stage];
+                  const metrics = metricGroups.get(stage) ?? [];
+                  return (
+                    <Card key={stage} className={`border-t-2 ${meta.borderColor} pt-3`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${meta.iconColor}`}>
+                          {meta.label}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{metrics.length} métricas</span>
+                      </div>
+                      {metrics.map((m: DashM) => <MetricRow key={m.key} m={m} />)}
+                    </Card>
+                  );
+                })}
               </div>
             );
           })()}

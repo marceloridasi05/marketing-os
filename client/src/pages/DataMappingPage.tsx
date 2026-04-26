@@ -7,6 +7,9 @@ import {
   Plus, Pencil, Trash2, X, Search, ChevronDown, ChevronRight,
   Layers, AlertCircle, CheckCircle2, RefreshCw,
 } from 'lucide-react';
+import {
+  type FunnelStage, STAGE_META, STAGE_ORDER, getStage,
+} from '../lib/metricClassification';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -16,6 +19,8 @@ interface ColumnMapping {
   meaning: string;
   year?: number;
   month?: number;
+  /** Explicit funnel-stage override; null = use registry default */
+  classification?: FunnelStage | null;
 }
 
 interface DataMapping {
@@ -174,6 +179,16 @@ function blankForm() {
 
 // ─── Column row ──────────────────────────────────────────────────────────────
 
+function StageBadge({ stage }: { stage: FunnelStage | null }) {
+  if (!stage) return <span className="text-[10px] text-gray-300">—</span>;
+  const meta = STAGE_META[stage];
+  return (
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium border ${meta.color}`}>
+      {meta.label}
+    </span>
+  );
+}
+
 function ColRow({
   col, dataType, onChange, onRemove,
 }: {
@@ -185,6 +200,7 @@ function ColRow({
   const meanings = DATA_TYPES[dataType]?.meanings ?? [];
   const def = meanings.find(m => m.key === col.meaning);
   const needsYM = def?.needsYM ?? false;
+  const resolvedStage = getStage(col.meaning, col.classification);
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50">
@@ -212,7 +228,7 @@ function ColRow({
       <td className="px-3 py-2 w-52">
         <select
           value={col.meaning}
-          onChange={e => onChange({ ...col, meaning: e.target.value, year: undefined, month: undefined })}
+          onChange={e => onChange({ ...col, meaning: e.target.value, year: undefined, month: undefined, classification: undefined })}
           className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
         >
           <option value="">— Selecione —</option>
@@ -221,6 +237,32 @@ function ColRow({
           ))}
           <option value="ignore">— Ignorar —</option>
         </select>
+      </td>
+
+      {/* Funnel stage (auto + override) */}
+      <td className="px-3 py-2 w-36">
+        {col.meaning && col.meaning !== 'ignore' ? (
+          <div className="flex flex-col gap-1">
+            <StageBadge stage={resolvedStage} />
+            {/* Override selector — only shown when meaning is mapped */}
+            <select
+              value={col.classification ?? ''}
+              onChange={e => onChange({
+                ...col,
+                classification: e.target.value ? (e.target.value as FunnelStage) : undefined,
+              })}
+              className="border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-500 w-full"
+              title="Sobrescrever etapa do funil"
+            >
+              <option value="">Auto</option>
+              {STAGE_ORDER.map(s => (
+                <option key={s} value={s}>{STAGE_META[s].label}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <span className="text-[10px] text-gray-300">—</span>
+        )}
       </td>
 
       {/* Year / Month (only when needsYM) */}
@@ -522,6 +564,7 @@ function MappingModal({
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-14">#</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Cabecalho na planilha</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-52">Significado</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-36">Etapa do Funil</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-40">Ano / Mes</th>
                       <th className="w-8" />
                     </tr>
@@ -634,26 +677,35 @@ function MappingCard({
           </button>
           {expanded && (
             <div className="mt-2 space-y-1">
-              {cols.map((col, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-400 font-mono w-6 text-right">{col.index}</span>
-                  <span className="text-gray-500 truncate flex-1">{col.header || '—'}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                    col.meaning === 'ignore'
-                      ? 'bg-gray-100 text-gray-400'
-                      : col.meaning
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'bg-yellow-50 text-yellow-600'
-                  }`}>
-                    {col.meaning
-                      ? (col.meaning === 'ignore' ? 'ignorar' : meaningLabel(col.meaning))
-                      : 'sem significado'}
-                    {col.meaning !== 'ignore' && col.year && col.month
-                      ? ` ${MONTHS_PT[col.month - 1]} ${col.year}`
-                      : ''}
-                  </span>
-                </div>
-              ))}
+              {cols.map((col, i) => {
+                const stage = getStage(col.meaning, col.classification);
+                const stageMeta = stage ? STAGE_META[stage] : null;
+                return (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-400 font-mono w-6 text-right">{col.index}</span>
+                    <span className="text-gray-500 truncate flex-1">{col.header || '—'}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                      col.meaning === 'ignore'
+                        ? 'bg-gray-100 text-gray-400'
+                        : col.meaning
+                          ? 'bg-indigo-50 text-indigo-700'
+                          : 'bg-yellow-50 text-yellow-600'
+                    }`}>
+                      {col.meaning
+                        ? (col.meaning === 'ignore' ? 'ignorar' : meaningLabel(col.meaning))
+                        : 'sem significado'}
+                      {col.meaning !== 'ignore' && col.year && col.month
+                        ? ` ${MONTHS_PT[col.month - 1]} ${col.year}`
+                        : ''}
+                    </span>
+                    {stageMeta && (
+                      <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${stageMeta.color}`}>
+                        {stageMeta.label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
