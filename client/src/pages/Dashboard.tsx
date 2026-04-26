@@ -412,6 +412,84 @@ export function Dashboard() {
   const healthStatus = healthScore >= 7 ? 'Saudável' : healthScore >= 4 ? 'Atenção' : 'Crítico';
   const healthColor = healthScore >= 7 ? 'green' : healthScore >= 4 ? 'yellow' : 'red';
 
+  // ── Grouped metrics (acquisition / conversion / revenue) ──────────────────
+  const metricGroups = useMemo(() => {
+    const gaClicks  = fAds.reduce((s, r) => s + (r.gaClicks  ?? 0), 0);
+    const gaImp     = fAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
+    const liImp     = fLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
+    const newUsers  = fSite.reduce((s, r) => s + (r.newUsers ?? 0), 0);
+
+    const pGaClicks = pAds.reduce((s, r) => s + (r.gaClicks  ?? 0), 0);
+    const pGaImp    = pAds.reduce((s, r) => s + (r.gaImpressions ?? 0), 0);
+    const pLiImp    = pLiPage.reduce((s, r) => s + (r.impressions ?? 0), 0);
+    const pNewUsers = pSite.reduce((s, r) => s + (r.newUsers ?? 0), 0);
+
+    const ctr  = safeDivide(gaClicks, gaImp);
+    const pCtr = safeDivide(pGaClicks, pGaImp);
+    const cvr  = safeDivide(totalGaConversions, gaClicks);
+    const pCvr = safeDivide(prevGaConv, pGaClicks);
+    const cpl  = safeDivide(totalAdsSpend, totalLeads);
+    const pCpl = safeDivide(prevAdsSpend, prevLeads);
+
+    type Metric = {
+      key: string; label: string;
+      value: number | null; prev: number | null;
+      fmt: 'num' | 'money' | 'pct';
+      lowerIsBetter?: boolean;
+      available: boolean;
+    };
+
+    const acquisition: Metric[] = [
+      { key: 'sessions',   label: 'Sessões',         value: totalSessions,  prev: prevSessions,  fmt: 'num',   available: totalSessions > 0  },
+      { key: 'new_users',  label: 'Novos Usuários',  value: newUsers,       prev: pNewUsers,     fmt: 'num',   available: newUsers > 0       },
+      { key: 'ga_clicks',  label: 'Cliques (GA)',    value: gaClicks,       prev: pGaClicks,     fmt: 'num',   available: gaClicks > 0       },
+      { key: 'ga_imp',     label: 'Impressões (GA)', value: gaImp,          prev: pGaImp,        fmt: 'num',   available: gaImp > 0          },
+      { key: 'li_imp',     label: 'Impressões (LI)', value: liImp,          prev: pLiImp,        fmt: 'num',   available: liImp > 0          },
+    ];
+
+    const conversion: Metric[] = [
+      { key: 'leads',       label: 'Leads',          value: totalLeads,         prev: prevLeads,   fmt: 'num',   available: totalLeads > 0     },
+      { key: 'ga_conv',     label: 'Conversões GA',  value: totalGaConversions, prev: prevGaConv,  fmt: 'num',   available: totalGaConversions > 0 },
+      { key: 'ctr',         label: 'CTR',            value: ctr  != null ? ctr  * 100 : null, prev: pCtr != null ? pCtr * 100 : null, fmt: 'pct', available: ctr != null },
+      { key: 'cvr',         label: 'Taxa Conv.',     value: cvr  != null ? cvr  * 100 : null, prev: pCvr != null ? pCvr * 100 : null, fmt: 'pct', available: cvr != null },
+      { key: 'cpl',         label: 'CPL',            value: cpl,                prev: pCpl,        fmt: 'money', lowerIsBetter: true, available: cpl != null },
+    ];
+
+    const revenue: Metric[] = [
+      { key: 'ads_spend',   label: 'Gasto Ads',      value: totalAdsSpend,  prev: prevAdsSpend,  fmt: 'money', lowerIsBetter: true, available: totalAdsSpend > 0  },
+      { key: 'mktg_spend',  label: 'Gasto Mktg',     value: totalMktgSpend, prev: null,          fmt: 'money', lowerIsBetter: true, available: totalMktgSpend > 0 },
+      { key: 'savings',     label: 'Savings',        value: totalSavings,   prev: null,          fmt: 'money', available: fBudget.length > 0 },
+    ];
+
+    return { acquisition, conversion, revenue };
+  }, [
+    fAds, pAds, fLiPage, pLiPage, fSite, pSite,
+    totalSessions, prevSessions, totalLeads, prevLeads,
+    totalGaConversions, prevGaConv, totalAdsSpend, prevAdsSpend,
+    totalMktgSpend, totalSavings, fBudget,
+  ]);
+
+  // ── Biggest drop / growth across all metrics ───────────────────────────────
+  const momentum = useMemo(() => {
+    const all = [
+      ...metricGroups.acquisition,
+      ...metricGroups.conversion,
+      ...metricGroups.revenue,
+    ].filter(m => m.available && m.value != null && m.prev != null && (m.prev ?? 0) > 0);
+
+    const withPct = all.map(m => {
+      const raw = safePct(m.value!, m.prev!);
+      // For "lower is better" metrics (CPL, spend), flip the sign for ranking
+      const ranked = m.lowerIsBetter ? -raw : raw;
+      return { ...m, pct: raw, ranked };
+    });
+
+    withPct.sort((a, b) => b.ranked - a.ranked);
+    const biggest  = withPct[0]  ?? null;
+    const smallest = withPct[withPct.length - 1] ?? null;
+    return { growth: biggest, drop: smallest };
+  }, [metricGroups]);
+
   // Rankings (top channels by spend from budget items)
   const rankings = useMemo(() => {
     const costItems = fBudget.filter(r => r.section === 'Mídia' && isNotTotalRow(r));
@@ -665,32 +743,94 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* Row 1: KPI Tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-            <KpiTile label="Sessões Site" value={fmtNum(totalSessions)}
-              icon={<TrendingUp size={14} className="text-blue-500" />} />
-            <KpiTile label="Leads Inbound" value={fmtNum(totalLeads)}
-              icon={<TrendingUp size={14} className="text-green-500" />} />
-            <KpiTile label="GA Conversões" value={fmtNum(totalGaConversions)}
-              icon={<TrendingUp size={14} className="text-orange-500" />} />
-            <KpiTile label="LI Impressões" value={fmtNum(totalLiImpressions)}
-              icon={<TrendingUp size={14} className="text-sky-500" />} />
-            <KpiTile label="Seguidores LI" value={fmtNum(latestFollowers)}
-              icon={<Minus size={14} className="text-sky-500" />} />
-            <KpiTile label="Gasto Ads" value={fmtMoney(totalAdsSpend)}
-              icon={<TrendingDown size={14} className="text-red-400" />} />
-            <KpiTile label="Gasto Total Mktg" value={fmtMoney(totalMktgSpend)}
-              icon={<TrendingDown size={14} className="text-red-400" />} />
-            <KpiTile label="Savings" value={fmtMoney(totalSavings)}
-              icon={totalSavings >= 0 ? <TrendingUp size={14} className="text-green-500" /> : <TrendingDown size={14} className="text-red-500" />} />
-          </div>
+          {/* ── Grouped Metric Groups ──────────────────────────────────────── */}
+          {(() => {
+            const fmtV = (v: number | null, fmt: 'num' | 'money' | 'pct') => {
+              if (v == null) return '—';
+              if (fmt === 'money') return fmtMoney(v);
+              if (fmt === 'pct')   return `${v.toFixed(1)}%`;
+              return fmtNum(v);
+            };
 
+            type Metric = {
+              key: string; label: string;
+              value: number | null; prev: number | null;
+              fmt: 'num' | 'money' | 'pct';
+              lowerIsBetter?: boolean;
+              available: boolean;
+            };
 
-          {/* Analytics: Health Score + Bottleneck + Alerts */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            const MetricRow = ({ m }: { m: Metric }) => {
+              const diff = (m.value ?? 0) - (m.prev ?? 0);
+              const pct  = (m.prev ?? 0) > 0 ? safePct(m.value ?? 0, m.prev ?? 0) : null;
+              const up   = diff > 0;
+              const positive = m.lowerIsBetter ? !up : up;
+              const noChange = diff === 0 || (m.prev ?? 0) === 0;
+              return (
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-xs text-gray-600">{m.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900">{fmtV(m.value, m.fmt)}</span>
+                    {!noChange && pct !== null && (
+                      <span className={`flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                        positive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                      }`}>
+                        {positive ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                        {Math.abs(pct).toFixed(0)}%
+                      </span>
+                    )}
+                    {noChange && m.prev != null && (
+                      <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400">
+                        <Minus size={9} /> —
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            };
+
+            const groups = [
+              {
+                key: 'acquisition', label: 'Aquisição',
+                color: 'border-t-blue-500', badge: 'bg-blue-50 text-blue-700',
+                icon: <Activity size={14} className="text-blue-500" />,
+                metrics: metricGroups.acquisition.filter(m => m.available),
+              },
+              {
+                key: 'conversion', label: 'Conversão',
+                color: 'border-t-orange-500', badge: 'bg-orange-50 text-orange-700',
+                icon: <Target size={14} className="text-orange-500" />,
+                metrics: metricGroups.conversion.filter(m => m.available),
+              },
+              {
+                key: 'revenue', label: 'Orçamento',
+                color: 'border-t-emerald-500', badge: 'bg-emerald-50 text-emerald-700',
+                icon: <BarChart3 size={14} className="text-emerald-500" />,
+                metrics: metricGroups.revenue.filter(m => m.available),
+              },
+            ].filter(g => g.metrics.length > 0);
+
+            return (
+              <div className={`grid grid-cols-1 gap-4 mb-6 ${groups.length === 3 ? 'md:grid-cols-3' : groups.length === 2 ? 'md:grid-cols-2' : ''}`}>
+                {groups.map(g => (
+                  <Card key={g.key} className={`border-t-2 ${g.color} pt-3`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      {g.icon}
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{g.label}</h3>
+                    </div>
+                    {g.metrics.map(m => <MetricRow key={m.key} m={m} />)}
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* ── Analytics row: Health + Momentum + Bottleneck + Alerts ────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+
             {/* Health Score */}
             <Card className="flex items-center gap-4">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shrink-0 ${
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold shrink-0 ${
                 healthColor === 'green' ? 'bg-green-100 text-green-700' :
                 healthColor === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
                 'bg-red-100 text-red-700'
@@ -698,13 +838,52 @@ export function Dashboard() {
                 {healthScore}
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saúde do Marketing</p>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Saúde</p>
                 <p className={`text-sm font-bold ${
                   healthColor === 'green' ? 'text-green-600' :
                   healthColor === 'yellow' ? 'text-yellow-600' :
                   'text-red-600'
                 }`}>{healthStatus}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Score 0-10 baseado em tendências, eficiência e orçamento</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Score 0–10</p>
+              </div>
+            </Card>
+
+            {/* Biggest Growth / Drop */}
+            <Card className="col-span-1">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Maiores Variações</p>
+              <div className="space-y-2">
+                {momentum.growth && (momentum.growth.pct ?? 0) > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 shrink-0">
+                      <TrendingUp size={12} className="text-green-600" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-500 leading-none">Maior alta</p>
+                      <p className="text-xs font-semibold text-gray-800 truncate">{momentum.growth.label}</p>
+                    </div>
+                    <span className="ml-auto text-xs font-bold text-green-600 shrink-0">
+                      +{Math.abs(momentum.growth.pct ?? 0).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+                {momentum.drop && (momentum.drop.pct ?? 0) < 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 shrink-0">
+                      <TrendingDown size={12} className="text-red-600" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-500 leading-none">Maior queda</p>
+                      <p className="text-xs font-semibold text-gray-800 truncate">{momentum.drop.label}</p>
+                    </div>
+                    <span className="ml-auto text-xs font-bold text-red-600 shrink-0">
+                      {Math.abs(momentum.drop.pct ?? 0).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+                {(!momentum.growth || (momentum.growth.pct ?? 0) <= 0) &&
+                 (!momentum.drop  || (momentum.drop.pct  ?? 0) >= 0) && (
+                  <p className="text-xs text-gray-400">Sem variações no período</p>
+                )}
               </div>
             </Card>
 
@@ -714,30 +893,30 @@ export function Dashboard() {
               bottleneck.color === 'orange' ? 'border-l-orange-500' :
               'border-l-red-500'
             }`}>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gargalo Principal</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{bottleneck.icon}</span>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Gargalo Principal</p>
+              <div className="flex items-start gap-2">
+                <span className="text-lg mt-0.5">{bottleneck.icon}</span>
                 <div>
                   <p className="text-sm font-bold text-gray-800">{bottleneck.type}</p>
-                  <p className="text-[10px] text-gray-500 leading-tight">{bottleneck.desc}</p>
+                  <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{bottleneck.desc}</p>
                 </div>
               </div>
             </Card>
 
-            {/* Alerts Summary */}
+            {/* Alerts */}
             <Card>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Alertas</p>
-              <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Alertas</p>
+              <div className="space-y-1.5">
                 {alerts.length === 0 ? (
                   <p className="text-xs text-gray-400">Sem alertas no período</p>
                 ) : alerts.slice(0, 4).map((a, i) => (
                   <div key={i} className="flex items-start gap-1.5 text-xs">
                     {a.severity === 'critical' ? <XCircle size={12} className="text-red-500 mt-0.5 shrink-0" /> :
-                     a.severity === 'warning' ? <AlertTriangle size={12} className="text-yellow-500 mt-0.5 shrink-0" /> :
+                     a.severity === 'warning'  ? <AlertTriangle size={12} className="text-yellow-500 mt-0.5 shrink-0" /> :
                      <CheckCircle2 size={12} className="text-green-500 mt-0.5 shrink-0" />}
                     <span className={`leading-tight ${
                       a.severity === 'critical' ? 'text-red-700' :
-                      a.severity === 'warning' ? 'text-yellow-700' :
+                      a.severity === 'warning'  ? 'text-yellow-700' :
                       'text-green-700'
                     }`}>{a.msg}</span>
                   </div>
