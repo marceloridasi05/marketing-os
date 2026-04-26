@@ -297,6 +297,22 @@ export const adsBudgets = sqliteTable('ads_budgets', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const initiativeMeta = sqliteTable('initiative_meta', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
+  objective: text('objective').notNull(),
+  action: text('action').notNull(),
+  /** The strategic "why" — e.g. "Increase qualified pipeline by 30%" */
+  businessObjective: text('business_objective'),
+  /** Key from metricClassification registry — e.g. "leads", "sessions" */
+  metricKey: text('metric_key'),
+  /** Quantified expected result — e.g. "+20% leads by Q3" */
+  expectedOutcome: text('expected_outcome'),
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const dataMappings = sqliteTable('data_mappings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   siteId: integer('site_id').notNull(),

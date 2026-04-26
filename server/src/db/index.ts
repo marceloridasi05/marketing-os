@@ -273,6 +273,22 @@ try { sqlite.exec(`ALTER TABLE sites ADD COLUMN sheet_config TEXT`); } catch { /
 // JSON: { clientName, businessType, growthModel, mainObjectives }
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN client_config TEXT`); } catch { /* already exists */ }
 
+// Initiative metadata table (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS initiative_meta (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
+    objective TEXT NOT NULL,
+    action TEXT NOT NULL,
+    business_objective TEXT,
+    metric_key TEXT,
+    expected_outcome TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Data mappings table (idempotent)
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS data_mappings (

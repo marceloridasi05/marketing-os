@@ -170,6 +170,58 @@ const REGISTRY: Record<string, FunnelStage> = {
   clicks_on_post:       'retention',
 };
 
+// ─── Human-readable labels for every metric key ──────────────────────────────
+
+export const METRIC_LABELS: Record<string, string> = {
+  // Awareness
+  impressions: 'Impressões', li_impressions: 'Impressões LinkedIn',
+  ga_impressions: 'Impressões Google Ads', followers: 'Seguidores',
+  followers_gained: 'Seguidores Ganhos', page_views: 'Visualizações de Página',
+  unique_visitors: 'Visitantes Únicos', reach: 'Alcance',
+  brand_searches: 'Buscas de Marca', views: 'Views', video_views: 'Views de Vídeo',
+  // Acquisition
+  sessions: 'Sessões', users: 'Usuários', new_users: 'Novos Usuários',
+  clicks: 'Cliques', paid_clicks: 'Cliques Pagos', ga_clicks: 'Cliques Google Ads',
+  li_clicks: 'Cliques LinkedIn', organic_sessions: 'Sessões Orgânicas',
+  blog_sessions: 'Sessões Blog', ai_sessions: 'Sessões via IA',
+  traffic: 'Tráfego Total', weekly_gains: 'Ganhos Semanais',
+  // Conversion
+  leads: 'Leads', leads_generated: 'Leads Gerados', conversions: 'Conversões',
+  ga_conversions: 'Conversões Google Ads', ctr: 'CTR', ga_ctr: 'CTR Google Ads',
+  cvr: 'Taxa de Conversão', cpl: 'Custo por Lead', cpc: 'CPC',
+  signups: 'Cadastros', form_submissions: 'Envios de Formulário',
+  demos: 'Demos', trials: 'Trials', cost_per_conversion: 'Custo por Conversão',
+  // Revenue
+  cost: 'Custo', li_cost: 'Custo LinkedIn', ga_cost: 'Custo Google Ads',
+  revenue: 'Receita', mrr: 'MRR', arr: 'ARR', pipeline: 'Pipeline',
+  deals: 'Negócios Fechados', savings: 'Savings', budget: 'Budget',
+  ads_spend: 'Gasto Ads', mktg_spend: 'Gasto Marketing', roi: 'ROI', roas: 'ROAS',
+  // Retention
+  reactions: 'Reações', comments: 'Comentários', shares: 'Compartilhamentos',
+  engagement: 'Engajamento', engagement_rate: 'Taxa de Engajamento',
+  churn: 'Churn', churn_rate: 'Taxa de Churn', nps: 'NPS',
+  active_users: 'Usuários Ativos', retention_rate: 'Taxa de Retenção',
+  repeat_visits: 'Visitas Recorrentes', followers_lost: 'Seguidores Perdidos',
+};
+
+export function getMetricLabel(key: string): string {
+  return METRIC_LABELS[key] ?? key;
+}
+
+/**
+ * Grouped metric options for <select> / autocomplete inputs.
+ * Each group contains the metrics belonging to that funnel stage.
+ */
+export const METRIC_OPTION_GROUPS: { stage: FunnelStage; label: string; options: { key: string; label: string }[] }[] =
+  STAGE_ORDER.map(stage => ({
+    stage,
+    label: STAGE_META[stage].label,
+    options: Object.entries(REGISTRY)
+      .filter(([, s]) => s === stage)
+      .map(([key]) => ({ key, label: METRIC_LABELS[key] ?? key }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  }));
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
