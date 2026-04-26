@@ -13,6 +13,7 @@ import {
   Briefcase,
   Lightbulb,
   FlaskConical,
+  Layers,
   ChevronDown,
   Plus,
   Check,
@@ -38,6 +39,7 @@ const mainNav = [
 ];
 
 const bottomNav = [
+  { to: '/data-mapping', label: 'Mapeamento', icon: Layers },
   { to: '/settings', label: 'Configurações', icon: Settings },
 ];
 

@@ -297,6 +297,23 @@ export const adsBudgets = sqliteTable('ads_budgets', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const dataMappings = sqliteTable('data_mappings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  // GID of the spreadsheet tab
+  gid: text('gid').notNull(),
+  // Human-readable tab label (user-defined)
+  tabName: text('tab_name'),
+  // One of: budget, metrics, ads, linkedin, plan, experiments, custom
+  dataType: text('data_type').notNull(),
+  // 0-indexed row that contains column headers
+  headerRow: integer('header_row').default(0).notNull(),
+  // JSON: ColumnMapping[] — { index, header, meaning, year?, month? }
+  columnMappings: text('column_mappings').default('[]').notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 export const chartAnnotations = sqliteTable('chart_annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   siteId: integer('site_id'),

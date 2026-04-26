@@ -13,6 +13,7 @@ import { AdsBudgets } from './pages/AdsBudgets';
 import { Suppliers } from './pages/Suppliers';
 import { Ideas } from './pages/Ideas';
 import { Experiments } from './pages/Experiments';
+import { DataMappingPage } from './pages/DataMappingPage';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/experiments" element={<Experiments />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/data-mapping" element={<DataMappingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

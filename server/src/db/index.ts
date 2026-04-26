@@ -273,6 +273,21 @@ try { sqlite.exec(`ALTER TABLE sites ADD COLUMN sheet_config TEXT`); } catch { /
 // JSON: { clientName, businessType, growthModel, mainObjectives }
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN client_config TEXT`); } catch { /* already exists */ }
 
+// Data mappings table (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS data_mappings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    gid TEXT NOT NULL,
+    tab_name TEXT,
+    data_type TEXT NOT NULL,
+    header_row INTEGER NOT NULL DEFAULT 0,
+    column_mappings TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Migrations: add missing columns to site_data (idempotent)
 const siteDataCols = [
   'ALTER TABLE site_data ADD COLUMN paid_clicks INTEGER',
