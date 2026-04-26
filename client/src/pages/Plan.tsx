@@ -473,10 +473,11 @@ export function Plan() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const qs = siteId ? `?siteId=${siteId}` : '';
+    // api.get automatically appends ?siteId= via withSiteId(); do NOT add it manually
+    // (double param causes Express qs parser to return an array → +array = NaN → filter breaks)
     const [schedule, meta] = await Promise.all([
-      api.get<ScheduleItem[]>(`/plan-schedule${qs}`),
-      api.get<InitiativeMeta[]>(`/initiative-meta${qs}`),
+      api.get<ScheduleItem[]>('/plan-schedule'),
+      api.get<InitiativeMeta[]>('/initiative-meta'),
     ]);
     setData(schedule);
     setMetaList(meta);
@@ -488,8 +489,8 @@ export function Plan() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const qs = siteId ? `?siteId=${siteId}` : '';
-      const result = await api.post<{ success: boolean; imported: number }>(`/plan-schedule/sync${qs}`, {});
+      // api.post automatically appends ?siteId= — do NOT add manually
+      const result = await api.post<{ success: boolean; imported: number }>('/plan-schedule/sync', {});
       setLastSync(`${result.imported} celulas sincronizadas`);
       await fetchData();
     } catch { setLastSync('Erro ao sincronizar'); }

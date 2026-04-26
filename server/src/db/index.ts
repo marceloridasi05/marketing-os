@@ -364,6 +364,10 @@ try {
   sqlite.exec(`UPDATE sites SET sheet_config = '${NEW_SHEET_CONFIG}' WHERE sheet_config IS NULL`);
 } catch { /* ignore */ }
 
+// Migration: add Meta Ads columns to ads_budgets (idempotent)
+try { sqlite.exec(`ALTER TABLE ads_budgets ADD COLUMN daily_meta REAL`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE ads_budgets ADD COLUMN monthly_meta REAL`); } catch { /* already exists */ }
+
 // Migration: update budgetItems GID from old value (261492502) to correct tab (1316516870)
 try {
   const sitesWithOldGid = sqlite.prepare(`SELECT id, sheet_config FROM sites WHERE sheet_config LIKE '%261492502%'`).all() as { id: number; sheet_config: string }[];

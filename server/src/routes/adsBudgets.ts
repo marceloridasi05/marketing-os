@@ -62,6 +62,10 @@ router.post('/sync', async (req, res) => {
     // Row 18: Disponível row for 2026
     // Rows 19+: months 2026
 
+    // Detect if sheet has Meta Ads columns by scanning header row for "meta"
+    const headerLine = lines[0] ?? [];
+    const hasMeta = headerLine.some(h => h?.trim().toLowerCase().includes('meta'));
+
     let currentYear = 0;
     let imported = 0;
 
@@ -78,18 +82,23 @@ router.post('/sync', async (req, res) => {
       if (!currentYear) continue;
 
       // Disponível row (budget limits)
+      // Sheet column layout (Meta columns are optional, detected by header):
+      //   0:Label  1:dG  2:mG  3:dLI  4:mLI  [5:dMeta  6:mMeta]  5or7:dTotal  6or8:mTotalUsed  7or9:mAvail
       if (col0.toLowerCase() === 'disponível') {
+        // Detect if Meta columns are present (header row check done earlier via hasMeta)
         const record = {
           siteId,
           year: currentYear,
-          month: 0, // 0 = disponível/budget row
+          month: 0,
           dailyGoogle: parseMoney(row[1] ?? ''),
           monthlyGoogle: parseMoney(row[2] ?? ''),
           dailyLinkedin: parseMoney(row[3] ?? ''),
           monthlyLinkedin: parseMoney(row[4] ?? ''),
-          dailyTotal: parseMoney(row[5] ?? ''),
-          monthlyTotalUsed: parseMoney(row[6] ?? ''),
-          monthlyAvailable: parseMoney(row[7] ?? ''),
+          dailyMeta: hasMeta ? parseMoney(row[5] ?? '') : null,
+          monthlyMeta: hasMeta ? parseMoney(row[6] ?? '') : null,
+          dailyTotal: parseMoney(row[hasMeta ? 7 : 5] ?? ''),
+          monthlyTotalUsed: parseMoney(row[hasMeta ? 8 : 6] ?? ''),
+          monthlyAvailable: parseMoney(row[hasMeta ? 9 : 7] ?? ''),
         };
         const dispConditions = [eq(adsBudgets.year, currentYear), eq(adsBudgets.month, 0)];
         if (siteId) dispConditions.push(eq(adsBudgets.siteId, siteId));
@@ -116,9 +125,11 @@ router.post('/sync', async (req, res) => {
         monthlyGoogle: parseMoney(row[2] ?? ''),
         dailyLinkedin: parseMoney(row[3] ?? ''),
         monthlyLinkedin: parseMoney(row[4] ?? ''),
-        dailyTotal: parseMoney(row[5] ?? ''),
-        monthlyTotalUsed: parseMoney(row[6] ?? ''),
-        monthlyAvailable: parseMoney(row[7] ?? ''),
+        dailyMeta: hasMeta ? parseMoney(row[5] ?? '') : null,
+        monthlyMeta: hasMeta ? parseMoney(row[6] ?? '') : null,
+        dailyTotal: parseMoney(row[hasMeta ? 7 : 5] ?? ''),
+        monthlyTotalUsed: parseMoney(row[hasMeta ? 8 : 6] ?? ''),
+        monthlyAvailable: parseMoney(row[hasMeta ? 9 : 7] ?? ''),
       };
 
       const monthConditions = [eq(adsBudgets.year, currentYear), eq(adsBudgets.month, monthNum)];

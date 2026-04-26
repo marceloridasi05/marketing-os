@@ -291,6 +291,8 @@ export const adsBudgets = sqliteTable('ads_budgets', {
   monthlyGoogle: real('monthly_google'),
   dailyLinkedin: real('daily_linkedin'),
   monthlyLinkedin: real('monthly_linkedin'),
+  dailyMeta: real('daily_meta'),
+  monthlyMeta: real('monthly_meta'),
   dailyTotal: real('daily_total'),
   monthlyTotalUsed: real('monthly_total_used'),
   monthlyAvailable: real('monthly_available'),
