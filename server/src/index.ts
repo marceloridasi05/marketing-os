@@ -27,6 +27,7 @@ import experimentsRouter from './routes/experiments.js';
 import planScheduleRouter from './routes/planSchedule.js';
 import dataMappingsRouter from './routes/dataMappings.js';
 import initiativeMetaRouter from './routes/initiativeMeta.js';
+import insightsRouter from './routes/insights.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/experiments', experimentsRouter);
 app.use('/api/plan-schedule', planScheduleRouter);
 app.use('/api/data-mappings', dataMappingsRouter);
 app.use('/api/initiative-meta', initiativeMetaRouter);
+app.use('/api/insights', insightsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

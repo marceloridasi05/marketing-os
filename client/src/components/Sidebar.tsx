@@ -14,6 +14,7 @@ import {
   Lightbulb,
   FlaskConical,
   Layers,
+  Zap,
   ChevronDown,
   Plus,
   Check,
@@ -27,6 +28,7 @@ import { api } from '../lib/api';
 
 const mainNav = [
   { to: '/', label: 'Painel', icon: LayoutDashboard },
+  { to: '/insights', label: 'Insights', icon: Zap },
   { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
   { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
   { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
