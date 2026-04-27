@@ -10,7 +10,7 @@ import {
   siteData, adsKpis, goals, planSchedule, initiativeMeta,
   experiments, ideas, suppliers,
 } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -136,17 +136,22 @@ router.post('/', async (req, res) => {
     ]);
 
     // ── Goals ─────────────────────────────────────────────────────────────
-    await db.insert(goals).values([
-      { siteId: sid, year: 2026, month: 2, metricName: 'sessions', targetValue: 7000  },
-      { siteId: sid, year: 2026, month: 2, metricName: 'leads',    targetValue: 220   },
-      { siteId: sid, year: 2026, month: 2, metricName: 'cpl',      targetValue: 140   },
-      { siteId: sid, year: 2026, month: 3, metricName: 'sessions', targetValue: 8000  },
-      { siteId: sid, year: 2026, month: 3, metricName: 'leads',    targetValue: 230   },
-      { siteId: sid, year: 2026, month: 3, metricName: 'cpl',      targetValue: 155   },
-      { siteId: sid, year: 2026, month: 4, metricName: 'sessions', targetValue: 9000  },
-      { siteId: sid, year: 2026, month: 4, metricName: 'leads',    targetValue: 240   },
-      { siteId: sid, year: 2026, month: 4, metricName: 'cpl',      targetValue: 160   },
-    ]);
+    // Use raw SQL to populate BOTH legacy `metric` (NOT NULL) and new `metric_name`
+    const goalRows = [
+      { month: 2, metricName: 'sessions', targetValue: 7000 },
+      { month: 2, metricName: 'leads',    targetValue: 220  },
+      { month: 2, metricName: 'cpl',      targetValue: 140  },
+      { month: 3, metricName: 'sessions', targetValue: 8000 },
+      { month: 3, metricName: 'leads',    targetValue: 230  },
+      { month: 3, metricName: 'cpl',      targetValue: 155  },
+      { month: 4, metricName: 'sessions', targetValue: 9000 },
+      { month: 4, metricName: 'leads',    targetValue: 240  },
+      { month: 4, metricName: 'cpl',      targetValue: 160  },
+    ];
+    for (const g of goalRows) {
+      await db.run(sql`INSERT INTO goals (site_id, year, month, metric, metric_name, target_value)
+                       VALUES (${sid}, 2026, ${g.month}, ${g.metricName}, ${g.metricName}, ${g.targetValue})`);
+    }
 
     // ── Plan Schedule ─────────────────────────────────────────────────────
     const planRows = [
