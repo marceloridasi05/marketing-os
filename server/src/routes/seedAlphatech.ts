@@ -22,6 +22,9 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    // Disable FK checks for the duration of the seed (re-enabled at the end)
+    await db.run(sql`PRAGMA foreign_keys = OFF`);
+
     // ── Clean up existing AlphaTech site ──────────────────────────────────
     const existing = await db.select().from(sites).where(eq(sites.name, 'AlphaTech'));
     if (existing.length > 0) {
@@ -220,6 +223,8 @@ router.post('/', async (req, res) => {
       { siteId: sid, name: 'Estúdio de Conteúdo B2B',     category: 'Conteúdo',        type: 'fornecedor', notes: 'Blog, cases e materiais ricos' },
     ]);
 
+    await db.run(sql`PRAGMA foreign_keys = ON`);
+
     res.json({
       success: true,
       siteId: sid,
@@ -233,6 +238,8 @@ router.post('/', async (req, res) => {
     });
 
   } catch (err) {
+    // Always re-enable FK even on error
+    try { await db.run(sql`PRAGMA foreign_keys = ON`); } catch { /* ignore */ }
     console.error('Seed error:', err);
     res.status(500).json({ error: String(err) });
   }
