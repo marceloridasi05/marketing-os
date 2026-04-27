@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const existing = await db.select().from(sites).where(eq(sites.name, 'AlphaTech'));
     if (existing.length > 0) {
       const old = existing[0].id;
-      await db.delete(channels).where(eq(channels.siteId, old));
+      // Delete FK-referencing tables BEFORE channels, then channels, then site
       await db.delete(performanceEntries).where(eq(performanceEntries.siteId, old));
       await db.delete(budgetItems).where(eq(budgetItems.siteId, old));
       await db.delete(adsBudgets).where(eq(adsBudgets.siteId, old));
@@ -38,6 +38,7 @@ router.post('/', async (req, res) => {
       await db.delete(experiments).where(eq(experiments.siteId, old));
       await db.delete(ideas).where(eq(ideas.siteId, old));
       await db.delete(suppliers).where(eq(suppliers.siteId, old));
+      await db.delete(channels).where(eq(channels.siteId, old)); // after performanceEntries
       await db.delete(sites).where(eq(sites.id, old));
     }
 
