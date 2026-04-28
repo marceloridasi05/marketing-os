@@ -3,12 +3,33 @@ import { useSite } from '../context/SiteContext';
 import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 import {
   TrendingDown, AlertTriangle, DollarSign, Target,
-  GitBranch, RefreshCw, CheckCircle2, Zap,
+  GitBranch, RefreshCw, CheckCircle2, Zap, ChevronDown, Lightbulb, CheckSquare,
 } from 'lucide-react';
 import { STAGE_META } from '../lib/metricClassification';
 import type { FunnelStage } from '../lib/metricClassification';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+interface EvidenceMetric {
+  name: string;
+  current: number;
+  previous: number;
+  delta: number;
+  direction: 'up' | 'down' | 'stable';
+}
+
+interface Cause {
+  description: string;
+  confidence: 'high' | 'medium' | 'low';
+  evidenceMetrics: EvidenceMetric[];
+}
+
+interface SuggestedAction {
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  metrics_to_monitor: string[];
+}
 
 interface Insight {
   id: string;
@@ -20,6 +41,8 @@ interface Insight {
   stage?: string;
   delta?: number;
   period?: string;
+  causes?: Cause[];
+  suggestedActions?: SuggestedAction[];
 }
 
 interface InsightResponse {
@@ -87,6 +110,7 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [selectedUtmCampaignId, setSelectedUtmCampaignId] = useState<number | null>(null);
+  const [expandedInsightId, setExpandedInsightId] = useState<string | null>(null);
 
   async function load() {
     if (!selectedSite) return;
@@ -236,70 +260,187 @@ export default function InsightsPage() {
               const stageMeta = insight.stage
                 ? STAGE_META[insight.stage as FunnelStage]
                 : null;
+              const isExpanded = expandedInsightId === insight.id;
+              const hasCausesOrActions = (insight.causes && insight.causes.length > 0) ||
+                                         (insight.suggestedActions && insight.suggestedActions.length > 0);
 
               return (
                 <div
                   key={insight.id}
-                  className={`flex rounded-xl border ${cfg.border} ${cfg.cardBg} overflow-hidden`}
+                  className={`rounded-xl border ${cfg.border} ${cfg.cardBg} overflow-hidden transition-all`}
                 >
-                  {/* Left accent bar */}
-                  <div className={`w-1 shrink-0 ${cfg.leftBg}`} />
+                  {/* Card header */}
+                  <div className={`flex ${hasCausesOrActions ? 'cursor-pointer hover:opacity-85' : ''}`}
+                       onClick={() => hasCausesOrActions && setExpandedInsightId(isExpanded ? null : insight.id)}>
+                    {/* Left accent bar */}
+                    <div className={`w-1 shrink-0 ${cfg.leftBg}`} />
 
-                  {/* Content */}
-                  <div className="flex-1 px-4 py-3.5 space-y-2 min-w-0">
-                    {/* Title row */}
-                    <div className="flex items-start gap-2.5">
-                      <Icon size={16} className={`${cfg.iconColor} mt-0.5 shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-gray-900 leading-snug">
-                            {insight.title}
-                          </span>
-                          <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${cfg.badge}`}>
-                            {TYPE_LABEL[insight.type]}
-                          </span>
+                    {/* Content */}
+                    <div className="flex-1 px-4 py-3.5 space-y-2 min-w-0">
+                      {/* Title row */}
+                      <div className="flex items-start gap-2.5">
+                        <Icon size={16} className={`${cfg.iconColor} mt-0.5 shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold text-gray-900 leading-snug">
+                                  {insight.title}
+                                </span>
+                                <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${cfg.badge}`}>
+                                  {TYPE_LABEL[insight.type]}
+                                </span>
+                                {hasCausesOrActions && (
+                                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">
+                                    +Análise
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                                {insight.body}
+                              </p>
+                            </div>
+                            {hasCausesOrActions && (
+                              <ChevronDown
+                                size={16}
+                                className={`${cfg.iconColor} shrink-0 mt-0.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              />
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-                          {insight.body}
-                        </p>
                       </div>
+
+                      {/* Pills row */}
+                      {(insight.delta !== undefined || stageMeta || insight.period) && (
+                        <div className="flex gap-1.5 flex-wrap pl-6">
+                          {/* Delta pill */}
+                          {insight.delta !== undefined && (
+                            <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full ${
+                              insight.type === 'goal'
+                                ? 'bg-gray-100 text-gray-600'
+                                : insight.delta < 0
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {insight.type === 'goal'
+                                ? `${insight.delta}% da meta`
+                                : `${insight.delta > 0 ? '+' : ''}${insight.delta}%`
+                              }
+                            </span>
+                          )}
+
+                          {/* Stage badge */}
+                          {stageMeta && (
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${stageMeta.color}`}>
+                              {stageMeta.label}
+                            </span>
+                          )}
+
+                          {/* Period label */}
+                          {insight.period && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                              {insight.period}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    {/* Pills row */}
-                    {(insight.delta !== undefined || stageMeta || insight.period) && (
-                      <div className="flex gap-1.5 flex-wrap pl-6">
-                        {/* Delta pill */}
-                        {insight.delta !== undefined && (
-                          <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full ${
-                            insight.type === 'goal'
-                              ? 'bg-gray-100 text-gray-600'
-                              : insight.delta < 0
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {insight.type === 'goal'
-                              ? `${insight.delta}% da meta`
-                              : `${insight.delta > 0 ? '+' : ''}${insight.delta}%`
-                            }
-                          </span>
-                        )}
-
-                        {/* Stage badge */}
-                        {stageMeta && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${stageMeta.color}`}>
-                            {stageMeta.label}
-                          </span>
-                        )}
-
-                        {/* Period label */}
-                        {insight.period && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                            {insight.period}
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
+
+                  {/* Expanded content: Causes and Actions */}
+                  {isExpanded && hasCausesOrActions && (
+                    <div className="border-t px-4 py-3.5 space-y-4 bg-opacity-50">
+                      {/* Causes */}
+                      {insight.causes && insight.causes.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                            <Lightbulb size={14} className="text-amber-500" />
+                            Possíveis causas
+                          </div>
+                          <div className="space-y-2 pl-6">
+                            {insight.causes.map((cause, idx) => (
+                              <div key={idx} className="space-y-1.5 pb-2 border-b border-gray-200 last:border-0">
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1">
+                                    <p className="text-sm text-gray-700">{cause.description}</p>
+                                    <span className={`inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                      cause.confidence === 'high'
+                                        ? 'bg-green-100 text-green-700'
+                                        : cause.confidence === 'medium'
+                                          ? 'bg-amber-100 text-amber-700'
+                                          : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {cause.confidence === 'high' ? 'Alta confiança' :
+                                       cause.confidence === 'medium' ? 'Média confiança' :
+                                       'Baixa confiança'}
+                                    </span>
+                                  </div>
+                                </div>
+                                {cause.evidenceMetrics.length > 0 && (
+                                  <div className="space-y-1 text-[11px] text-gray-600">
+                                    {cause.evidenceMetrics.map((metric, mIdx) => (
+                                      <div key={mIdx} className="flex items-center gap-1">
+                                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                          metric.direction === 'up' ? 'bg-emerald-500' :
+                                          metric.direction === 'down' ? 'bg-red-500' :
+                                          'bg-gray-400'
+                                        }`} />
+                                        <span className="font-medium">{metric.name}:</span>
+                                        <span className="text-gray-500">{metric.previous} → {metric.current}</span>
+                                        <span className={`font-semibold ${
+                                          metric.delta < 0 ? 'text-red-600' :
+                                          metric.delta > 0 ? 'text-emerald-600' :
+                                          'text-gray-600'
+                                        }`}>
+                                          {metric.delta >= 0 ? '+' : ''}{Math.round(metric.delta * 100)}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Suggested Actions */}
+                      {insight.suggestedActions && insight.suggestedActions.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                            <CheckSquare size={14} className="text-indigo-500" />
+                            Ações recomendadas
+                          </div>
+                          <div className="space-y-2 pl-6">
+                            {insight.suggestedActions.map((action, idx) => (
+                              <div key={idx} className="text-sm pb-2 border-b border-gray-200 last:border-0">
+                                <div className="flex items-start gap-2 mb-1">
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                    action.priority === 'high'
+                                      ? 'bg-red-100 text-red-700'
+                                      : action.priority === 'medium'
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {action.priority === 'high' ? 'Alta' :
+                                     action.priority === 'medium' ? 'Média' :
+                                     'Baixa'}
+                                  </span>
+                                  <span className="font-medium text-gray-800">{action.title}</span>
+                                </div>
+                                <p className="text-gray-600 text-xs ml-0 leading-relaxed">{action.description}</p>
+                                {action.metrics_to_monitor && action.metrics_to_monitor.length > 0 && (
+                                  <div className="mt-1 text-[10px] text-gray-500">
+                                    <span className="font-medium">Monitorar:</span> {action.metrics_to_monitor.join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
