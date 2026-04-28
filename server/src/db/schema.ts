@@ -118,6 +118,11 @@ export const initiatives = sqliteTable('initiatives', {
   priority: text('priority').default('medium').notNull(),
   notes: text('notes'),
   engineType: text('engine_type'), // SMB | ENTERPRISE | null
+  // Impact/Effort prioritization fields
+  impactLevel: text('impact_level').default('medium').notNull(), // low, medium, high
+  effortEstimate: text('effort_estimate').default('medium').notNull(), // low, medium, high
+  priorityScore: real('priority_score'), // calculated: impact / effort
+  confidence: text('confidence').default('medium'), // high, medium, low
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -238,7 +243,12 @@ export const ideas = sqliteTable('ideas', {
   status: text('status').default('idea').notNull(), // idea, planned, executed, discarded
   executed: integer('executed', { mode: 'boolean' }).default(false).notNull(),
   executedDate: text('executed_date'),
-  priority: text('priority').default('medium'), // low, medium, high
+  priority: text('priority').default('medium'), // low, medium, high (legacy)
+  // Impact/Effort prioritization fields
+  impact: text('impact').default('medium').notNull(), // low, medium, high
+  effort: text('effort').default('medium').notNull(), // low, medium, high
+  confidenceScore: real('confidence_score'), // 0-1 scale for confidence in impact estimate
+  priorityScore: real('priority_score'), // calculated: impact / effort
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -259,6 +269,11 @@ export const experiments = sqliteTable('experiments', {
   status: text('status').default('planned').notNull(), // planned, running, completed
   successful: text('successful'), // yes, no, inconclusive, null
   category: text('category'), // Aquisição, Conversão, Retenção, Branding, Outro
+  // Impact/Effort prioritization fields
+  expectedImpact: text('expected_impact').default('medium').notNull(), // low, medium, high
+  estimatedEffort: text('estimated_effort').default('medium').notNull(), // low, medium, high
+  confidenceScore: real('confidence_score'), // 0-1 scale for confidence
+  priorityScore: real('priority_score'), // calculated: impact / effort
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
