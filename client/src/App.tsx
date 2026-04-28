@@ -16,6 +16,9 @@ import { Ideas } from './pages/Ideas';
 import { Experiments } from './pages/Experiments';
 import { DataMappingPage } from './pages/DataMappingPage';
 import InsightsPage from './pages/InsightsPage';
+import { UtmBuilder } from './pages/UtmBuilder';
+import { UtmLibrary } from './pages/UtmLibrary';
+import { UtmAttribution } from './pages/UtmAttribution';
 
 function App() {
   return (
@@ -36,6 +39,9 @@ function App() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/utm-builder" element={<UtmBuilder />} />
+          <Route path="/utm-library" element={<UtmLibrary />} />
+          <Route path="/utm-attribution" element={<UtmAttribution />} />
           <Route path="/data-mapping" element={<DataMappingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

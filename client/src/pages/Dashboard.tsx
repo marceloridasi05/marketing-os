@@ -14,6 +14,8 @@ import { STAGE_META } from '../lib/metricClassification';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
+import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
+import { CacWidget } from '../components/CacWidget';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -248,6 +250,7 @@ export function Dashboard() {
   // Sync
   const [syncing,    setSyncing]    = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [selectedUtmCampaignId, setSelectedUtmCampaignId] = useState<number | null>(null);
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -736,11 +739,18 @@ export function Dashboard() {
         }
       />
 
-      {/* Controls: Period, Funnel Model, etc. */}
+      {/* Controls: Period, Funnel Model, UTM Campaign, etc. */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <TimeFilter {...filterProps} />
         <div className="border-l border-gray-200 pl-4">
           <FunnelSelector />
+        </div>
+        <div className="border-l border-gray-200 pl-4">
+          <UtmCampaignFilter
+            onCampaignChange={setSelectedUtmCampaignId}
+            selectedCampaignId={selectedUtmCampaignId}
+            placeholder="Filter by UTM campaign..."
+          />
         </div>
       </div>
 
@@ -825,6 +835,13 @@ export function Dashboard() {
               budgetBar={budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined}
             />
           </div>
+
+          {/* ── 2.5. UTM CAC Widget ───────────────────────────────────────────────── */}
+          {selectedUtmCampaignId && (
+            <div className="mb-5">
+              <CacWidget campaignId={selectedUtmCampaignId} title="Customer Acquisition Cost (Selected Campaign)" />
+            </div>
+          )}
 
           {/* ── 3. Bottleneck + Alerts ─────────────────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSite } from '../context/SiteContext';
+import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 import {
   TrendingDown, AlertTriangle, DollarSign, Target,
   GitBranch, RefreshCw, CheckCircle2, Zap,
@@ -85,6 +86,7 @@ export default function InsightsPage() {
   const [data, setData]       = useState<InsightResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [selectedUtmCampaignId, setSelectedUtmCampaignId] = useState<number | null>(null);
 
   async function load() {
     if (!selectedSite) return;
@@ -123,7 +125,7 @@ export default function InsightsPage() {
     <div className="p-6 max-w-3xl mx-auto space-y-6">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <Zap size={20} className="text-indigo-500" />
@@ -142,15 +144,24 @@ export default function InsightsPage() {
             )}
           </p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading || !selectedSite}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg
-                     text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
+        <div className="flex items-start gap-2">
+          <div className="w-56">
+            <UtmCampaignFilter
+              onCampaignChange={setSelectedUtmCampaignId}
+              selectedCampaignId={selectedUtmCampaignId}
+              placeholder="Filter insights..."
+            />
+          </div>
+          <button
+            onClick={load}
+            disabled={loading || !selectedSite}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg
+                       text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40 whitespace-nowrap mt-0.5"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {/* ── Summary pills ───────────────────────────────────────────────────── */}

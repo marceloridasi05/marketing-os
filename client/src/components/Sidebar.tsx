@@ -71,6 +71,9 @@ const navSections: NavSection[] = [
     icon: Rocket,
     items: [
       { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+      { to: '/utm-builder', label: 'UTM Builder', icon: Zap },
+      { to: '/utm-library', label: 'UTM Library', icon: Layers },
+      { to: '/utm-attribution', label: 'UTM Attribution', icon: BarChart3 },
       { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
       { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
       { to: '/suppliers', label: 'Fornecedores & Tools', icon: Briefcase },

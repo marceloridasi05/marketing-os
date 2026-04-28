@@ -398,4 +398,142 @@ sqlite.exec(`
   )
 `);
 
+// Migration: UTM Management & Attribution Tables
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS utm_campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    source TEXT NOT NULL,
+    medium TEXT NOT NULL,
+    campaign TEXT NOT NULL,
+    content TEXT,
+    term TEXT,
+    utm_url TEXT,
+    base_url TEXT,
+    channels TEXT,
+    expected_budget REAL,
+    expected_sessions INTEGER,
+    expected_leads INTEGER,
+    expected_revenue REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_by TEXT,
+    notes TEXT
+  );
+  CREATE TABLE IF NOT EXISTS utm_ga_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    ga_session_id TEXT NOT NULL UNIQUE,
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    ga_user_id TEXT,
+    session_start TEXT NOT NULL,
+    session_end TEXT,
+    ga_source TEXT,
+    ga_medium TEXT,
+    ga_campaign TEXT,
+    session_duration_seconds INTEGER,
+    page_views INTEGER,
+    events_count INTEGER,
+    engaged_session INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_ga_conversions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    ga_session_id TEXT NOT NULL,
+    ga_user_id TEXT,
+    event_name TEXT NOT NULL,
+    event_date TEXT NOT NULL,
+    conversion_value REAL,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    event_params TEXT,
+    is_first_touch INTEGER NOT NULL DEFAULT 0,
+    is_last_touch INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_touchpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    ga_user_id TEXT NOT NULL,
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    touch_sequence INTEGER,
+    touch_date TEXT NOT NULL,
+    ga_session_id TEXT,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    utm_content TEXT,
+    utm_term TEXT,
+    touch_type TEXT,
+    sessions_to_conversion INTEGER,
+    days_to_conversion INTEGER,
+    first_touch_model_credit REAL,
+    last_touch_model_credit REAL,
+    linear_model_credit REAL,
+    time_decay_model_credit REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_attribution_models (
+    site_id INTEGER PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    primary_model TEXT NOT NULL DEFAULT 'last_touch',
+    lookback_window INTEGER NOT NULL DEFAULT 30,
+    conversion_events TEXT NOT NULL,
+    lead_to_customer_mapping TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_cac_analysis (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    first_touch_sessions INTEGER,
+    last_touch_sessions INTEGER,
+    linear_sessions INTEGER,
+    first_touch_leads INTEGER,
+    last_touch_leads INTEGER,
+    linear_leads INTEGER,
+    first_touch_conversions INTEGER,
+    last_touch_conversions INTEGER,
+    linear_conversions INTEGER,
+    first_touch_revenue REAL,
+    last_touch_revenue REAL,
+    linear_revenue REAL,
+    spend_in_period REAL,
+    first_touch_cac REAL,
+    last_touch_cac REAL,
+    linear_cac REAL,
+    roi_first_touch REAL,
+    roi_last_touch REAL,
+    roi_linear REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_library (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    source_preset TEXT,
+    medium_preset TEXT,
+    campaign_template TEXT,
+    content_options TEXT,
+    term_options TEXT,
+    usage_count INTEGER NOT NULL DEFAULT 0,
+    last_used TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+// Migration: add UTM columns to performance_entries (idempotent)
+try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN utm_campaign_id INTEGER`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN ga_session_id TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN attribution_model TEXT`); } catch { /* already exists */ }
+
 export const db = drizzle(sqlite, { schema });

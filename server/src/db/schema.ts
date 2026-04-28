@@ -44,6 +44,10 @@ export const performanceEntries = sqliteTable('performance_entries', {
   cost: real('cost'),
   notes: text('notes'),
   engineType: text('engine_type'), // SMB | ENTERPRISE | null
+  // UTM Attribution
+  utmCampaignId: integer('utm_campaign_id'), // References utm_campaigns(id) for attribution
+  gaSessionId: text('ga_session_id'), // GA4 session ID for linking
+  attributionModel: text('attribution_model'), // Which model was used for this data
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -358,4 +362,153 @@ export const customFunnels = sqliteTable('custom_funnels', {
   isDefault: integer('is_default', { mode: 'boolean' }).default(false),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+// UTM Management & Attribution Tables
+
+export const utmCampaigns = sqliteTable('utm_campaigns', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  name: text('name').notNull(), // Display name: "Q1 2026 SaaS Campaign"
+  status: text('status').default('active').notNull(), // active | archived
+  source: text('source').notNull(), // Enum: google, linkedin, facebook, direct, organic, referral, email
+  medium: text('medium').notNull(), // Enum: cpc, cpm, organic, email, social, referral, direct, none
+  campaign: text('campaign').notNull(), // Freeform: product_launch_2026
+  content: text('content'), // Variant A/B: variant_a, email_1
+  term: text('term'), // Keywords: saas_management
+  utmUrl: text('utm_url'), // Full URL with UTMs
+  baseUrl: text('base_url'), // Base URL before UTMs
+  channels: text('channels'), // JSON: ['google_ads', 'linkedin']
+  expectedBudget: real('expected_budget'),
+  expectedSessions: integer('expected_sessions'),
+  expectedLeads: integer('expected_leads'),
+  expectedRevenue: real('expected_revenue'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+  createdBy: text('created_by'),
+  notes: text('notes'),
+});
+
+export const utmGaSessions = sqliteTable('utm_ga_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  gaSessionId: text('ga_session_id').notNull().unique(), // From GA4 session_id
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id), // FK to utm_campaigns
+  gaUserId: text('ga_user_id'), // From GA4 user_id (anonymized)
+  sessionStart: text('session_start').notNull(), // ISO timestamp from GA4
+  sessionEnd: text('session_end'),
+  // GA4 session metrics
+  gaSource: text('ga_source'), // GA4 traffic_source.source
+  gaMedium: text('ga_medium'), // GA4 traffic_source.medium
+  gaCampaign: text('ga_campaign'), // GA4 traffic_source.campaign
+  sessionDurationSeconds: integer('session_duration_seconds'),
+  pageViews: integer('page_views'),
+  eventsCount: integer('events_count'),
+  // Engagement signals
+  engagedSession: integer('engaged_session', { mode: 'boolean' }).default(false), // 1 if engagement_time > threshold
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmGaConversions = sqliteTable('utm_ga_conversions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id), // FK to utm_campaigns
+  gaSessionId: text('ga_session_id').notNull(), // FK utm_ga_sessions
+  gaUserId: text('ga_user_id'),
+  // Conversion details
+  eventName: text('event_name').notNull(), // lead, signup, purchase, demo_request
+  eventDate: text('event_date').notNull(), // ISO timestamp
+  conversionValue: real('conversion_value'), // Revenue/MRR if applicable
+  currency: text('currency').default('USD').notNull(),
+  // Event parameters from GA4
+  eventParams: text('event_params'), // JSON: all GA4 event params
+  // Attribution touchpoint
+  isFirstTouch: integer('is_first_touch', { mode: 'boolean' }).default(false), // This session is first interaction
+  isLastTouch: integer('is_last_touch', { mode: 'boolean' }).default(false), // This session is final before conversion
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmTouchpoints = sqliteTable('utm_touchpoints', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  gaUserId: text('ga_user_id').notNull(), // GA4 user (tracks journey)
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id),
+  touchSequence: integer('touch_sequence'), // 1st, 2nd, 3rd touch
+  touchDate: text('touch_date').notNull(),
+  gaSessionId: text('ga_session_id'), // Which session this touch occurred in
+  // UTM values at this touch
+  utmSource: text('utm_source'),
+  utmMedium: text('utm_medium'),
+  utmCampaign: text('utm_campaign'),
+  utmContent: text('utm_content'),
+  utmTerm: text('utm_term'),
+  touchType: text('touch_type'), // 'first' | 'middle' | 'last' | 'conversion'
+  sessionsToConversion: integer('sessions_to_conversion'),
+  daysToConversion: integer('days_to_conversion'),
+  // For attribution calculation
+  firstTouchModelCredit: real('first_touch_model_credit'),
+  lastTouchModelCredit: real('last_touch_model_credit'),
+  linearModelCredit: real('linear_model_credit'),
+  timeDecayModelCredit: real('time_decay_model_credit'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmAttributionModels = sqliteTable('utm_attribution_models', {
+  siteId: integer('site_id').primaryKey(),
+  enabled: integer('enabled', { mode: 'boolean' }).default(true).notNull(),
+  primaryModel: text('primary_model').default('last_touch').notNull(), // first_touch | last_touch | linear | time_decay
+  lookbackWindow: integer('lookback_window').default(30).notNull(), // Days to attribute back
+  conversionEvents: text('conversion_events').notNull(), // JSON: ['lead', 'signup', 'purchase']
+  leadToCustomerMapping: text('lead_to_customer_mapping'), // JSON: how leads become customers
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmCacAnalysis = sqliteTable('utm_cac_analysis', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id),
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD
+  periodEnd: text('period_end').notNull(),
+  // Metrics by attribution model
+  firstTouchSessions: integer('first_touch_sessions'),
+  lastTouchSessions: integer('last_touch_sessions'),
+  linearSessions: integer('linear_sessions'),
+  firstTouchLeads: integer('first_touch_leads'),
+  lastTouchLeads: integer('last_touch_leads'),
+  linearLeads: integer('linear_leads'),
+  firstTouchConversions: integer('first_touch_conversions'),
+  lastTouchConversions: integer('last_touch_conversions'),
+  linearConversions: integer('linear_conversions'),
+  firstTouchRevenue: real('first_touch_revenue'),
+  lastTouchRevenue: real('last_touch_revenue'),
+  linearRevenue: real('linear_revenue'),
+  spendInPeriod: real('spend_in_period'), // Ad spend, budget
+  // CAC Calculations
+  firstTouchCac: real('first_touch_cac'), // spend / first_touch_leads
+  lastTouchCac: real('last_touch_cac'), // spend / last_touch_leads
+  linearCac: real('linear_cac'), // spend / linear_leads
+  // ROI Calculations
+  roiFirstTouch: real('roi_first_touch'), // revenue / spend (first-touch)
+  roiLastTouch: real('roi_last_touch'), // revenue / spend (last-touch)
+  roiLinear: real('roi_linear'), // revenue / spend (linear)
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmLibrary = sqliteTable('utm_library', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  name: text('name').notNull(), // "Product Launch Template"
+  description: text('description'),
+  // Preset values
+  sourcePreset: text('source_preset'), // google | linkedin | facebook
+  mediumPreset: text('medium_preset'), // cpc | cpm | organic
+  campaignTemplate: text('campaign_template'), // "q{quarter}_2026_launch"
+  contentOptions: text('content_options'), // JSON: [variant_a, variant_b]
+  termOptions: text('term_options'), // JSON: keywords list
+  usageCount: integer('usage_count').default(0).notNull(),
+  lastUsed: text('last_used'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });

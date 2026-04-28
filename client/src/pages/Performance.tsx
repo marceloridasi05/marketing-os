@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { Plus, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
+import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 
 // --- Types ---
 interface AdsRow {
@@ -188,6 +189,9 @@ export function Performance() {
   const [liFunnelFilter, setLiFunnelFilter] = useState('');
   const [liCampaignFilter, setLiCampaignFilter] = useState('');
 
+  // UTM filter
+  const [selectedUtmCampaignId, setSelectedUtmCampaignId] = useState<number | null>(null);
+
   useEffect(() => { api.get<Channel[]>('/channels').then(setChannels); }, []);
 
   const fetchData = useCallback(async () => {
@@ -301,9 +305,16 @@ export function Performance() {
         }
       />
 
-      {/* Time period selector */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      {/* Time period and UTM campaign selectors */}
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <TimeFilter {...filterProps} />
+        <div className="border-l border-gray-200 pl-4">
+          <UtmCampaignFilter
+            onCampaignChange={setSelectedUtmCampaignId}
+            selectedCampaignId={selectedUtmCampaignId}
+            placeholder="Filter by UTM campaign..."
+          />
+        </div>
       </div>
 
       {loading ? (
