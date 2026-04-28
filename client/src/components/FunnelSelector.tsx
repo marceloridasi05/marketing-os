@@ -34,6 +34,7 @@ export function FunnelSelector() {
           <option value="aarrr">AARRR</option>
           <option value="tofu_mofu_bofu">TOFU/MOFU/BOFU</option>
           <option value="sales_led">Sales-led</option>
+          <option value="hourglass">Hourglass</option>
         </optgroup>
       </select>
     </div>
