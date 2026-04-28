@@ -3,6 +3,14 @@ import { db } from '../db/index.js';
 import { performanceEntries, budgets, goals, sites, customFunnels } from '../db/schema.js';
 import { sql, and, eq } from 'drizzle-orm';
 import { PRESET_MODELS } from '../lib/funnelModels.js';
+import {
+  detectCauses,
+  calculateDerivedMetrics,
+  type MetricSnapshot,
+  type Cause,
+  type SuggestedAction,
+} from '../lib/causeAnalysis.js';
+import { generateActions } from '../lib/actionRecommendations.js';
 
 const router = Router();
 
@@ -21,6 +29,8 @@ export interface Insight {
   stage?: string;
   delta?: number;   // % integer — negative = drop, positive = rise
   period?: string;  // human-readable period label
+  causes?: Cause[];
+  suggestedActions?: SuggestedAction[];
 }
 
 type PerfRow = {
@@ -60,6 +70,26 @@ function monthLabel(period: string): string {
   const [y, m] = period.split('-');
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   return `${months[parseInt(m) - 1]} ${y}`;
+}
+
+/**
+ * Build MetricSnapshot from curr and prev performance rows
+ */
+function buildMetricSnapshot(curr: PerfRow, prev: PerfRow): MetricSnapshot {
+  const buildMetric = (c: number, p: number) => ({
+    current: c,
+    previous: p,
+    ratio: p !== 0 ? (c - p) / p : 0,
+  });
+
+  return {
+    impressions: buildMetric(curr.impressions, prev.impressions),
+    clicks: buildMetric(curr.clicks, prev.clicks),
+    sessions: buildMetric(curr.sessions, prev.sessions),
+    leads: buildMetric(curr.leads, prev.leads),
+    conversions: buildMetric(curr.conversions, prev.conversions),
+    cost: buildMetric(curr.cost, prev.cost),
+  };
 }
 
 // ── Route ──────────────────────────────────────────────────────────────────────
@@ -108,6 +138,10 @@ router.get('/', async (req, res) => {
   // ── 1a. Metric drops (month-over-month) ─────────────────────────────────────
 
   if (curr && prev) {
+    // Build metric snapshot for cause analysis
+    const metricSnapshot = buildMetricSnapshot(curr, prev);
+    const derivedMetrics = calculateDerivedMetrics(metricSnapshot);
+
     const checks: {
       key: string;
       label: string;
@@ -131,20 +165,30 @@ router.get('/', async (req, res) => {
       if (ratio === null) continue;
 
       if (ratio <= c.critAt) {
+        const causes = detectCauses(c.key, metricSnapshot, derivedMetrics, ratio);
+        const actions = generateActions(causes, c.key);
+
         insights.push({
           id: nextId(), type: 'drop', severity: 'critical',
           title: `Queda acentuada em ${c.label}`,
           body: `${c.label} caiu ${fmtPct(ratio)} — de ${fmtN(c.prev)} para ${fmtN(c.curr)} (${periodLabel}).`,
           metric: c.key, stage: c.stage,
           delta: Math.round(ratio * 100), period: periodLabel,
+          causes,
+          suggestedActions: actions,
         });
       } else if (ratio <= c.warnAt) {
+        const causes = detectCauses(c.key, metricSnapshot, derivedMetrics, ratio);
+        const actions = generateActions(causes, c.key);
+
         insights.push({
           id: nextId(), type: 'drop', severity: 'warning',
           title: `Queda em ${c.label}`,
           body: `${c.label} recuou ${fmtPct(ratio)} — de ${fmtN(c.prev)} para ${fmtN(c.curr)} (${periodLabel}).`,
           metric: c.key, stage: c.stage,
           delta: Math.round(ratio * 100), period: periodLabel,
+          causes,
+          suggestedActions: actions,
         });
       }
     }
@@ -157,12 +201,17 @@ router.get('/', async (req, res) => {
       costRatio > 0.15 && leadsRatio < 0.05 &&
       prev.cost > 200
     ) {
+      const causes = detectCauses('cost', metricSnapshot, derivedMetrics, costRatio, /* budgetRatio */ undefined);
+      const actions = generateActions(causes, 'cost');
+
       insights.push({
         id: nextId(), type: 'spend', severity: 'critical',
         title: 'Gasto cresceu sem retorno em leads',
         body: `Custo subiu ${fmtPct(costRatio)} enquanto leads ficaram estagnados (${fmtPct(leadsRatio)}). Revise segmentação e qualidade dos anúncios.`,
         metric: 'cost', stage: 'conversion',
         delta: Math.round(costRatio * 100), period: periodLabel,
+        causes,
+        suggestedActions: actions,
       });
     }
   }
@@ -174,12 +223,20 @@ router.get('/', async (req, res) => {
     const cplPrev = prev.cost / prev.leads;
     const cplRatio = deltaRatio(cplCurr, cplPrev);
     if (cplRatio !== null && cplRatio > 0.25) {
+      // Build metric snapshot for cause analysis
+      const metricSnapshot = buildMetricSnapshot(curr, prev);
+      const derivedMetrics = calculateDerivedMetrics(metricSnapshot);
+      const causes = detectCauses('cpl', metricSnapshot, derivedMetrics, cplRatio);
+      const actions = generateActions(causes, 'cpl');
+
       insights.push({
         id: nextId(), type: 'spend', severity: 'warning',
         title: 'CPL em alta',
         body: `Custo por Lead subiu ${fmtPct(cplRatio)} — de ${fmtCurr(cplPrev)} para ${fmtCurr(cplCurr)} (${periodLabel}).`,
         metric: 'cpl', stage: 'conversion',
         delta: Math.round(cplRatio * 100), period: periodLabel,
+        causes,
+        suggestedActions: actions,
       });
     }
   }
@@ -268,13 +325,31 @@ router.get('/', async (req, res) => {
   if (bRow && bRow.totalPlanned > 0) {
     const budgetRatio = bRow.totalActual / bRow.totalPlanned;
     if (budgetRatio > 1.15) {
-      insights.push({
+      const insightData: Insight = {
         id: nextId(), type: 'spend', severity: 'warning',
         title: 'Orçamento excedido',
         body: `Gasto atual ${fmtCurr(bRow.totalActual)} está ${Math.round((budgetRatio - 1) * 100)}% acima do planejado ${fmtCurr(bRow.totalPlanned)}.`,
         metric: 'budget', stage: 'revenue',
         delta: Math.round((budgetRatio - 1) * 100),
-      });
+      };
+
+      // Add cause analysis if we have historical data
+      if (curr && prev) {
+        const metricSnapshot = buildMetricSnapshot(curr, prev);
+        const derivedMetrics = calculateDerivedMetrics(metricSnapshot);
+        const overrunDelta = budgetRatio - 1;
+        const overrunCauses = detectCauses('budget', metricSnapshot, derivedMetrics, overrunDelta, budgetRatio);
+        const overrunActions = generateActions(overrunCauses, 'budget');
+
+        if (overrunCauses.length > 0) {
+          insightData.causes = overrunCauses;
+        }
+        if (overrunActions.length > 0) {
+          insightData.suggestedActions = overrunActions;
+        }
+      }
+
+      insights.push(insightData);
     } else if (monthProgress > 0.6 && budgetRatio < 0.4) {
       insights.push({
         id: nextId(), type: 'spend', severity: 'info',
