@@ -304,7 +304,7 @@ sqlite.exec(`
   )
 `);
 
-// Migrations: add missing columns to site_data (idempotent)
+// Migrations: add missing columns to site_data and other tables (idempotent)
 const siteDataCols = [
   'ALTER TABLE site_data ADD COLUMN paid_clicks INTEGER',
   'ALTER TABLE site_data ADD COLUMN unpaid_sessions INTEGER',
@@ -320,6 +320,12 @@ const siteDataCols = [
   'ALTER TABLE performance_entries ADD COLUMN engine_type TEXT',
   'ALTER TABLE budgets ADD COLUMN engine_type TEXT',
   'ALTER TABLE initiatives ADD COLUMN engine_type TEXT',
+  // UTM Preset Enforcement: add new columns to channels
+  'ALTER TABLE channels ADD COLUMN site_id INTEGER',
+  'ALTER TABLE channels ADD COLUMN is_standard INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE channels ADD COLUMN mapping_rule TEXT',
+  'ALTER TABLE channels ADD COLUMN allow_custom_names INTEGER NOT NULL DEFAULT 1',
+  // UTM Preset Enforcement: utm_campaigns new columns (already added in CREATE TABLE IF NOT EXISTS)
 ];
 for (const stmt of siteDataCols) {
   try { sqlite.exec(stmt); } catch { /* already exists */ }
@@ -398,6 +404,31 @@ sqlite.exec(`
   )
 `);
 
+// Migration: UTM Preset Enforcement - Enum tables (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS utm_source_enum (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    source TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    icon TEXT,
+    category TEXT,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_medium_enum (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    medium TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    cost_type TEXT,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Migration: UTM Management & Attribution Tables
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS utm_campaigns (
@@ -417,6 +448,12 @@ sqlite.exec(`
     expected_sessions INTEGER,
     expected_leads INTEGER,
     expected_revenue REAL,
+    source_enum_id INTEGER REFERENCES utm_source_enum(id),
+    medium_enum_id INTEGER REFERENCES utm_medium_enum(id),
+    mapped_channel_id INTEGER REFERENCES channels(id),
+    campaign_normalized TEXT,
+    is_duplicate INTEGER NOT NULL DEFAULT 0,
+    duplicate_of INTEGER REFERENCES utm_campaigns(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_by TEXT,
@@ -528,6 +565,26 @@ sqlite.exec(`
     usage_count INTEGER NOT NULL DEFAULT 0,
     last_used TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS channel_mappings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    source TEXT NOT NULL,
+    medium TEXT NOT NULL,
+    mapped_channel_id INTEGER NOT NULL REFERENCES channels(id),
+    is_automatic INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS campaign_normalization_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    pattern TEXT NOT NULL,
+    replacement TEXT NOT NULL,
+    description TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS api_credentials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -800,6 +857,16 @@ sqlite.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
+
+// Indexes for UTM Preset Enforcement tables
+try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_source_enum_site_source_idx ON utm_source_enum(site_id, source)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_medium_enum_site_medium_idx ON utm_medium_enum(site_id, medium)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS channel_mappings_site_source_medium_idx ON channel_mappings(site_id, source, medium)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_source_enum_idx ON utm_campaigns(source_enum_id)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_medium_enum_idx ON utm_campaigns(medium_enum_id)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_mapped_channel_idx ON utm_campaigns(mapped_channel_id)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_site_duplicate_idx ON utm_campaigns(site_id, is_duplicate)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS campaign_normalization_rules_site_idx ON campaign_normalization_rules(site_id, active)`); } catch { /* already exists */ }
 
 // Indexes for Growth Loops tables
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_metrics_site_loop_period_idx ON growth_loop_metrics(site_id, loop_id, period_start)`); } catch { /* already exists */ }

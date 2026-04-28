@@ -18,10 +18,23 @@ interface CACMetrics {
   previousCAC?: number;
 }
 
-interface LTVCACRatio {
-  ratio: number;
-  healthStatus: 'healthy' | 'warning' | 'critical';
-  healthScore: number;
+interface LTVCACRatioResponse {
+  siteId: number;
+  summary: {
+    overallHealth: 'healthy' | 'warning' | 'critical';
+    averageRatio: number;
+    count: number;
+  };
+  data: Array<{
+    period: string;
+    segment: string;
+    segmentType: string;
+    ltv: number;
+    estimatedCAC: number;
+    ratio: number;
+    healthStatus: 'healthy' | 'warning' | 'critical';
+    healthScore: number;
+  }>;
 }
 
 interface Insight {
@@ -42,7 +55,7 @@ export function UnitEconomicsWidget() {
   const siteId = selectedSite?.id || 1;
 
   const [cacMetrics, setCacMetrics] = useState<CACMetrics[]>([]);
-  const [ratios, setRatios] = useState<LTVCACRatio | null>(null);
+  const [ratios, setRatios] = useState<LTVCACRatioResponse | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,11 +68,17 @@ export function UnitEconomicsWidget() {
           fetch(`/api/unit-economics/insights?siteId=${siteId}`),
         ]);
 
-        if (cacRes.ok) setCacMetrics(await cacRes.json());
-        if (ratioRes.ok) setRatios(await ratioRes.json());
+        if (cacRes.ok) {
+          const cacData = await cacRes.json();
+          setCacMetrics(Array.isArray(cacData) ? cacData : cacData.data || []);
+        }
+        if (ratioRes.ok) {
+          const ratioData = await ratioRes.json();
+          setRatios(ratioData);
+        }
         if (insightRes.ok) {
           const data = await insightRes.json();
-          setInsights(Array.isArray(data) ? data : []);
+          setInsights(Array.isArray(data) ? data : data.data || []);
         }
       } catch (err) {
         console.error('Failed to load unit economics widget:', err);
@@ -80,7 +99,7 @@ export function UnitEconomicsWidget() {
   const criticalInsights = insights.filter(i => i.severity === 'critical').length;
   const warningInsights = insights.filter(i => i.severity === 'warning').length;
 
-  const healthStatus = ratios?.healthStatus || 'neutral';
+  const healthStatus = ratios?.summary.overallHealth || 'neutral';
   const healthColors = {
     healthy: 'bg-emerald-50 border-emerald-200',
     warning: 'bg-amber-50 border-amber-200',
@@ -117,11 +136,11 @@ export function UnitEconomicsWidget() {
       </div>
 
       {/* LTV/CAC Ratio */}
-      {ratios && (
+      {ratios && ratios.summary.averageRatio > 0 && (
         <div className="space-y-2 border-t border-gray-200 pt-3">
           <div className="flex items-baseline justify-between">
             <span className="text-sm font-medium text-gray-600">LTV/CAC Ratio</span>
-            <span className="text-2xl font-bold text-gray-900">{ratios.ratio.toFixed(1)}x</span>
+            <span className="text-2xl font-bold text-gray-900">{ratios.summary.averageRatio.toFixed(1)}x</span>
           </div>
           <div className="flex items-center gap-2">
             <div
@@ -137,7 +156,7 @@ export function UnitEconomicsWidget() {
               {healthStatus === 'warning' && '⚠ Warning'}
               {healthStatus === 'critical' && '✗ Critical'}
             </div>
-            <span className="text-xs text-gray-500">{Math.round(ratios.healthScore)}/100</span>
+            <span className="text-xs text-gray-500">{ratios.data.length > 0 ? Math.round((ratios.data[0]?.healthScore || 0) * 100) / 100 : '—'}/100</span>
           </div>
         </div>
       )}

@@ -22,6 +22,10 @@ export const channels = sqliteTable('channels', {
   name: text('name').notNull(),
   category: text('category').notNull(),
   active: integer('active', { mode: 'boolean' }).default(true).notNull(),
+  // NEW: UTM Preset Enforcement
+  isStandard: integer('is_standard', { mode: 'boolean' }).default(false).notNull(), // Predefined channel
+  mappingRule: text('mapping_rule'), // JSON: { source, medium } combinations that map to this channel
+  allowCustomNames: integer('allow_custom_names', { mode: 'boolean' }).default(true).notNull(), // Allow campaigns outside presets
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
@@ -379,6 +383,31 @@ export const customFunnels = sqliteTable('custom_funnels', {
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+// ── UTM Preset Enforcement: Enums ────────────────────────────────────────────
+
+export const utmSourceEnum = sqliteTable('utm_source_enum', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  source: text('source').notNull(), // google, linkedin, facebook, direct, organic, referral, email
+  displayName: text('display_name').notNull(), // "Google Ads", "LinkedIn Ads", etc.
+  icon: text('icon'), // icon identifier for UI
+  category: text('category'), // paid, organic, direct
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmMediumEnum = sqliteTable('utm_medium_enum', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  medium: text('medium').notNull(), // cpc, cpm, organic, email, social, referral, direct, none
+  displayName: text('display_name').notNull(), // "Cost Per Click", "Cost Per Mille", etc.
+  costType: text('cost_type'), // paid, organic, direct
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false).notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 // UTM Management & Attribution Tables
 
 export const utmCampaigns = sqliteTable('utm_campaigns', {
@@ -398,6 +427,16 @@ export const utmCampaigns = sqliteTable('utm_campaigns', {
   expectedSessions: integer('expected_sessions'),
   expectedLeads: integer('expected_leads'),
   expectedRevenue: real('expected_revenue'),
+  // NEW: UTM Preset Enforcement - Enum Validation
+  sourceEnumId: integer('source_enum_id').references(() => utmSourceEnum.id), // FK to source enum
+  mediumEnumId: integer('medium_enum_id').references(() => utmMediumEnum.id), // FK to medium enum
+  // NEW: Channel Mapping
+  mappedChannelId: integer('mapped_channel_id').references(() => channels.id), // Standardized channel from mapping
+  // NEW: Campaign Normalization
+  campaignNormalized: text('campaign_normalized'), // Normalized campaign name (lowercase, slugified)
+  // NEW: Duplicate Detection
+  isDuplicate: integer('is_duplicate', { mode: 'boolean' }).default(false).notNull(),
+  duplicateOf: integer('duplicate_of'), // FK to primary campaign if duplicate (self-reference, validated at application level)
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
   createdBy: text('created_by'),
@@ -526,6 +565,30 @@ export const utmLibrary = sqliteTable('utm_library', {
   usageCount: integer('usage_count').default(0).notNull(),
   lastUsed: text('last_used'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+// ── UTM Preset Enforcement: Mappings & Rules ────────────────────────────────────
+
+export const channelMappings = sqliteTable('channel_mappings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  source: text('source').notNull(), // From utmSourceEnum
+  medium: text('medium').notNull(), // From utmMediumEnum
+  mappedChannelId: integer('mapped_channel_id').notNull().references(() => channels.id),
+  isAutomatic: integer('is_automatic', { mode: 'boolean' }).default(true).notNull(), // System vs user-defined
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const campaignNormalizationRules = sqliteTable('campaign_normalization_rules', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  pattern: text('pattern').notNull(), // Regex pattern: "linkedin_ads|linkedin-ads|linkedinads"
+  replacement: text('replacement').notNull(), // Normalized value: "linkedin"
+  description: text('description'), // "Normalize LinkedIn campaign variations"
+  active: integer('active', { mode: 'boolean' }).default(true).notNull(),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
 
 // ── Google Search Console Integration ────────────────────────────────────────

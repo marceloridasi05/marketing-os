@@ -75,8 +75,10 @@ export function CacWidget({
     );
   }
 
-  const cacStatus = cacData.cac > 100 ? 'high' : cacData.cac > 50 ? 'medium' : 'good';
-  const roiStatus = cacData.roi > 2 ? 'excellent' : cacData.roi > 1 ? 'good' : 'poor';
+  const cac = cacData?.cac ?? 0;
+  const roi = cacData?.roi ?? 0;
+  const cacStatus = cac > 100 ? 'high' : cac > 50 ? 'medium' : 'good';
+  const roiStatus = roi > 2 ? 'excellent' : roi > 1 ? 'good' : 'poor';
 
   return (
     <Card className="p-6">
@@ -90,13 +92,13 @@ export function CacWidget({
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <p className="text-xs font-medium text-gray-600 mb-1">CAC</p>
-          <p className="text-3xl font-bold text-gray-900">${cacData.cac.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-gray-900">${cac.toFixed(2)}</p>
           <p className="text-xs text-gray-500 mt-1">Cost per lead</p>
         </div>
         <div>
           <p className="text-xs font-medium text-gray-600 mb-1">ROI</p>
-          <p className={`text-3xl font-bold ${cacData.roi > 1 ? 'text-green-600' : 'text-red-600'}`}>
-            {(cacData.roi * 100).toFixed(0)}%
+          <p className={`text-3xl font-bold ${roi > 1 ? 'text-green-600' : 'text-red-600'}`}>
+            {(roi * 100).toFixed(0)}%
           </p>
           <p className="text-xs text-gray-500 mt-1">Return on spend</p>
         </div>
