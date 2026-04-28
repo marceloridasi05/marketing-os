@@ -1,7 +1,11 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
+import { FunnelSelector } from '../components/FunnelSelector';
+import { ModeToggle, useDashboardMode } from '../components/ModeToggle';
 import { api } from '../lib/api';
+import { useFunnel } from '../context/FunnelContext';
+import { groupByStageInModel, getStageMetaInModel } from '../lib/metricClassification';
 import {
   TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink,
   AlertTriangle, CheckCircle2, XCircle, Eye, EyeOff, RefreshCw, Target, ArrowRight,
@@ -127,15 +131,22 @@ function fmtV(v: number | null, fmt: 'num' | 'money' | 'pct'): string {
 
 interface ObjectiveCardProps {
   title: string;
-  stage: 'acquisition' | 'conversion' | 'revenue';
+  stageId: string;
+  stageMeta: { label: string; color: string; borderColor: string; iconColor: string } | null;
   status: ObjStatus;
   hero: MetricSpec;
   metrics: MetricSpec[];
   budgetBar?: { planned: number; actual: number };
 }
 
-function ObjectiveCard({ title, stage, status, hero, metrics, budgetBar }: ObjectiveCardProps) {
-  const meta = STAGE_META[stage];
+function ObjectiveCard({ title, stageId, stageMeta, status, hero, metrics, budgetBar }: ObjectiveCardProps) {
+  // Fallback to gray colors if stage metadata not available
+  const meta = stageMeta || {
+    label: title,
+    color: 'bg-gray-100 text-gray-700 border-gray-200',
+    borderColor: 'border-t-gray-300',
+    iconColor: 'text-gray-500',
+  };
   return (
     <div className={`bg-white rounded-xl border border-gray-200 border-t-2 ${meta.borderColor} p-4 flex flex-col`}>
       {/* Header */}
@@ -203,6 +214,8 @@ function ObjectiveCard({ title, stage, status, hero, metrics, budgetBar }: Objec
 
 export function Dashboard() {
   const { timePeriod, dateRange, filterProps } = useTimeFilter('this_year');
+  const { funnelConfig, funnelModelId } = useFunnel();
+  const { mode: dashboardMode, setMode: setDashboardMode } = useDashboardMode();
   const [loading, setLoading] = useState(true);
 
   const [siteData,    setSiteData]    = useState<SiteRow[]>([]);
@@ -707,7 +720,8 @@ export function Dashboard() {
         title="Painel"
         description="Visão por objetivo de negócio"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <ModeToggle mode={dashboardMode} onModeChange={setDashboardMode} />
             <button onClick={handleSyncAll} disabled={syncing || loading}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 disabled:opacity-50 border border-gray-200 transition-colors">
               {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -722,9 +736,12 @@ export function Dashboard() {
         }
       />
 
-      {/* Period filter */}
+      {/* Controls: Period, Funnel Model, etc. */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <TimeFilter {...filterProps} />
+        <div className="border-l border-gray-200 pl-4">
+          <FunnelSelector />
+        </div>
       </div>
 
       {/* Sync status */}
