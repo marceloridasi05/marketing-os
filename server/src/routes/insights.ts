@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { performanceEntries, budgets, goals } from '../db/schema.js';
+import { performanceEntries, budgets, goals, sites, customFunnels } from '../db/schema.js';
 import { sql, and, eq } from 'drizzle-orm';
+import { PRESET_MODELS } from '../lib/funnelModels.js';
 
 const router = Router();
 
@@ -330,7 +331,71 @@ router.get('/', async (req, res) => {
   const order: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
   insights.sort((a, b) => order[a.severity] - order[b.severity]);
 
-  res.json({ insights, generatedAt: new Date().toISOString() });
+  // Load site's funnel model and map insights to stage IDs
+  const site = await db.select().from(sites).where(eq(sites.id, siteId)).limit(1);
+  const funnelModelId = site[0]?.funnelModelId ?? 'sales_led';
+
+  // Build metric-to-stage mapping for the selected model
+  let metricToStage: Record<string, string> = {};
+
+  // Check if it's a preset model
+  if (PRESET_MODELS[funnelModelId as keyof typeof PRESET_MODELS]) {
+    const model = PRESET_MODELS[funnelModelId as keyof typeof PRESET_MODELS];
+    for (const [stageId, metrics] of Object.entries(model.stageToMetrics)) {
+      for (const metric of metrics) {
+        metricToStage[metric] = stageId;
+      }
+    }
+  } else {
+    // Otherwise try to load as custom funnel
+    const customId = parseInt(funnelModelId);
+    if (!isNaN(customId)) {
+      const custom = await db
+        .select()
+        .from(customFunnels)
+        .where(and(
+          eq(customFunnels.id, customId),
+          eq(customFunnels.siteId, siteId)
+        ))
+        .limit(1);
+
+      if (custom[0]) {
+        const mapping = JSON.parse(custom[0].stageToMetrics);
+        for (const [stageId, metrics] of Object.entries(mapping)) {
+          for (const metric of metrics as string[]) {
+            metricToStage[metric] = stageId;
+          }
+        }
+      }
+    }
+  }
+
+  // Map insight metrics to stage IDs in the selected funnel
+  for (const insight of insights) {
+    if (insight.metric) {
+      const stageId = metricToStage[insight.metric];
+      if (stageId) {
+        insight.stage = stageId;
+      }
+    }
+  }
+
+  // Group insights by stage
+  const stageInsights: Record<string, Insight[]> = {};
+  for (const insight of insights) {
+    const stageId = insight.stage || 'uncategorized';
+    if (!stageInsights[stageId]) {
+      stageInsights[stageId] = [];
+    }
+    stageInsights[stageId].push(insight);
+  }
+
+  res.json({
+    funnelModelId,
+    stageInsights,
+    insights, // Keep flat array for backward compatibility
+    generatedAt: new Date().toISOString(),
+  });
 });
 
 export default router;
