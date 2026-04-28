@@ -21,6 +21,10 @@ import { UtmLibrary } from './pages/UtmLibrary';
 import { UtmAttribution } from './pages/UtmAttribution';
 import SearchConsolePage from './pages/SearchConsole';
 import GscOAuthCallback from './pages/GscOAuthCallback';
+import UnitEconomicsPage from './pages/UnitEconomics';
+import UnitEconomicsConfig from './pages/UnitEconomicsConfig';
+import GrowthLoopsPage from './pages/GrowthLoops';
+import GrowthLoopsConfig from './pages/GrowthLoopsConfig';
 
 function App() {
   return (
@@ -46,6 +50,10 @@ function App() {
           <Route path="/utm-attribution" element={<UtmAttribution />} />
           <Route path="/search-console" element={<SearchConsolePage />} />
           <Route path="/gsc-callback" element={<GscOAuthCallback />} />
+          <Route path="/unit-economics" element={<UnitEconomicsPage />} />
+          <Route path="/unit-economics-config" element={<UnitEconomicsConfig />} />
+          <Route path="/growth-loops" element={<GrowthLoopsPage />} />
+          <Route path="/growth-loops-config" element={<GrowthLoopsConfig />} />
           <Route path="/data-mapping" element={<DataMappingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

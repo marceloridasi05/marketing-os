@@ -17,6 +17,8 @@ import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 import { CacWidget } from '../components/CacWidget';
 import { ExecutionPriority } from '../components/ExecutionPriority';
+import { UnitEconomicsWidget } from '../components/UnitEconomicsWidget';
+import GrowthLoopWidget from '../components/GrowthLoopWidget';
 import { useSite } from '../context/SiteContext';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -920,6 +922,18 @@ export function Dashboard() {
           {selectedSite && (
             <div className="mb-5">
               <ExecutionPriority siteId={selectedSite.id} />
+            </div>
+          )}
+
+          {/* ── 3.6. Unit Economics Summary ────────────────────────────────────────── */}
+          <div className="mb-5">
+            <UnitEconomicsWidget />
+          </div>
+
+          {/* ── 3.7. Growth Loops Summary ──────────────────────────────────────── */}
+          {selectedSite && (
+            <div className="mb-5">
+              <GrowthLoopWidget siteId={selectedSite.id} />
             </div>
           )}
 

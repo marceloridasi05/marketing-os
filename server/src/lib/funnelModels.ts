@@ -79,6 +79,10 @@ export const AIDA_MODEL: FunnelModel = {
       'paid_clicks', 'organic_sessions', 'traffic', 'unpaid_sessions',
       'blog_sessions', 'ai_sessions', 'weekly_gains',
       'engagement', 'engagement_rate', 'reactions', 'comments', 'shares',
+      // Unit Economics - Acquisition
+      'cac', 'cpc', 'ga_cpc', 'li_cpc', 'customer_acquisition_count', 'cac_trend',
+      // Growth Loops - Input & Action metrics
+      'loop_input_volume', 'loop_action_count', 'loop_action_conversion_rate',
     ],
     desire: [
       'leads', 'leads_generated', 'form_submissions', 'signups',
@@ -89,6 +93,12 @@ export const AIDA_MODEL: FunnelModel = {
       'conversions', 'ga_conversions', 'cvr', 'ga_cvr',
       'revenue', 'mrr', 'arr', 'deals', 'cost', 'ga_cost', 'li_cost',
       'roi', 'roas', 'savings',
+      // Unit Economics - Revenue & LTV metrics
+      'aov', 'ltv', 'ltv_cac_ratio', 'payback_months', 'churn_rate', 'monthly_arpu',
+      // Growth Loops - Output, efficiency & health metrics
+      'loop_output_count', 'loop_output_revenue', 'loop_cycle_time',
+      'loop_cac', 'loop_ltv', 'loop_ltv_cac_ratio', 'loop_payback_months',
+      'loop_health_score', 'loop_strength', 'loop_volume_growth',
     ],
   },
 };
@@ -151,6 +161,10 @@ export const AARRR_MODEL: FunnelModel = {
       'new_users', 'signups', 'traffic', 'clicks', 'ga_clicks', 'li_clicks',
       'impressions', 'ga_impressions', 'li_impressions', 'sessions',
       'paid_clicks', 'organic_sessions', 'unpaid_sessions', 'weekly_gains',
+      // Unit Economics - CAC metrics
+      'cac', 'cpc', 'ga_cpc', 'li_cpc', 'customer_acquisition_count', 'cac_trend',
+      // Growth Loops - Input & acquisition metrics
+      'loop_input_volume', 'loop_action_count', 'loop_cac', 'loop_volume_growth',
     ],
     activation: [
       'active_users', 'engagement', 'engagement_rate', 'form_submissions',
@@ -161,11 +175,19 @@ export const AARRR_MODEL: FunnelModel = {
       'conversions', 'ga_conversions', 'revenue', 'mrr', 'arr', 'pipeline',
       'deals', 'cost', 'ga_cost', 'li_cost', 'roi', 'roas',
       'cost_per_conversion', 'ga_cost_per_conversion',
+      // Unit Economics - LTV & AOV metrics
+      'aov', 'ltv', 'ltv_cac_ratio', 'payback_months', 'monthly_arpu',
+      // Growth Loops - Output & monetization metrics
+      'loop_output_count', 'loop_output_revenue', 'loop_ltv', 'loop_ltv_cac_ratio',
     ],
     retention: [
       'active_users', 'repeat_visits', 'churn', 'churn_rate',
       'engagement', 'engagement_rate', 'nps',
       'retention_rate', 'followers', 'followers_lost',
+      // Unit Economics - Retention & LTV metrics
+      'churn_rate', 'ltv', 'ltv_cac_ratio', 'payback_months', 'monthly_arpu',
+      // Growth Loops - Sustainability & health metrics
+      'loop_health_score', 'loop_strength', 'loop_payback_months', 'loop_cycle_time',
     ],
     referral: [
       'brand_searches', 'reach', 'followers', 'followers_gained',
@@ -221,12 +243,20 @@ export const TOFU_MOFU_BOFU_MODEL: FunnelModel = {
       'form_submissions', 'signups', 'demos', 'engagement',
       'engagement_rate', 'reactions', 'comments', 'shares',
       'ctr', 'ga_ctr', 'cpl', 'cpc',
+      // Unit Economics - CAC metrics
+      'cac', 'customer_acquisition_count', 'cac_trend',
+      // Growth Loops - Middle funnel metrics
+      'loop_action_count', 'loop_action_conversion_rate', 'loop_cac',
     ],
     bofu: [
       'trials', 'proposals', 'pipeline', 'conversions', 'ga_conversions',
       'cvr', 'ga_cvr', 'deals', 'revenue', 'mrr', 'arr',
       'cost', 'ga_cost', 'li_cost', 'cost_per_conversion',
       'roi', 'roas',
+      // Unit Economics - LTV & AOV metrics
+      'aov', 'ltv', 'ltv_cac_ratio', 'payback_months', 'monthly_arpu', 'churn_rate',
+      // Growth Loops - Bottom funnel efficiency metrics
+      'loop_output_count', 'loop_output_revenue', 'loop_ltv_cac_ratio', 'loop_payback_months', 'loop_health_score',
     ],
   },
 };
@@ -289,6 +319,10 @@ export const SALES_LED_MODEL: FunnelModel = {
       'form_submissions', 'signups', 'leads', 'leads_generated',
       'sessions', 'clicks', 'ga_clicks', 'paid_clicks',
       'impressions', 'ga_impressions', 'weekly_gains',
+      // Unit Economics - CAC metrics
+      'cac', 'cpc', 'ga_cpc', 'customer_acquisition_count', 'cac_trend',
+      // Growth Loops - Lead generation metrics
+      'loop_input_volume', 'loop_action_count', 'loop_cac', 'loop_volume_growth',
     ],
     mql: [
       'engagement', 'engagement_rate', 'email_opens', 'email_clicks',
@@ -307,6 +341,11 @@ export const SALES_LED_MODEL: FunnelModel = {
       'deals', 'conversions', 'ga_conversions', 'revenue',
       'mrr', 'arr', 'acv', 'cost', 'roi', 'roas',
       'cvr', 'ga_cvr',
+      // Unit Economics - LTV & AOV metrics
+      'aov', 'ltv', 'ltv_cac_ratio', 'payback_months', 'monthly_arpu', 'churn_rate',
+      // Growth Loops - Deal & revenue metrics
+      'loop_output_count', 'loop_output_revenue', 'loop_ltv', 'loop_ltv_cac_ratio', 'loop_payback_months',
+      'loop_health_score', 'loop_strength',
     ],
   },
 };
@@ -400,6 +439,10 @@ export const HOURGLASS_MODEL: FunnelModel = {
       'weekly_gains', 'unpaid_sessions',
       'engagement', 'engagement_rate', 'reactions', 'comments', 'shares',
       'gsc_clicks', 'gsc_ctr',
+      // Unit Economics - Click/Traffic cost metrics
+      'cpc', 'ga_cpc', 'li_cpc', 'cac_trend',
+      // Growth Loops - Input & traffic volume metrics
+      'loop_input_volume', 'loop_action_count', 'loop_action_conversion_rate', 'loop_volume_growth',
     ],
     // Consideration: Lead generation and qualification
     consideration: [
@@ -414,6 +457,11 @@ export const HOURGLASS_MODEL: FunnelModel = {
       'revenue', 'mrr', 'arr', 'deals',
       'cost', 'ga_cost', 'li_cost',
       'roi', 'roas', 'pipeline',
+      // Unit Economics - CAC & LTV metrics at conversion point
+      'cac', 'cpc', 'aov', 'ltv', 'ltv_cac_ratio', 'customer_acquisition_count', 'payback_months',
+      // Growth Loops - Output & efficiency metrics (core loop performance)
+      'loop_output_count', 'loop_output_revenue', 'loop_cac', 'loop_ltv', 'loop_ltv_cac_ratio',
+      'loop_payback_months', 'loop_cycle_time',
     ],
     // Retention: Customer loyalty and engagement
     retention: [
@@ -421,6 +469,10 @@ export const HOURGLASS_MODEL: FunnelModel = {
       'churn', 'churn_rate', 'nps', 'retention_rate',
       'reactions', 'comments', 'shares',
       'followers', 'followers_lost',
+      // Unit Economics - Lifetime value & churn metrics
+      'ltv', 'ltv_cac_ratio', 'churn_rate', 'monthly_arpu', 'payback_months',
+      // Growth Loops - Health, sustainability & loop quality metrics
+      'loop_health_score', 'loop_strength', 'loop_is_self_sustaining', 'loop_cycle_time',
     ],
     // Expansion: Account growth and revenue increase
     expansion: [

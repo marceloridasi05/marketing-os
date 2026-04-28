@@ -593,4 +593,219 @@ try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN utm_campaign_id IN
 try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN ga_session_id TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN attribution_model TEXT`); } catch { /* already exists */ }
 
+// Migration: Unit Economics Tables (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS unit_economics_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL UNIQUE REFERENCES sites(id),
+    cac_cost_components TEXT NOT NULL DEFAULT '["media_spend"]',
+    cac_attribution_model TEXT NOT NULL DEFAULT 'last_touch',
+    ltv_calculation_method TEXT NOT NULL DEFAULT 'simple',
+    ltv_simple_multiplier REAL NOT NULL DEFAULT 3.0,
+    ltv_assumed_monthly_churn_rate REAL NOT NULL DEFAULT 0.05,
+    ltv_gross_margin_percent REAL NOT NULL DEFAULT 0.7,
+    target_payback_months INTEGER NOT NULL DEFAULT 12,
+    segment_by TEXT NOT NULL DEFAULT 'channel',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS ltv_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    segment_id TEXT,
+    segment_type TEXT NOT NULL,
+    customers_acquired INTEGER NOT NULL,
+    initial_order_value REAL,
+    total_revenue REAL,
+    simple_ltv REAL,
+    churn_based_ltv REAL,
+    crm_driven_ltv REAL,
+    recommended_ltv REAL,
+    monthly_churn_rate REAL,
+    estimated_monthly_arpu REAL,
+    retention_months INTEGER,
+    ltv_health_score REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS churn_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    segment_id TEXT,
+    segment_type TEXT NOT NULL,
+    starting_customers INTEGER NOT NULL,
+    ending_customers INTEGER NOT NULL,
+    new_customers INTEGER NOT NULL,
+    churned_customers INTEGER NOT NULL,
+    churn_rate REAL NOT NULL,
+    retention_rate REAL,
+    churn_trend TEXT,
+    days_monitored INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS payback_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    segment_id TEXT,
+    segment_type TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    total_acquisition_cost REAL NOT NULL,
+    customers_acquired INTEGER NOT NULL,
+    cac_for_segment REAL NOT NULL,
+    revenue_in_month_1 REAL,
+    revenue_in_month_2 REAL,
+    revenue_in_month_3 REAL,
+    revenue_in_month_6 REAL,
+    revenue_in_month_12 REAL,
+    payback_months REAL,
+    payback_health_status TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS unit_economics_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    insight_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    segment_id TEXT,
+    segment_type TEXT,
+    metric TEXT NOT NULL,
+    current_value REAL,
+    previous_value REAL,
+    delta REAL,
+    suggested_actions TEXT,
+    detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed_at TEXT,
+    resolved_at TEXT
+  )
+`);
+
+// Indexes for Unit Economics tables
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS ltv_metrics_site_period_idx ON ltv_metrics(site_id, period_start)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS churn_metrics_site_period_idx ON churn_metrics(site_id, period_start)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS payback_metrics_site_period_idx ON payback_metrics(site_id, period_start)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS unit_economics_insights_site_type_idx ON unit_economics_insights(site_id, insight_type)`); } catch { /* already exists */ }
+
+// Migration: Growth Loops Engine Tables (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS growth_loops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    type TEXT NOT NULL,
+    input_type TEXT NOT NULL,
+    input_channel_id INTEGER REFERENCES channels(id),
+    action_type TEXT NOT NULL,
+    action_funnel_stage TEXT,
+    output_metric_key TEXT NOT NULL,
+    reinvestment_type TEXT,
+    reinvestment_percent REAL NOT NULL DEFAULT 0,
+    target_cac REAL,
+    target_ltv REAL,
+    target_payback_months INTEGER,
+    target_cycle_hours INTEGER,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    is_priority INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS growth_loop_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    loop_id INTEGER NOT NULL REFERENCES growth_loops(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    period_type TEXT NOT NULL DEFAULT 'monthly',
+    input_volume INTEGER NOT NULL,
+    input_cost REAL,
+    action_count INTEGER NOT NULL,
+    action_conversion_rate REAL,
+    output_count INTEGER NOT NULL,
+    output_revenue REAL,
+    output_conversion_rate REAL,
+    cycle_time_hours INTEGER,
+    cac REAL,
+    ltv REAL,
+    ltv_cac_ratio REAL,
+    payback_months REAL,
+    volume_growth_pct REAL,
+    conversion_growth_pct REAL,
+    cac_degradation_pct REAL,
+    health_score REAL,
+    strength_level TEXT,
+    is_bottleneck INTEGER NOT NULL DEFAULT 0,
+    bottleneck_stage TEXT,
+    is_self_sustaining INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS growth_loop_stages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    loop_id INTEGER NOT NULL REFERENCES growth_loops(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    stage_count INTEGER NOT NULL,
+    stage_conversion_rate REAL,
+    avg_time_in_stage_hours INTEGER,
+    cost_at_stage REAL,
+    count_growth_pct REAL,
+    conversion_rate_growth_pct REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS growth_loop_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    loop_id INTEGER NOT NULL REFERENCES growth_loops(id),
+    insight_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    affected_stage TEXT,
+    metric TEXT,
+    current_value REAL,
+    previous_value REAL,
+    delta REAL,
+    suggested_actions TEXT,
+    scalability_potential REAL,
+    detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed_at TEXT,
+    resolved_at TEXT
+  );
+  CREATE TABLE IF NOT EXISTS growth_loop_attributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    loop_id INTEGER NOT NULL REFERENCES growth_loops(id),
+    utm_campaign_id INTEGER REFERENCES utm_campaigns(id),
+    channel_id INTEGER REFERENCES channels(id),
+    funnel_stage_id TEXT,
+    cac_source TEXT NOT NULL DEFAULT 'calculated',
+    ltv_source TEXT NOT NULL DEFAULT 'calculated',
+    attribution_window INTEGER NOT NULL DEFAULT 30,
+    attribution_model TEXT NOT NULL DEFAULT 'last_touch',
+    attribution_weight REAL NOT NULL DEFAULT 1.0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+// Indexes for Growth Loops tables
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_metrics_site_loop_period_idx ON growth_loop_metrics(site_id, loop_id, period_start)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_stages_site_loop_period_idx ON growth_loop_stages(site_id, loop_id, period_start)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_insights_site_loop_idx ON growth_loop_insights(site_id, loop_id)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_insights_type_severity_idx ON growth_loop_insights(site_id, insight_type, severity)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_attributions_loop_idx ON growth_loop_attributions(site_id, loop_id)`); } catch { /* already exists */ }
+
 export const db = drizzle(sqlite, { schema });

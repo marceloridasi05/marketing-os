@@ -7,6 +7,8 @@ import {
   utmTouchpoints,
   utmLibrary,
   utmCacAnalysis,
+  growthLoopAttributions,
+  growthLoops,
 } from '../db/schema.js';
 import { eq, and, sql, like, gte, lte } from 'drizzle-orm';
 import {
@@ -946,6 +948,180 @@ router.get('/ltv-by-campaign', async (req, res) => {
     res.json(ltvData);
   } catch (err) {
     console.error('Failed to get LTV by campaign:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── Growth Loop Integration ───────────────────────────────────────────────
+
+/**
+ * GET /api/utms/campaigns-by-loop
+ * Get campaigns and their attribution to growth loops
+ * Shows which campaigns feed which loops and their relative contribution
+ *
+ * Query: siteId, loopId? (optional, filter by specific loop)
+ */
+router.get('/campaigns-by-loop', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const loopId = req.query.loopId ? +req.query.loopId : undefined;
+
+    // Get all loops for this site
+    const loops = await db
+      .select()
+      .from(growthLoops)
+      .where(eq(growthLoops.siteId, siteId));
+
+    // Get all attributions (filtered by loop if provided)
+    let attrQuery = db
+      .select()
+      .from(growthLoopAttributions)
+      .where(eq(growthLoopAttributions.siteId, siteId));
+
+    if (loopId) {
+      attrQuery = attrQuery.where(eq(growthLoopAttributions.loopId, loopId)) as any;
+    }
+
+    const attributions = await attrQuery;
+
+    // Group by loop and get campaign data
+    const loopsWithCampaigns: any[] = [];
+
+    for (const loop of loops) {
+      const loopAttrs = attributions.filter((a: any) => a.loopId === loop.id);
+
+      // Get campaigns for this loop's attributions
+      const campaignIds = loopAttrs
+        .map((a: any) => a.utmCampaignId)
+        .filter(Boolean);
+
+      let loopCampaigns: any[] = [];
+      if (campaignIds.length > 0) {
+        loopCampaigns = await db
+          .select()
+          .from(utmCampaigns)
+          .where(sql`${utmCampaigns.id} IN (${sql.join(campaignIds)})`);
+      }
+
+      // Calculate contribution metrics
+      const campaignMetrics = loopCampaigns.map((campaign: any) => {
+        const attr = loopAttrs.find((a: any) => a.utmCampaignId === campaign.id);
+        return {
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          attributionWeight: attr?.attributionWeight || 1.0,
+          attributionModel: attr?.attributionModel || 'last_touch',
+          cacSource: attr?.cacSource || 'calculated',
+          ltvSource: attr?.ltvSource || 'calculated',
+        };
+      });
+
+      if (loopAttrs.length > 0 || loopCampaigns.length > 0) {
+        loopsWithCampaigns.push({
+          loopId: loop.id,
+          loopName: loop.name,
+          loopType: loop.type,
+          loopStatus: loop.isActive ? 'active' : 'inactive',
+          campaignCount: loopCampaigns.length,
+          campaigns: campaignMetrics,
+          totalWeight: loopAttrs.reduce((sum: number, a: any) => sum + (a.attributionWeight || 1.0), 0),
+        });
+      }
+    }
+
+    // Sort by campaign count descending
+    loopsWithCampaigns.sort((a, b) => b.campaignCount - a.campaignCount);
+
+    res.json({
+      siteId,
+      loopCount: loopsWithCampaigns.length,
+      data: loopsWithCampaigns,
+      summary: {
+        totalLoops: loops.length,
+        loopsWithCampaigns: loopsWithCampaigns.length,
+        totalCampaignsLinked: loopsWithCampaigns.reduce((sum, l) => sum + l.campaignCount, 0),
+      },
+    });
+  } catch (err) {
+    console.error('Failed to get campaigns by loop:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * GET /api/utms/campaign/:id/loop-impact
+ * Get growth loop impact for a specific campaign
+ * Shows which loops this campaign feeds and its relative contribution
+ *
+ * Query: siteId
+ * Params: id (campaign ID)
+ */
+router.get('/campaign/:id/loop-impact', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const campaignId = +req.params.id;
+
+    // Get campaign info
+    const campaign = await db
+      .select()
+      .from(utmCampaigns)
+      .where(and(eq(utmCampaigns.siteId, siteId), eq(utmCampaigns.id, campaignId)))
+      .get();
+
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Get all loops this campaign feeds
+    const attributions = await db
+      .select()
+      .from(growthLoopAttributions)
+      .where(
+        and(
+          eq(growthLoopAttributions.siteId, siteId),
+          eq(growthLoopAttributions.utmCampaignId, campaignId)
+        )
+      );
+
+    // Get loop details
+    const loopsImpacted = await Promise.all(
+      attributions.map(async (attr: any) => {
+        const loop = await db
+          .select()
+          .from(growthLoops)
+          .where(eq(growthLoops.id, attr.loopId))
+          .get();
+
+        return {
+          loopId: attr.loopId,
+          loopName: loop?.name,
+          loopType: loop?.type,
+          attributionWeight: attr.attributionWeight,
+          attributionModel: attr.attributionModel,
+          attributionWindow: attr.attributionWindow,
+          cacSource: attr.cacSource,
+          ltvSource: attr.ltvSource,
+        };
+      })
+    );
+
+    res.json({
+      siteId,
+      campaignId,
+      campaignName: campaign.name,
+      loopsImpactedCount: loopsImpacted.length,
+      loopsImpacted,
+    });
+  } catch (err) {
+    console.error('Failed to get loop impact for campaign:', err);
     res.status(500).json({ error: String(err) });
   }
 });

@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Rocket,
   Search,
+  TrendingUp,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import type { Site } from '../context/SiteContext';
@@ -64,6 +65,8 @@ const navSections: NavSection[] = [
       { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
       { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
       { to: '/budget', label: 'Orçamento', icon: DollarSign },
+      { to: '/unit-economics', label: 'Unit Economics', icon: TrendingUp },
+      { to: '/growth-loops', label: 'Growth Loops', icon: Zap },
     ],
   },
   {

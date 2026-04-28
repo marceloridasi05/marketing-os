@@ -586,3 +586,255 @@ export const gscInsights = sqliteTable('gsc_insights', {
   generatedAt: text('generated_at').default(sql`(datetime('now'))`).notNull(),
   dismissedAt: text('dismissed_at'), // NULL = active
 });
+
+// ── Unit Economics Module ──────────────────────────────────────────────────────
+
+export const unitEconomicsConfig = sqliteTable('unit_economics_config', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id).unique(), // 1 per site
+  // CAC configuration
+  cacCostComponents: text('cac_cost_components').notNull(), // JSON: ['media_spend', 'team_salary', 'tools', 'fixed_costs']
+  cacAttributionModel: text('cac_attribution_model').default('last_touch').notNull(), // 'first_touch' | 'last_touch' | 'linear'
+  // LTV configuration
+  ltvCalculationMethod: text('ltv_calculation_method').default('simple').notNull(), // 'simple' | 'churn_based' | 'crmdriven'
+  ltvSimpleMultiplier: real('ltv_simple_multiplier').default(3.0).notNull(), // Multiplier for simple method
+  ltvAssumedMonthlyChurnRate: real('ltv_assumed_monthly_churn_rate').default(0.05).notNull(), // 0.05 = 5%
+  ltvGrossMarginPercent: real('ltv_gross_margin_percent').default(0.7).notNull(), // 0.7 = 70%
+  // Business assumptions
+  targetPaybackMonths: integer('target_payback_months').default(12).notNull(),
+  segmentBy: text('segment_by').default('channel').notNull(), // 'channel' | 'campaign' | 'source'
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const ltvMetrics = sqliteTable('ltv_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Cohort identification
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD (start of acquisition month)
+  periodEnd: text('period_end').notNull(), // YYYY-MM-DD (end of acquisition month)
+  segmentId: text('segment_id'), // channel ID, campaign ID, or source name
+  segmentType: text('segment_type').notNull(), // 'channel' | 'campaign' | 'source'
+  // Customer and revenue data
+  customersAcquired: integer('customers_acquired').notNull(),
+  initialOrderValue: real('initial_order_value'), // Average first transaction value
+  totalRevenue: real('total_revenue'), // Total revenue from this cohort to date
+  // LTV calculations (all three methods stored)
+  simpleLtv: real('simple_ltv'), // Initial value × multiplier
+  churnBasedLtv: real('churn_based_ltv'), // (ARPU × margin) / churn rate
+  crmDrivenLtv: real('crm_driven_ltv'), // Observed lifetime revenue
+  recommendedLtv: real('recommended_ltv'), // Which method user selected
+  // Supporting metrics
+  monthlyChurnRate: real('monthly_churn_rate'), // Observed churn for validation
+  estimatedMonthlyArpu: real('estimated_monthly_arpu'), // Average recurring revenue
+  retentionMonths: integer('retention_months'), // How long we've tracked retention
+  ltvHealthScore: real('ltv_health_score'), // 0-100 scale
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const churnMetrics = sqliteTable('churn_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Period and segment
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD
+  periodEnd: text('period_end').notNull(), // YYYY-MM-DD
+  segmentId: text('segment_id'), // channel, campaign, or source
+  segmentType: text('segment_type').notNull(), // 'channel' | 'campaign' | 'source'
+  // Customer counts
+  startingCustomers: integer('starting_customers').notNull(),
+  endingCustomers: integer('ending_customers').notNull(),
+  newCustomers: integer('new_customers').notNull(),
+  churnedCustomers: integer('churned_customers').notNull(),
+  // Calculated metrics
+  churnRate: real('churn_rate').notNull(), // (start - end + new) / start
+  retentionRate: real('retention_rate'), // 1 - churnRate
+  churnTrend: text('churn_trend'), // 'improving' | 'stable' | 'declining'
+  daysMonitored: integer('days_monitored'), // Period length
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const paybackMetrics = sqliteTable('payback_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Campaign and period
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id),
+  segmentId: text('segment_id'), // Usually campaign/cohort
+  segmentType: text('segment_type').notNull(), // 'campaign' | 'channel' | 'cohort'
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD (acquisition date)
+  periodEnd: text('period_end').notNull(), // YYYY-MM-DD (last tracked month)
+  // Cost and customer acquisition
+  totalAcquisitionCost: real('total_acquisition_cost').notNull(), // Total spend for acquisition
+  customersAcquired: integer('customers_acquired').notNull(),
+  cacForSegment: real('cac_for_segment').notNull(), // Cost per customer
+  // Monthly revenue recovery (cumulative per customer)
+  revenueInMonth1: real('revenue_in_month_1'), // Month 1 cumulative
+  revenueInMonth2: real('revenue_in_month_2'), // Month 2 cumulative
+  revenueInMonth3: real('revenue_in_month_3'),
+  revenueInMonth6: real('revenue_in_month_6'),
+  revenueInMonth12: real('revenue_in_month_12'),
+  // Calculated payback
+  paybackMonths: real('payback_months'), // Months to recover CAC
+  paybackHealthStatus: text('payback_health_status'), // 'healthy' | 'warning' | 'critical'
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const unitEconomicsInsights = sqliteTable('unit_economics_insights', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Insight classification
+  insightType: text('insight_type').notNull(), // 'rising_cac' | 'falling_ltv' | 'unhealthy_ratio' | 'churn_spike' | 'long_payback'
+  severity: text('severity').notNull(), // 'critical' | 'warning' | 'info'
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  // Affected segment
+  segmentId: text('segment_id'),
+  segmentType: text('segment_type'), // 'channel' | 'campaign' | 'overall'
+  // Metric data
+  metric: text('metric').notNull(), // 'cac' | 'ltv' | 'ratio' | 'churn' | 'payback'
+  currentValue: real('current_value'),
+  previousValue: real('previous_value'),
+  delta: real('delta'), // Percentage change or absolute
+  // Recommendations (JSON)
+  suggestedActions: text('suggested_actions'), // JSON: { title, description, priority, metrics_to_monitor }[]
+  // Lifecycle
+  detectedAt: text('detected_at').default(sql`(datetime('now'))`).notNull(),
+  dismissedAt: text('dismissed_at'), // NULL = active
+  resolvedAt: text('resolved_at'), // When issue was addressed
+});
+
+// ── Growth Loops Engine ────────────────────────────────────────────────────────
+
+export const growthLoops = sqliteTable('growth_loops', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Loop identification
+  name: text('name').notNull(), // e.g., "Paid Google Ads Loop"
+  description: text('description'),
+  type: text('type').notNull(), // 'paid' | 'viral' | 'content' | 'sales' | 'abm' | 'event' | 'product'
+  // Loop stages: input → action → output → reinvestment
+  inputType: text('input_type').notNull(), // 'traffic' | 'leads' | 'users' | 'accounts'
+  inputChannelId: integer('input_channel_id').references(() => channels.id), // Source channel (optional)
+  actionType: text('action_type').notNull(), // 'click' | 'signup' | 'demo_request' | 'invite' | 'purchase'
+  actionFunnelStage: text('action_funnel_stage'), // Which funnel stage represents the action
+  outputMetricKey: text('output_metric_key').notNull(), // e.g., 'conversions', 'revenue', 'new_users'
+  reinvestmentType: text('reinvestment_type'), // 'profit_reinvest' | 'fixed_budget' | 'variable_budget'
+  reinvestmentPercent: real('reinvestment_percent').default(0), // % of revenue reinvested
+  // Targets for this loop
+  targetCac: real('target_cac'),
+  targetLtv: real('target_ltv'),
+  targetPaybackMonths: integer('target_payback_months'),
+  targetCycleHours: integer('target_cycle_hours'), // Goal cycle time in hours
+  // Status
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  isPriority: integer('is_priority', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const growthLoopMetrics = sqliteTable('growth_loop_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  loopId: integer('loop_id').notNull().references(() => growthLoops.id),
+  // Period
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD
+  periodEnd: text('period_end').notNull(),
+  periodType: text('period_type').default('monthly'), // daily | weekly | monthly
+  // Input stage
+  inputVolume: integer('input_volume').notNull(), // Traffic, leads, users coming in
+  inputCost: real('input_cost'), // Cost to acquire input
+  // Action stage
+  actionCount: integer('action_count').notNull(), // How many took the action
+  actionConversionRate: real('action_conversion_rate'), // % of input that converted to action
+  // Output stage
+  outputCount: integer('output_count').notNull(), // Final customers/revenue units
+  outputRevenue: real('output_revenue'), // Revenue generated from output
+  outputConversionRate: real('output_conversion_rate'), // % of actions that became output
+  // Cycle metrics
+  cycleTimeHours: integer('cycle_time_hours'), // Average time from input to output
+  // Efficiency metrics
+  cac: real('cac'), // CAC specific to this loop
+  ltv: real('ltv'), // LTV specific to this loop
+  ltvCacRatio: real('ltv_cac_ratio'), // LTV / CAC
+  paybackMonths: real('payback_months'),
+  // Growth metrics
+  volumeGrowthPct: real('volume_growth_pct'), // % change vs previous period
+  conversionGrowthPct: real('conversion_growth_pct'), // % change in conversion rate
+  cacdegradationPct: real('cac_degradation_pct'), // % change in CAC (negative = better)
+  // Health assessment
+  healthScore: real('health_score'), // 0-100
+  strengthLevel: text('strength_level'), // 'weak' | 'medium' | 'strong'
+  isBottleneck: integer('is_bottleneck', { mode: 'boolean' }).default(false),
+  bottleneckStage: text('bottleneck_stage'), // 'input' | 'action' | 'output' | null
+  isSelfSustaining: integer('is_self_sustaining', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const growthLoopStages = sqliteTable('growth_loop_stages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  loopId: integer('loop_id').notNull().references(() => growthLoops.id),
+  // Period
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD
+  periodEnd: text('period_end').notNull(),
+  // Stage tracking
+  stage: text('stage').notNull(), // 'input' | 'action' | 'output' | 'reinvestment'
+  stageCount: integer('stage_count').notNull(), // Volume at this stage
+  stageConversionRate: real('stage_conversion_rate'), // % that progress to next stage
+  // Timing
+  avgTimeInStageHours: integer('avg_time_in_stage_hours'),
+  // Cost
+  costAtStage: real('cost_at_stage'), // Cost allocated to this stage
+  // Growth metrics
+  countGrowthPct: real('count_growth_pct'), // % change in volume
+  conversionRateGrowthPct: real('conversion_rate_growth_pct'), // % change in conversion
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const growthLoopInsights = sqliteTable('growth_loop_insights', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  loopId: integer('loop_id').notNull().references(() => growthLoops.id),
+  // Insight classification
+  insightType: text('insight_type').notNull(), // 'bottleneck' | 'degradation' | 'scalability' | 'sustainability' | 'acceleration'
+  severity: text('severity').notNull(), // 'critical' | 'warning' | 'info'
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  // Affected metric
+  affectedStage: text('affected_stage'), // 'input' | 'action' | 'output' | null
+  metric: text('metric'), // 'conversion_rate' | 'cac' | 'cycle_time' | 'volume'
+  currentValue: real('current_value'),
+  previousValue: real('previous_value'),
+  delta: real('delta'), // % change
+  // Recommendations and potential
+  suggestedActions: text('suggested_actions'), // JSON: { title, description, priority }[]
+  scalabilityPotential: real('scalability_potential'), // How many X can this loop grow (1-10)
+  // Lifecycle
+  detectedAt: text('detected_at').default(sql`(datetime('now'))`).notNull(),
+  dismissedAt: text('dismissed_at'), // NULL = active
+  resolvedAt: text('resolved_at'),
+});
+
+export const growthLoopAttributions = sqliteTable('growth_loop_attributions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  loopId: integer('loop_id').notNull().references(() => growthLoops.id),
+  // Links to existing systems
+  utmCampaignId: integer('utm_campaign_id').references(() => utmCampaigns.id),
+  channelId: integer('channel_id').references(() => channels.id),
+  funnelStageId: text('funnel_stage_id'), // Reference to funnel stage name
+  // Data sources for CAC/LTV
+  cacSource: text('cac_source').default('calculated'), // 'utm_attribution' | 'calculated' | 'custom'
+  ltvSource: text('ltv_source').default('calculated'), // 'utm_attribution' | 'calculated' | 'crmdriven' | 'custom'
+  // Attribution configuration
+  attributionWindow: integer('attribution_window').default(30), // Days
+  attributionModel: text('attribution_model').default('last_touch'), // 'first_touch' | 'last_touch' | 'linear'
+  // Weight/portion (for splitting when loop uses multiple sources)
+  attributionWeight: real('attribution_weight').default(1.0), // 0-1, sum across channels = 1.0
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
