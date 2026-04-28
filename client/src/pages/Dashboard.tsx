@@ -16,6 +16,8 @@ import { CollapsibleCard } from '../components/CollapsibleCard';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 import { CacWidget } from '../components/CacWidget';
+import { ExecutionPriority } from '../components/ExecutionPriority';
+import { useSite } from '../context/SiteContext';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ function ObjectiveCard({ title, stageId, stageMeta, status, hero, metrics, budge
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
 export function Dashboard() {
+  const { selectedSite } = useSite();
   const { timePeriod, dateRange, filterProps } = useTimeFilter('this_year');
   const { funnelConfig, funnelModelId } = useFunnel();
   const { mode: dashboardMode, setMode: setDashboardMode } = useDashboardMode();
@@ -912,6 +915,13 @@ export function Dashboard() {
               )}
             </Card>
           </div>
+
+          {/* ── 3.5. What to Do Next (Execution Priority) ───────────────────────────── */}
+          {selectedSite && (
+            <div className="mb-5">
+              <ExecutionPriority siteId={selectedSite.id} />
+            </div>
+          )}
 
           {/* ── 4. Key movements + Budget ──────────────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">

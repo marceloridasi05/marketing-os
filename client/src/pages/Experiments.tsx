@@ -20,6 +20,10 @@ interface Experiment {
   status: string;
   successful: string | null;
   category: string | null;
+  expectedImpact?: string;
+  estimatedEffort?: string;
+  confidenceScore?: number;
+  priorityScore?: number;
   createdAt: string;
 }
 
@@ -35,12 +39,26 @@ const CATEGORIES = ['Aquisição', 'Conversão', 'Retenção', 'Branding', 'ABM'
 
 const inputCls = 'border border-gray-300 rounded px-3 py-1.5 text-sm w-full';
 
+function getPriorityInfo(impact?: string, effort?: string) {
+  const impactVal = (impact === 'high' ? 3 : impact === 'medium' ? 2 : 1);
+  const effortVal = (effort === 'high' ? 3 : effort === 'medium' ? 2 : 1);
+  const score = impactVal / effortVal;
+  let tier = 'D', color = 'bg-gray-100 text-gray-600', label = 'D';
+  if (score >= 2.5) { tier = 'A'; color = 'bg-red-100 text-red-700'; label = 'A'; }
+  else if (score >= 1.5) { tier = 'B'; color = 'bg-orange-100 text-orange-700'; label = 'B'; }
+  else if (score >= 1.0) { tier = 'C'; color = 'bg-blue-100 text-blue-700'; label = 'C'; }
+  const impactStr = impact?.[0]?.toUpperCase() || 'M';
+  const effortStr = effort?.[0]?.toUpperCase() || 'M';
+  return { score: parseFloat(score.toFixed(2)), tier, color, label, impactStr, effortStr };
+}
+
 interface FormData {
   hypothesis: string; expectedResult: string; duration: string; startDate: string; endDate: string;
   channel: string; metric: string; baselineValue: string; resultValue: string;
   learning: string; status: string; successful: string; category: string;
+  expectedImpact?: string; estimatedEffort?: string; confidenceScore?: number;
 }
-const emptyForm: FormData = { hypothesis: '', expectedResult: '', duration: '', startDate: '', endDate: '', channel: '', metric: '', baselineValue: '', resultValue: '', learning: '', status: 'planned', successful: '', category: '' };
+const emptyForm: FormData = { hypothesis: '', expectedResult: '', duration: '', startDate: '', endDate: '', channel: '', metric: '', baselineValue: '', resultValue: '', learning: '', status: 'planned', successful: '', category: '', expectedImpact: 'medium', estimatedEffort: 'medium', confidenceScore: undefined };
 
 function ExperimentFormModal({ initial, editId, onClose, onSaved }: { initial: FormData; editId: number | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState(initial);
@@ -137,6 +155,24 @@ function ExperimentFormModal({ initial, editId, onClose, onSaved }: { initial: F
               <select value={form.successful} onChange={set('successful')} className={inputCls}>
                 <option value="">— (Pendente)</option>
                 {RESULTS.map(r => <option key={r} value={r}>{RESULT_LABELS[r]}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Impacto esperado</label>
+              <select value={form.expectedImpact ?? 'medium'} onChange={set('expectedImpact')} className={inputCls}>
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Esforço estimado</label>
+              <select value={form.estimatedEffort ?? 'medium'} onChange={set('estimatedEffort')} className={inputCls}>
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
               </select>
             </div>
           </div>
@@ -250,6 +286,7 @@ export function Experiments() {
                 <tr className="border-b border-gray-200">
                   <SH k="hypothesis" label="Hipótese" />
                   <SH k="category" label="Categoria" />
+                  <SH k="priorityScore" label="Execução" />
                   <SH k="channel" label="Canal" />
                   <SH k="metric" label="Métrica" />
                   <SH k="duration" label="Duração" />
@@ -262,7 +299,7 @@ export function Experiments() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={10} className="py-8 text-center text-gray-400">Nenhum experimento registrado</td></tr>
+                  <tr><td colSpan={11} className="py-8 text-center text-gray-400">Nenhum experimento registrado</td></tr>
                 ) : filtered.map(e => (
                   <tr key={e.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-2 px-2 text-left font-medium text-gray-800 max-w-[220px]">
@@ -275,6 +312,17 @@ export function Experiments() {
                       </div>
                     </td>
                     <td className="py-2 px-2 text-center">{e.category ? <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700">{e.category}</span> : '—'}</td>
+                    <td className="py-2 px-2 text-center">
+                      {(() => {
+                        const info = getPriorityInfo(e.expectedImpact, e.estimatedEffort);
+                        return (
+                          <div className="flex flex-col items-center">
+                            <span className={`px-2.5 py-1 rounded font-bold text-xs ${info.color}`}>{info.tier}</span>
+                            <span className="text-[9px] text-gray-400 mt-0.5">{info.impactStr}/{info.effortStr}</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="py-2 px-2 text-center text-gray-600 text-xs">{e.channel || '—'}</td>
                     <td className="py-2 px-2 text-center text-gray-600 text-xs">{e.metric || '—'}</td>
                     <td className="py-2 px-2 text-center text-gray-600 text-xs">{e.duration || '—'}</td>
@@ -304,7 +352,8 @@ export function Experiments() {
             channel: editItem.channel ?? '', metric: editItem.metric ?? '',
             baselineValue: editItem.baselineValue ?? '', resultValue: editItem.resultValue ?? '',
             learning: editItem.learning ?? '', status: editItem.status, successful: editItem.successful ?? '',
-            category: editItem.category ?? '',
+            category: editItem.category ?? '', expectedImpact: editItem.expectedImpact ?? 'medium',
+            estimatedEffort: editItem.estimatedEffort ?? 'medium', confidenceScore: editItem.confidenceScore,
           } : emptyForm}
           editId={editItem?.id ?? null}
           onClose={() => { setShowForm(false); setEditItem(null); }}

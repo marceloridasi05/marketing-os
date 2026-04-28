@@ -34,6 +34,9 @@ interface InitiativeMeta {
   metricKey: string | null;
   expectedOutcome: string | null;
   notes: string | null;
+  impactLevel?: string;
+  effortEstimate?: string;
+  priorityScore?: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -68,6 +71,19 @@ const OBJECTIVE_COLORS: Record<string, string> = {
 
 function objColor(obj: string) { return OBJECTIVE_COLORS[obj] || '#6b7280'; }
 
+function getPriorityInfo(impact?: string, effort?: string) {
+  const impactVal = (impact === 'high' ? 3 : impact === 'medium' ? 2 : 1);
+  const effortVal = (effort === 'high' ? 3 : effort === 'medium' ? 2 : 1);
+  const score = impactVal / effortVal;
+  let tier = 'D', color = 'bg-gray-100 text-gray-600', label = 'D';
+  if (score >= 2.5) { tier = 'A'; color = 'bg-red-100 text-red-700'; label = 'A'; }
+  else if (score >= 1.5) { tier = 'B'; color = 'bg-orange-100 text-orange-700'; label = 'B'; }
+  else if (score >= 1.0) { tier = 'C'; color = 'bg-blue-100 text-blue-700'; label = 'C'; }
+  const impactStr = impact?.[0]?.toUpperCase() || 'M';
+  const effortStr = effort?.[0]?.toUpperCase() || 'M';
+  return { score: parseFloat(score.toFixed(2)), tier, color, label, impactStr, effortStr };
+}
+
 interface MonthCol { year: number; month: number; key: string; label: string }
 
 // ─── Initiative Meta Modal ────────────────────────────────────────────────────
@@ -87,6 +103,8 @@ function InitiativeMetaModal({
     metricKey: existing?.metricKey ?? '',
     expectedOutcome: existing?.expectedOutcome ?? '',
     notes: existing?.notes ?? '',
+    impactLevel: existing?.impactLevel ?? 'medium',
+    effortEstimate: existing?.effortEstimate ?? 'medium',
   });
   const [saving, setSaving] = useState(false);
 
@@ -101,6 +119,8 @@ function InitiativeMetaModal({
       metricKey: form.metricKey || null,
       expectedOutcome: form.expectedOutcome || null,
       notes: form.notes || null,
+      impactLevel: form.impactLevel || 'medium',
+      effortEstimate: form.effortEstimate || 'medium',
     };
     if (existing) {
       await api.put(`/initiative-meta/${existing.id}`, payload);
@@ -201,6 +221,34 @@ function InitiativeMetaModal({
             />
           </div>
 
+          {/* Impact & Effort */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Impacto esperado</label>
+              <select
+                value={form.impactLevel}
+                onChange={e => setForm(f => ({ ...f, impactLevel: e.target.value }))}
+                className={inp}
+              >
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Esforço estimado</label>
+              <select
+                value={form.effortEstimate}
+                onChange={e => setForm(f => ({ ...f, effortEstimate: e.target.value }))}
+                className={inp}
+              >
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
+              </select>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50">
@@ -247,7 +295,17 @@ function InitiativeCard({
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
             <span className="text-[10px] text-gray-400 truncate">{objective}</span>
           </div>
-          <h3 className="text-sm font-semibold text-gray-800 leading-tight">{action}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-800 leading-tight">{action}</h3>
+            {(() => {
+              const info = getPriorityInfo(meta?.impactLevel, meta?.effortEstimate);
+              return (
+                <div className="flex items-center gap-1">
+                  <span className={`px-2 py-0.5 rounded font-bold text-xs ${info.color}`}>{info.tier}</span>
+                </div>
+              );
+            })()}
+          </div>
         </div>
         <button
           onClick={onEdit}
@@ -773,7 +831,16 @@ export function Plan() {
                             <td className="py-2 px-2 sticky left-0 bg-white z-10">
                               <div className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                <span className="font-medium text-gray-700 truncate max-w-[140px]">{action}</span>
+                                <span className="font-medium text-gray-700 truncate max-w-[100px]">{action}</span>
+                                {/* Priority tier indicator */}
+                                {(() => {
+                                  const info = getPriorityInfo(metaRec?.impactLevel, metaRec?.effortEstimate);
+                                  return (
+                                    <span className={`shrink-0 px-1.5 py-0.5 rounded font-bold text-[10px] ${info.color}`}>
+                                      {info.tier}
+                                    </span>
+                                  );
+                                })()}
                                 {/* Meta indicators */}
                                 {stageMeta && (
                                   <span className={`shrink-0 px-1 py-0.5 rounded border text-[9px] font-medium ${stageMeta.color}`}>

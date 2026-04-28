@@ -37,8 +37,9 @@ interface FormData {
   title: string; description: string; targetDate: string; relatedEvent: string;
   expectedOutcome: string; complexity: string; category: string; status: string;
   executed: boolean; executedDate: string; priority: string;
+  impact?: string; effort?: string; confidenceScore?: number;
 }
-const emptyForm: FormData = { title: '', description: '', targetDate: '', relatedEvent: '', expectedOutcome: '', complexity: 'medium', category: '', status: 'idea', executed: false, executedDate: '', priority: 'medium' };
+const emptyForm: FormData = { title: '', description: '', targetDate: '', relatedEvent: '', expectedOutcome: '', complexity: 'medium', category: '', status: 'idea', executed: false, executedDate: '', priority: 'medium', impact: 'medium', effort: 'medium', confidenceScore: undefined };
 
 function IdeaFormModal({ initial, editId, onClose, onSaved }: { initial: FormData; editId: number | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState(initial);
@@ -104,6 +105,24 @@ function IdeaFormModal({ initial, editId, onClose, onSaved }: { initial: FormDat
               <label className="block text-xs font-medium text-gray-500 mb-1">Prioridade</label>
               <select value={form.priority} onChange={set('priority')} className={inputCls}>
                 {PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Impacto</label>
+              <select value={form.impact || 'medium'} onChange={set('impact')} className={inputCls}>
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Esforço</label>
+              <select value={form.effort || 'medium'} onChange={set('effort')} className={inputCls}>
+                <option value="low">Baixo</option>
+                <option value="medium">Médio</option>
+                <option value="high">Alto</option>
               </select>
             </div>
           </div>
@@ -233,7 +252,7 @@ export function Ideas() {
                   <SH k="targetDate" label="Para quando" />
                   <SH k="expectedOutcome" label="Outcome" />
                   <SH k="complexity" label="Complexidade" />
-                  <SH k="priority" label="Prioridade" />
+                  <SH k="priorityScore" label="Execução" />
                   <SH k="status" label="Status" />
                   <th className="py-2.5 px-2 w-24"></th>
                 </tr>
@@ -255,7 +274,23 @@ export function Ideas() {
                     <td className="py-2 px-2 text-center text-gray-600 text-xs whitespace-nowrap">{i.targetDate || '—'}</td>
                     <td className="py-2 px-2 text-center text-gray-600 text-xs max-w-[120px] truncate">{i.expectedOutcome || '—'}</td>
                     <td className="py-2 px-2 text-center"><span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${COMPLEXITY_COLORS[i.complexity]}`}>{COMPLEXITY_LABELS[i.complexity]}</span></td>
-                    <td className="py-2 px-2 text-center"><span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${COMPLEXITY_COLORS[i.priority || 'medium']}`}>{PRIORITY_LABELS[i.priority || 'medium']}</span></td>
+                    <td className="py-2 px-2 text-center">
+                      {(i as any).priorityScore ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            (i as any).priorityScore >= 2.5 ? 'bg-red-100 text-red-700' :
+                            (i as any).priorityScore >= 1.5 ? 'bg-amber-100 text-amber-700' :
+                            (i as any).priorityScore >= 1.0 ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {(i as any).priorityScore >= 2.5 ? 'A' :
+                             (i as any).priorityScore >= 1.5 ? 'B' :
+                             (i as any).priorityScore >= 1.0 ? 'C' : 'D'}
+                          </span>
+                          <span className="text-[9px] text-gray-400">{((i as any).impact || 'M').charAt(0).toUpperCase()}/${((i as any).effort || 'M').charAt(0).toUpperCase()}</span>
+                        </div>
+                      ) : '—'}
+                    </td>
                     <td className="py-2 px-2 text-center"><span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${STATUS_COLORS[i.status]}`}>{STATUS_LABELS[i.status]}</span></td>
                     <td className="py-2 px-2">
                       <div className="flex gap-0.5 justify-center">
@@ -281,6 +316,7 @@ export function Ideas() {
             relatedEvent: editItem.relatedEvent ?? '', expectedOutcome: editItem.expectedOutcome ?? '',
             complexity: editItem.complexity, category: editItem.category ?? '', status: editItem.status,
             executed: editItem.executed, executedDate: editItem.executedDate ?? '', priority: editItem.priority ?? 'medium',
+            impact: (editItem as any).impact ?? 'medium', effort: (editItem as any).effort ?? 'medium',
           } : emptyForm}
           editId={editItem?.id ?? null}
           onClose={() => { setShowForm(false); setEditItem(null); }}
