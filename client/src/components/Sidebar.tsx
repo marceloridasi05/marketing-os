@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -16,53 +16,162 @@ import {
   Layers,
   Zap,
   ChevronDown,
+  ChevronRight,
   Plus,
   Check,
   Trash2,
   X,
   Pencil,
+  AlertTriangle,
+  Rocket,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import type { Site } from '../context/SiteContext';
 import { api } from '../lib/api';
 
-const mainNav = [
-  { to: '/', label: 'Painel', icon: LayoutDashboard },
-  { to: '/insights', label: 'Insights', icon: Zap },
-  { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
-  { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
-  { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
-  { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
-  { to: '/budget', label: 'Orçamento', icon: DollarSign },
-  { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
-  { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
-  { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
-  { to: '/suppliers', label: 'Fornecedores e Tools', icon: Briefcase },
+// ─── Nav structure ────────────────────────────────────────────────────────────
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    id: 'diagnostics',
+    label: 'Diagnóstico',
+    icon: AlertTriangle,
+    items: [
+      { to: '/insights', label: 'Insights & Alertas', icon: Zap },
+    ],
+  },
+  {
+    id: 'analysis',
+    label: 'Análise',
+    icon: BarChart3,
+    items: [
+      { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
+      { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
+      { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
+      { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
+      { to: '/budget', label: 'Orçamento', icon: DollarSign },
+    ],
+  },
+  {
+    id: 'execution',
+    label: 'Execução',
+    icon: Rocket,
+    items: [
+      { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+      { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
+      { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
+      { to: '/suppliers', label: 'Fornecedores & Tools', icon: Briefcase },
+    ],
+  },
 ];
 
-const bottomNav = [
-  { to: '/data-mapping', label: 'Mapeamento', icon: Layers },
-  { to: '/settings', label: 'Configurações', icon: Settings },
-];
+const settingsSection: NavSection = {
+  id: 'settings',
+  label: 'Configurações',
+  icon: Settings,
+  items: [
+    { to: '/data-mapping', label: 'Mapeamento de Dados', icon: Layers },
+    { to: '/settings', label: 'Configurações', icon: Settings },
+  ],
+};
 
-function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: typeof LayoutDashboard }) {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function sectionContainsPath(section: NavSection, pathname: string): boolean {
+  return section.items.some(item => {
+    if (item.to === '/') return pathname === '/';
+    return pathname === item.to || pathname.startsWith(item.to + '/');
+  });
+}
+
+const STORAGE_KEY = 'nav-collapsed-sections';
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsed(state: Record<string, boolean>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// ─── NavLink item ─────────────────────────────────────────────────────────────
+
+function SectionNavItem({ to, label, icon: Icon }: NavItem) {
   return (
     <NavLink
       to={to}
       end={to === '/'}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+        `flex items-center gap-2.5 pl-6 pr-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
           isActive
             ? 'bg-gray-800 text-white'
-            : 'hover:bg-gray-800/50 hover:text-white'
+            : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
         }`
       }
     >
-      <Icon size={18} />
+      <Icon size={15} className="shrink-0" />
       {label}
     </NavLink>
   );
 }
+
+// ─── Collapsible section ──────────────────────────────────────────────────────
+
+function NavSection({
+  section,
+  collapsed,
+  onToggle,
+}: {
+  section: NavSection;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = section.icon;
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-300 hover:bg-gray-800/30 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Icon size={13} className="shrink-0" />
+          {section.label}
+        </span>
+        {collapsed
+          ? <ChevronRight size={12} />
+          : <ChevronDown size={12} />}
+      </button>
+
+      {!collapsed && (
+        <div className="mt-0.5 space-y-0.5">
+          {section.items.map(item => (
+            <SectionNavItem key={item.to} {...item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Site selector & modal (unchanged) ───────────────────────────────────────
 
 function extractSpreadsheetId(url: string): string | null {
   const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -196,7 +305,6 @@ function SiteSelector() {
   const handleDelete = async (e: React.MouseEvent, site: Site) => {
     e.stopPropagation();
     if (deletingId === site.id) {
-      // Confirmed — delete
       try {
         await api.del(`/sites/${site.id}`);
         const remaining = sites.filter(s => s.id !== site.id);
@@ -234,7 +342,6 @@ function SiteSelector() {
     try {
       await api.put(`/sites/${site.id}`, { name: trimmed });
       await refreshSites();
-      // Update selected site reference if we renamed the active one
       if (selectedSite?.id === site.id) {
         setSelectedSite({ ...site, name: trimmed });
       }
@@ -354,25 +461,97 @@ function SiteSelector() {
   );
 }
 
+// ─── Main sidebar ─────────────────────────────────────────────────────────────
+
 export function Sidebar() {
   const { selectedSite } = useSite();
+  const location = useLocation();
   const siteName = selectedSite?.name ?? 'Mkt';
+
+  // Collapsed state per section, persisted in localStorage
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    const stored = loadCollapsed();
+    // Default: all sections open
+    const defaults: Record<string, boolean> = {};
+    [...navSections, settingsSection].forEach(s => {
+      defaults[s.id] = stored[s.id] ?? false;
+    });
+    return defaults;
+  });
+
+  // Auto-expand the section containing the active route
+  useEffect(() => {
+    const allSections = [...navSections, settingsSection];
+    const activeSection = allSections.find(s => sectionContainsPath(s, location.pathname));
+    if (activeSection && collapsed[activeSection.id]) {
+      setCollapsed(prev => {
+        const next = { ...prev, [activeSection.id]: false };
+        saveCollapsed(next);
+        return next;
+      });
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleSection = (id: string) => {
+    setCollapsed(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      saveCollapsed(next);
+      return next;
+    });
+  };
 
   return (
     <aside className="w-56 shrink-0 bg-gray-900 text-gray-300 flex flex-col">
+      {/* Header */}
       <div className="px-5 py-5 border-b border-gray-800">
         <h1 className="text-white text-lg font-semibold tracking-tight">{siteName} Marketing</h1>
         <p className="text-gray-400 text-xs mt-0.5">Mkt Flight Control Center</p>
       </div>
+
+      {/* Site selector */}
       <div className="pt-3">
         <SiteSelector />
       </div>
-      <nav className="flex-1 py-2 px-3 space-y-1">
-        {mainNav.map(item => <NavItem key={item.to} {...item} />)}
-      </nav>
-      <div className="px-3 pb-2 pt-2 border-t border-gray-800">
-        {bottomNav.map(item => <NavItem key={item.to} {...item} />)}
+
+      {/* Dashboard — standalone top-level link */}
+      <div className="px-3 pt-2 pb-1">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${
+              isActive
+                ? 'bg-indigo-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+            }`
+          }
+        >
+          <LayoutDashboard size={16} className="shrink-0" />
+          Dashboard
+        </NavLink>
       </div>
+
+      {/* Main nav sections */}
+      <nav className="flex-1 py-1 px-3 space-y-1 overflow-y-auto">
+        {navSections.map(section => (
+          <NavSection
+            key={section.id}
+            section={section}
+            collapsed={collapsed[section.id] ?? false}
+            onToggle={() => toggleSection(section.id)}
+          />
+        ))}
+      </nav>
+
+      {/* Settings section — pinned to bottom */}
+      <div className="px-3 pt-2 pb-2 border-t border-gray-800">
+        <NavSection
+          section={settingsSection}
+          collapsed={collapsed[settingsSection.id] ?? false}
+          onToggle={() => toggleSection(settingsSection.id)}
+        />
+      </div>
+
       <div className="px-5 py-3 text-xs text-gray-500">
         Mkt FCC v1.0
       </div>
