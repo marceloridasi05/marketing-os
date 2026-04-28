@@ -285,7 +285,72 @@ router.get('/', async (req, res) => {
     }
   }
 
-  // ── 3. Goal tracking ─────────────────────────────────────────────────────────
+  // ── 3. ABM-specific insights ────────────────────────────────────────────────
+
+  // Try to fetch ABM data if available
+  const abmInsights: Insight[] = [];
+  try {
+    const abmResponse = await fetch(
+      process.env.ABM_API_URL ? `${process.env.ABM_API_URL}/api/stats` : 'https://ip-tracker-production-73ef.up.railway.app/api/stats'
+    ).catch(() => null);
+
+    if (abmResponse && abmResponse.ok) {
+      const abmStats = await abmResponse.json();
+      const { identified_logos = 0, estimated_logos = 0 } = abmStats;
+      const coverage = estimated_logos > 0 ? identified_logos / estimated_logos : 0;
+
+      // Low ICP coverage alert
+      if (estimated_logos > 50 && coverage < 0.40) {
+        abmInsights.push({
+          id: nextId(), type: 'goal', severity: 'warning',
+          title: 'Cobertura baixa de contas ICP',
+          body: `Apenas ${Math.round(coverage * 100)}% das contas-alvo (${identified_logos} de ${estimated_logos}) foram identificadas. Aumente os esforços de rastreamento de conta.`,
+          metric: 'icp_coverage', stage: 'acquisition',
+        });
+      }
+    }
+
+    // Try to fetch intelligence data for engagement trends
+    const intResponse = await fetch(
+      process.env.ABM_API_URL ? `${process.env.ABM_API_URL}/api/intelligence` : 'https://ip-tracker-production-73ef.up.railway.app/api/intelligence'
+    ).catch(() => null);
+
+    if (intResponse && intResponse.ok) {
+      const intelligence = await intResponse.json();
+      const stats = intelligence.stats || {};
+      const { total_accounts = 0, hot = 0, warm = 0, cold = 0 } = stats;
+
+      const activeAccounts = hot + warm;
+      const engagementRate = total_accounts > 0 ? activeAccounts / total_accounts : 0;
+
+      // Check for engagement shift
+      if (total_accounts >= 20 && engagementRate < 0.30) {
+        abmInsights.push({
+          id: nextId(), type: 'drop', severity: 'warning',
+          title: 'Engajamento baixo de contas-alvo',
+          body: `Apenas ${Math.round(engagementRate * 100)}% das contas-alvo estão ativas (hot/warm). ${cold} contas estão frias — re-engaje com conteúdo direcionado.`,
+          metric: 'account_engagement', stage: 'acquisition',
+        });
+      }
+
+      // High engagement but low conversion (implicit from high visits, few leads)
+      if (hot > 0 && curr && curr.leads < 5 && curr.sessions > 50) {
+        abmInsights.push({
+          id: nextId(), type: 'inconsistency', severity: 'critical',
+          title: 'Alto engajamento mas baixa conversão de contas-alvo',
+          body: `${hot} contas estão muito engajadas (hot), mas apenas ${curr.leads} leads foram gerados. Revise calls-to-action e ofertas de demo.`,
+          metric: 'account_conversion_gap', stage: 'conversion',
+        });
+      }
+    }
+  } catch (err) {
+    // Silently fail if ABM API is unavailable
+  }
+
+  // Add ABM insights to the main pool
+  insights.push(...abmInsights);
+
+  // ── 4. Goal tracking ─────────────────────────────────────────────────────────
 
   const currentGoals = await db.select()
     .from(goals)
