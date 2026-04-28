@@ -512,3 +512,62 @@ export const utmLibrary = sqliteTable('utm_library', {
   lastUsed: text('last_used'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+// ── Google Search Console Integration ────────────────────────────────────────
+
+export const apiCredentials = sqliteTable('api_credentials', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  provider: text('provider').notNull(), // 'google_search_console'
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  expiresAt: text('expires_at'), // ISO timestamp
+  scope: text('scope').notNull(), // e.g., 'https://www.googleapis.com/auth/webmasters'
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const gscProperties = sqliteTable('gsc_properties', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  propertyUrl: text('property_url').notNull(), // e.g., 'https://example.com'
+  propertyType: text('property_type').notNull(), // 'SITE' | 'URL_PREFIX'
+  gcPropertyId: text('gc_property_id').notNull(), // From Google API
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  lastSyncedAt: text('last_synced_at'),
+  syncFrequency: integer('sync_frequency').default(86400), // seconds, default 24h
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const gscMetrics = sqliteTable('gsc_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  propertyId: integer('property_id').notNull().references(() => gscProperties.id),
+  date: text('date').notNull(), // YYYY-MM-DD
+  dimensionType: text('dimension_type').notNull(), // 'query' | 'page'
+  dimensionValue: text('dimension_value').notNull(), // search query or URL
+  impressions: integer('impressions').default(0),
+  clicks: integer('clicks').default(0),
+  ctr: real('ctr').default(0), // 0.05 = 5%
+  position: real('position').default(0), // average position (1-100+)
+  periodType: text('period_type').default('daily'), // daily | weekly | monthly (aggregations)
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const gscInsights = sqliteTable('gsc_insights', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  propertyId: integer('property_id').notNull().references(() => gscProperties.id),
+  insightType: text('insight_type').notNull(), // 'high_impressions_low_ctr' | 'rank_4_10' | 'high_traffic_low_conversion' | 'ctr_drop'
+  dimensionType: text('dimension_type').notNull(), // 'query' | 'page'
+  dimensionValue: text('dimension_value').notNull(),
+  severity: text('severity').notNull(), // 'critical' | 'warning' | 'info'
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  metrics: text('metrics').notNull(), // JSON: { impressions, clicks, ctr, position, prevCtr?, previousPeriod? }
+  recommendation: text('recommendation'),
+  generatedAt: text('generated_at').default(sql`(datetime('now'))`).notNull(),
+  dismissedAt: text('dismissed_at'), // NULL = active
+});

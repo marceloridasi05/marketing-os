@@ -170,6 +170,12 @@ const REGISTRY: Record<string, FunnelStage> = {
   followers_lost:       'retention',
   saves:                'retention',
   clicks_on_post:       'retention',
+
+  // ── Google Search Console ─────────────────────────────────────────────────────
+  gsc_impressions:      'awareness',       // Search visibility
+  gsc_clicks:           'acquisition',     // Qualified traffic
+  gsc_ctr:              'awareness',       // Click-through rate quality metric
+  gsc_position:         'awareness',       // Ranking indicator
 };
 
 // ─── Human-readable labels for every metric key ──────────────────────────────

@@ -528,8 +528,65 @@ sqlite.exec(`
     usage_count INTEGER NOT NULL DEFAULT 0,
     last_used TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS api_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    provider TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expires_at TEXT,
+    scope TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS gsc_properties (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    property_url TEXT NOT NULL,
+    property_type TEXT NOT NULL,
+    gc_property_id TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    last_synced_at TEXT,
+    sync_frequency INTEGER NOT NULL DEFAULT 86400,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS gsc_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    property_id INTEGER NOT NULL REFERENCES gsc_properties(id),
+    date TEXT NOT NULL,
+    dimension_type TEXT NOT NULL,
+    dimension_value TEXT NOT NULL,
+    impressions INTEGER NOT NULL DEFAULT 0,
+    clicks INTEGER NOT NULL DEFAULT 0,
+    ctr REAL NOT NULL DEFAULT 0,
+    position REAL NOT NULL DEFAULT 0,
+    period_type TEXT NOT NULL DEFAULT 'daily',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS gsc_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    property_id INTEGER NOT NULL REFERENCES gsc_properties(id),
+    insight_type TEXT NOT NULL,
+    dimension_type TEXT NOT NULL,
+    dimension_value TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    metrics TEXT NOT NULL,
+    recommendation TEXT,
+    generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed_at TEXT
   )
 `);
+
+// Indexes for GSC metrics queries
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS gsc_metrics_site_date_idx ON gsc_metrics(site_id, date)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS gsc_metrics_dimension_idx ON gsc_metrics(site_id, dimension_type, dimension_value)`); } catch { /* already exists */ }
 
 // Migration: add UTM columns to performance_entries (idempotent)
 try { sqlite.exec(`ALTER TABLE performance_entries ADD COLUMN utm_campaign_id INTEGER`); } catch { /* already exists */ }

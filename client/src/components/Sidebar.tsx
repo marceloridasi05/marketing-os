@@ -24,6 +24,7 @@ import {
   Pencil,
   AlertTriangle,
   Rocket,
+  Search,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import type { Site } from '../context/SiteContext';
@@ -71,6 +72,7 @@ const navSections: NavSection[] = [
     icon: Rocket,
     items: [
       { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+      { to: '/search-console', label: 'Search Console', icon: Search },
       { to: '/utm-builder', label: 'UTM Builder', icon: Zap },
       { to: '/utm-library', label: 'UTM Library', icon: Layers },
       { to: '/utm-attribution', label: 'UTM Attribution', icon: BarChart3 },

@@ -31,6 +31,7 @@ import insightsRouter from './routes/insights.js';
 import seedAlphatechRouter from './routes/seedAlphatech.js';
 import funnelsRouter from './routes/funnels.js';
 import utmsRouter from './routes/utms.js';
+import gscRouter from './routes/gsc.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/initiative-meta', initiativeMetaRouter);
 app.use('/api/insights', insightsRouter);
 app.use('/api/funnels', funnelsRouter);
 app.use('/api/utms', utmsRouter);
+app.use('/api/gsc', gscRouter);
 app.use('/api/seed/alphatech', seedAlphatechRouter);
 
 app.get('/api/health', (_req, res) => {

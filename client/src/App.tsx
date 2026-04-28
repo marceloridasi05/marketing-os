@@ -19,6 +19,8 @@ import InsightsPage from './pages/InsightsPage';
 import { UtmBuilder } from './pages/UtmBuilder';
 import { UtmLibrary } from './pages/UtmLibrary';
 import { UtmAttribution } from './pages/UtmAttribution';
+import SearchConsolePage from './pages/SearchConsole';
+import GscOAuthCallback from './pages/GscOAuthCallback';
 
 function App() {
   return (
@@ -42,6 +44,8 @@ function App() {
           <Route path="/utm-builder" element={<UtmBuilder />} />
           <Route path="/utm-library" element={<UtmLibrary />} />
           <Route path="/utm-attribution" element={<UtmAttribution />} />
+          <Route path="/search-console" element={<SearchConsolePage />} />
+          <Route path="/gsc-callback" element={<GscOAuthCallback />} />
           <Route path="/data-mapping" element={<DataMappingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
