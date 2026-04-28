@@ -3,7 +3,7 @@
  * Each model defines how metrics roll up into business-meaningful stages.
  */
 
-export type FunnelModelId = 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led';
+export type FunnelModelId = 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led' | 'hourglass';
 
 export interface FunnelStageConfig {
   id: string;           // e.g., 'awareness', 'mql', 'tofu'
@@ -311,6 +311,136 @@ export const SALES_LED_MODEL: FunnelModel = {
   },
 };
 
+// ─── Hourglass: Full Customer Lifecycle Model ───────────────────────────────────
+// Awareness → Interest → Consideration → Conversion → Retention → Expansion → Advocacy
+// Designed for 7-stage growth with emphasis on post-conversion metrics
+
+export const HOURGLASS_MODEL: FunnelModel = {
+  id: 'hourglass',
+  name: 'Hourglass',
+  description: 'Awareness-Interest-Consideration-Conversion-Retention-Expansion-Advocacy: Complete customer lifecycle model',
+  stages: [
+    {
+      id: 'awareness',
+      label: 'Awareness',
+      description: 'Capturar visibilidade e reconhecimento da marca',
+      color: 'bg-purple-100 text-purple-700 border-purple-200',
+      borderColor: 'border-t-purple-500',
+      iconColor: 'text-purple-500',
+      order: 1,
+    },
+    {
+      id: 'interest',
+      label: 'Interest',
+      description: 'Envolver e manter interesse do público-alvo',
+      color: 'bg-blue-100 text-blue-700 border-blue-200',
+      borderColor: 'border-t-blue-500',
+      iconColor: 'text-blue-500',
+      order: 2,
+    },
+    {
+      id: 'consideration',
+      label: 'Consideration',
+      description: 'Nutrir leads em avaliação de solução',
+      color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+      borderColor: 'border-t-cyan-500',
+      iconColor: 'text-cyan-500',
+      order: 3,
+    },
+    {
+      id: 'conversion',
+      label: 'Conversion',
+      description: 'Impulsionar decisão e fechamento de vendas',
+      color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      borderColor: 'border-t-emerald-500',
+      iconColor: 'text-emerald-500',
+      order: 4,
+    },
+    {
+      id: 'retention',
+      label: 'Retention',
+      description: 'Reter clientes e reduzir churn pós-venda',
+      color: 'bg-amber-100 text-amber-700 border-amber-200',
+      borderColor: 'border-t-amber-500',
+      iconColor: 'text-amber-500',
+      order: 5,
+    },
+    {
+      id: 'expansion',
+      label: 'Expansion',
+      description: 'Expandir valor: upsells, cross-sells, crescimento de conta',
+      color: 'bg-orange-100 text-orange-700 border-orange-200',
+      borderColor: 'border-t-orange-500',
+      iconColor: 'text-orange-500',
+      order: 6,
+    },
+    {
+      id: 'advocacy',
+      label: 'Advocacy',
+      description: 'Transformar clientes em advogados da marca',
+      color: 'bg-rose-100 text-rose-700 border-rose-200',
+      borderColor: 'border-t-rose-500',
+      iconColor: 'text-rose-500',
+      order: 7,
+    },
+  ],
+  stageToMetrics: {
+    // Awareness: Brand reach and visibility
+    awareness: [
+      'impressions', 'ga_impressions', 'li_impressions',
+      'reach', 'views', 'page_views', 'unique_visitors',
+      'brand_searches', 'followers', 'followers_gained',
+      'gsc_impressions', 'gsc_position',
+    ],
+    // Interest: Engagement and traffic attraction
+    interest: [
+      'clicks', 'ga_clicks', 'li_clicks', 'paid_clicks',
+      'sessions', 'users', 'new_users', 'traffic',
+      'organic_sessions', 'blog_sessions', 'ai_sessions',
+      'weekly_gains', 'unpaid_sessions',
+      'engagement', 'engagement_rate', 'reactions', 'comments', 'shares',
+      'gsc_clicks', 'gsc_ctr',
+    ],
+    // Consideration: Lead generation and qualification
+    consideration: [
+      'leads', 'leads_generated', 'form_submissions', 'signups',
+      'demos', 'trials', 'ctr', 'ga_ctr',
+      'cpl', 'cpc', 'ga_cpc', 'li_cpc',
+      'cost_per_conversion', 'ga_cost_per_conversion',
+    ],
+    // Conversion: Revenue and deal closure
+    conversion: [
+      'conversions', 'ga_conversions', 'cvr', 'ga_cvr',
+      'revenue', 'mrr', 'arr', 'deals',
+      'cost', 'ga_cost', 'li_cost',
+      'roi', 'roas', 'pipeline',
+    ],
+    // Retention: Customer loyalty and engagement
+    retention: [
+      'active_users', 'repeat_visits', 'engagement', 'engagement_rate',
+      'churn', 'churn_rate', 'nps', 'retention_rate',
+      'reactions', 'comments', 'shares',
+      'followers', 'followers_lost',
+    ],
+    // Expansion: Account growth and revenue increase
+    expansion: [
+      'mrr', 'arr',  // recurring revenue
+      'deals',       // expansion deals
+      'revenue',     // expansion revenue
+      // Placeholders for future CRM integration:
+      // 'expansion_deals', 'expansion_revenue', 'upsell_value', 'cross_sell_value'
+    ],
+    // Advocacy: Referrals and brand promotion
+    advocacy: [
+      'brand_searches', 'reach', 'followers', 'followers_gained',
+      'shares', 'engagement_rate', 'views',
+      'nps',
+      // Placeholders for future integration:
+      // 'referral_rate', 'referral_revenue', 'case_studies', 'testimonials'
+    ],
+  },
+};
+
 // ─── Model registry ───────────────────────────────────────────────────────────
 
 export const PRESET_MODELS: Record<FunnelModelId, FunnelModel> = {
@@ -318,9 +448,10 @@ export const PRESET_MODELS: Record<FunnelModelId, FunnelModel> = {
   aarrr: AARRR_MODEL,
   tofu_mofu_bofu: TOFU_MOFU_BOFU_MODEL,
   sales_led: SALES_LED_MODEL,
+  hourglass: HOURGLASS_MODEL,
 };
 
-export const PRESET_MODEL_IDS: FunnelModelId[] = ['aida', 'aarrr', 'tofu_mofu_bofu', 'sales_led'];
+export const PRESET_MODEL_IDS: FunnelModelId[] = ['aida', 'aarrr', 'tofu_mofu_bofu', 'sales_led', 'hourglass'];
 
 /**
  * Get a preset model by ID, or undefined if not found.

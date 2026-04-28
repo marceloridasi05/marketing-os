@@ -3,7 +3,7 @@
  * These are used for type safety in the frontend.
  */
 
-export type FunnelModelId = 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led';
+export type FunnelModelId = 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led' | 'hourglass';
 
 export interface FunnelStageConfig {
   id: string;
@@ -38,6 +38,7 @@ export const MODEL_NAMES: Record<FunnelModelId, string> = {
   aarrr: 'AARRR',
   tofu_mofu_bofu: 'TOFU/MOFU/BOFU',
   sales_led: 'Sales-led',
+  hourglass: 'Hourglass',
 };
 
 /**
@@ -48,4 +49,5 @@ export const MODEL_DESCRIPTIONS: Record<FunnelModelId, string> = {
   aarrr: 'Acquisition-Activation-Revenue-Retention-Referral: SaaS growth model',
   tofu_mofu_bofu: 'Top-Middle-Bottom of Funnel: Three-stage awareness-to-close model',
   sales_led: 'Lead-MQL-SQL-Opportunity-Revenue: Sales-driven B2B funnel',
+  hourglass: 'Awareness-Interest-Consideration-Conversion-Retention-Expansion-Advocacy: Complete customer lifecycle model',
 };
