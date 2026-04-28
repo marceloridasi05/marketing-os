@@ -380,4 +380,22 @@ try {
   }
 } catch { /* ignore */ }
 
+// Migration: add funnel model columns to sites (idempotent)
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN funnel_model_id TEXT NOT NULL DEFAULT 'sales_led'`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN funnel_stage_mapping TEXT`); } catch { /* already exists */ }
+
+// Migration: create custom_funnels table if not exists
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS custom_funnels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    stages TEXT NOT NULL,
+    stage_to_metrics TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 export const db = drizzle(sqlite, { schema });

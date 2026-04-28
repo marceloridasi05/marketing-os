@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { SiteProvider } from './context/SiteContext';
+import { FunnelProvider } from './context/FunnelContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './pages/Dashboard';
 import { Performance } from './pages/Performance';
@@ -20,6 +21,7 @@ function App() {
   return (
     <ErrorBoundary>
     <SiteProvider>
+    <FunnelProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -39,6 +41,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </FunnelProvider>
     </SiteProvider>
     </ErrorBoundary>
   );

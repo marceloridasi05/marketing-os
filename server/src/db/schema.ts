@@ -9,6 +9,10 @@ export const sites = sqliteTable('sites', {
   sheetConfig: text('sheet_config'),
   // JSON: { clientName, businessType, growthModel, mainObjectives }
   clientConfig: text('client_config'),
+  // Funnel model: 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led' | custom ID
+  funnelModelId: text('funnel_model_id').default('sales_led').notNull(),
+  // JSON: metric key → stage override (for custom mappings on preset models)
+  funnelStageMapping: text('funnel_stage_mapping'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
@@ -340,4 +344,18 @@ export const chartAnnotations = sqliteTable('chart_annotations', {
   xValue: text('x_value').notNull(),
   comment: text('comment').notNull(),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const customFunnels = sqliteTable('custom_funnels', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  name: text('name').notNull(),
+  // JSON: FunnelStageConfig[] — list of stage definitions
+  stages: text('stages').notNull(),
+  // JSON: Record<stageId, metricKey[]> — map stages to metric keys
+  stageToMetrics: text('stage_to_metrics').notNull(),
+  // Whether this is the default funnel for the site
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });

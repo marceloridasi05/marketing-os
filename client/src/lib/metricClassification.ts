@@ -1,15 +1,17 @@
 /**
  * Universal Metric Classification Layer
  *
- * Single source of truth for funnel-stage assignment.
- * Used by: DataMappingPage, Dashboard, AI Analysis, future Insights page.
+ * Supports dynamic funnel models. Each funnel model has its own stage definitions.
+ * Provides fallback to legacy 5-stage model when needed.
  *
  * Rules:
- *  - Every metric meaning key has a default stage from this registry.
- *  - Column mappings may store an explicit `classification` override.
+ *  - getStage(metricKey, model) returns the stage for a metric in the given model.
+ *  - For unknown metrics, returns null.
  *  - Dimension keys (date, section, strategy, …) return null — they are
  *    structural fields, not metrics, and should not appear in stage groups.
  */
+
+import type { FunnelModel } from './funnelModels';
 
 export type FunnelStage = 'awareness' | 'acquisition' | 'conversion' | 'revenue' | 'retention';
 
@@ -269,4 +271,59 @@ export function groupByStage<T extends { key: string; classification?: FunnelSta
     if (arr.length === 0) map.delete(stage);
   }
   return map;
+}
+
+// ─── Dynamic funnel model support ─────────────────────────────────────────────
+
+/**
+ * Get the stage ID for a metric in a given funnel model.
+ * Returns null if metric is not found in any stage.
+ */
+export function getStageInModel(metricKey: string, model: FunnelModel | null): string | null {
+  if (!model) return null;
+  if (DIMENSIONS.has(metricKey)) return null;
+
+  for (const stage of model.stages) {
+    if (model.stageToMetrics[stage.id]?.includes(metricKey)) {
+      return stage.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Group items by stage within a specific funnel model.
+ * Items without a stage classification in the model are dropped.
+ */
+export function groupByStageInModel<T extends { key: string }>(
+  items: T[],
+  model: FunnelModel | null,
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  if (!model) return map;
+
+  for (const stage of model.stages) {
+    map.set(stage.id, []);
+  }
+
+  for (const item of items) {
+    const stageId = getStageInModel(item.key, model);
+    if (!stageId) continue;
+    map.get(stageId)!.push(item);
+  }
+
+  // Remove empty stages
+  for (const [stageId, arr] of map) {
+    if (arr.length === 0) map.delete(stageId);
+  }
+
+  return map;
+}
+
+/**
+ * Get stage metadata from a funnel model by stage ID.
+ */
+export function getStageMetaInModel(stageId: string, model: FunnelModel | null) {
+  if (!model) return null;
+  return model.stages.find(s => s.id === stageId) ?? null;
 }
