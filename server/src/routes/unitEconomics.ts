@@ -67,11 +67,11 @@ function handleError(res: Response, error: unknown, statusCode = 500) {
  * GET /api/unit-economics/config
  * Fetch unit economics configuration for a site
  */
-router.get('/config', (req: Request, res: Response) => {
+router.get('/config', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
 
-    const config = db
+    const config = await db
       .select()
       .from(unitEconomicsConfig)
       .where(eq(unitEconomicsConfig.siteId, siteId))
@@ -105,7 +105,7 @@ router.get('/config', (req: Request, res: Response) => {
  * PUT /api/unit-economics/config
  * Update unit economics configuration
  */
-router.put('/config', (req: Request, res: Response) => {
+router.put('/config', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const updates: ConfigRequest = req.body;
@@ -127,19 +127,19 @@ router.put('/config', (req: Request, res: Response) => {
     };
 
     // Check if exists
-    const existing = db
+    const existing = await db
       .select()
       .from(unitEconomicsConfig)
       .where(eq(unitEconomicsConfig.siteId, siteId))
       .get();
 
     if (existing) {
-      db.update(unitEconomicsConfig)
+      await db.update(unitEconomicsConfig)
         .set(updateData)
         .where(eq(unitEconomicsConfig.siteId, siteId))
         .run();
     } else {
-      db.insert(unitEconomicsConfig).values(updateData as any).run();
+      await db.insert(unitEconomicsConfig).values(updateData as any).run();
     }
 
     res.json({ success: true, siteId });
@@ -156,14 +156,14 @@ router.put('/config', (req: Request, res: Response) => {
  *
  * Query: siteId, period (YYYY-MM), channel?, dateFrom?, dateTo?
  */
-router.get('/cac', (req: Request, res: Response) => {
+router.get('/cac', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const channel = req.query.channel as string | undefined;
     const period = req.query.period as string | undefined;
 
     // Get LTV metrics data for CAC calculation
-    let query = db.select().from(ltvMetrics).where(eq(ltvMetrics.siteId, siteId));
+    let query = await db.select().from(ltvMetrics).where(eq(ltvMetrics.siteId, siteId));
 
     if (channel && channel !== 'all') {
       query = query.where(and(
@@ -179,7 +179,7 @@ router.get('/cac', (req: Request, res: Response) => {
       )) as any;
     }
 
-    const records = (query as any).all() || [];
+    const records = await (query as any).all() || [];
 
     // Calculate CAC from payback_metrics or compute from raw data
     const cacMetrics = records.map((record: any) => ({
@@ -213,18 +213,18 @@ router.get('/cac', (req: Request, res: Response) => {
  *
  * Query: siteId, segmentType (channel|campaign|source)?, dateFrom?, dateTo?
  */
-router.get('/ltv', (req: Request, res: Response) => {
+router.get('/ltv', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const segmentType = req.query.segmentType as string | undefined;
 
-    let query = db.select().from(ltvMetrics).where(eq(ltvMetrics.siteId, siteId));
+    let query = await db.select().from(ltvMetrics).where(eq(ltvMetrics.siteId, siteId));
 
     if (segmentType && segmentType !== 'all') {
       query = query.where(eq(ltvMetrics.segmentType, segmentType)) as any;
     }
 
-    const records = (query as any).all() || [];
+    const records = await (query as any).all() || [];
 
     // Sort by period descending (most recent first)
     const sorted = records.sort((a: any, b: any) =>
@@ -263,7 +263,7 @@ router.get('/ltv', (req: Request, res: Response) => {
  *
  * Query: siteId, period?, channel?, segment?
  */
-router.get('/ratios', (req: Request, res: Response) => {
+router.get('/ratios', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const period = req.query.period as string | undefined;
@@ -327,7 +327,7 @@ router.get('/ratios', (req: Request, res: Response) => {
  *
  * Query: siteId, channel?, campaign?, dateFrom?, dateTo?
  */
-router.get('/payback', (req: Request, res: Response) => {
+router.get('/payback', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const channel = req.query.channel as string | undefined;
@@ -339,7 +339,7 @@ router.get('/payback', (req: Request, res: Response) => {
       .orderBy(desc(paybackMetrics.periodStart))
       .limit(50);
 
-    const records = (query as any).all() || [];
+    const records = await (query as any).all() || [];
 
     const filtered = channel && channel !== 'all'
       ? records.filter((r: any) => r.segmentId === channel)
@@ -385,7 +385,7 @@ router.get('/payback', (req: Request, res: Response) => {
  *
  * Query: siteId, loopId? (if not provided, returns summary per loop), period?, dateFrom?, dateTo?
  */
-router.get('/by-loop', (req: Request, res: Response) => {
+router.get('/by-loop', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const loopId = req.query.loopId as string | undefined;
@@ -591,7 +591,7 @@ router.get('/by-loop', (req: Request, res: Response) => {
  *
  * Query: siteId, segmentType?, dateFrom?, dateTo?
  */
-router.get('/churn', (req: Request, res: Response) => {
+router.get('/churn', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const segmentType = req.query.segmentType as string | undefined;
@@ -603,7 +603,7 @@ router.get('/churn', (req: Request, res: Response) => {
       .orderBy(desc(churnMetrics.periodStart))
       .limit(50);
 
-    const records = (query as any).all() || [];
+    const records = await (query as any).all() || [];
 
     const filtered = segmentType && segmentType !== 'all'
       ? records.filter((r: any) => r.segmentType === segmentType)
@@ -649,7 +649,7 @@ router.get('/churn', (req: Request, res: Response) => {
  *
  * Query: siteId, type? (rising_cac|falling_ltv|unhealthy_ratio|churn_spike|long_payback), severity?
  */
-router.get('/insights', (req: Request, res: Response) => {
+router.get('/insights', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const type = req.query.type as string | undefined;
@@ -710,7 +710,7 @@ router.get('/insights', (req: Request, res: Response) => {
  * POST /api/unit-economics/insights/:id/dismiss
  * Mark an insight as dismissed
  */
-router.post('/insights/:id/dismiss', (req: Request, res: Response) => {
+router.post('/insights/:id/dismiss', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const insightId = req.params.id;
@@ -733,7 +733,7 @@ router.post('/insights/:id/dismiss', (req: Request, res: Response) => {
  * POST /api/unit-economics/insights/:id/resolve
  * Mark an insight as resolved
  */
-router.post('/insights/:id/resolve', (req: Request, res: Response) => {
+router.post('/insights/:id/resolve', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
     const insightId = req.params.id;
@@ -758,7 +758,7 @@ router.post('/insights/:id/resolve', (req: Request, res: Response) => {
  * GET /api/unit-economics/health
  * Get overall unit economics health score
  */
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', async (req: Request, res: Response) => {
   try {
     const siteId = extractSiteId(req);
 
