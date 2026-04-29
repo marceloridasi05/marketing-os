@@ -35,7 +35,7 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true);
     api
-      .get<{ funnelModelId: string }>(`/api/sites/${selectedSite.id}`)
+      .get<{ funnelModelId: string }>(`/sites/${selectedSite.id}`)
       .then(response => {
         const serverModelId = response.funnelModelId || 'sales_led';
         setFunnelModelId(serverModelId);
@@ -62,7 +62,7 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
 
     api
       .get<{ model: FunnelModel; customFunnels: any[] }>(
-        `/api/funnels/${funnelModelId}?siteId=${selectedSite.id}`
+        `/funnels/${funnelModelId}`
       )
       .then(response => {
         console.log('[FunnelContext] Config loaded successfully:', {
@@ -85,14 +85,16 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setLoading(true);
-      await api.post(`/api/funnels/set?siteId=${selectedSite.id}`, { modelId });
+      console.log('[FunnelContext] Setting model to:', modelId);
+      await api.post(`/funnels/set`, { modelId });
+      console.log('[FunnelContext] Successfully set model to:', modelId);
       setFunnelModelId(modelId);
       if (STORAGE_KEY) {
         localStorage.setItem(STORAGE_KEY, modelId);
       }
     } catch (err) {
       setError(String(err));
-      console.error('Failed to set funnel model:', err);
+      console.error('[FunnelContext] Failed to set funnel model:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -104,11 +106,11 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setLoading(true);
-      const result = await api.post<any>(`/api/funnels/custom?siteId=${selectedSite.id}`, config);
+      const result = await api.post<any>(`/funnels/custom`, config);
       setCustomFunnels(prev => [...prev, result]);
     } catch (err) {
       setError(String(err));
-      console.error('Failed to create custom funnel:', err);
+      console.error('[FunnelContext] Failed to create custom funnel:', err);
       throw err;
     } finally {
       setLoading(false);
