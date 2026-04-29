@@ -255,6 +255,62 @@ router.post('/cleanup-formulas', async (req, res) => {
   }
 });
 
+// POST /consolidate-budget - consolidate multiple Budget items per month into one
+// Groups Budget section items by year/month and creates a single consolidated item per month
+router.post('/consolidate-budget', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const conditions = siteId ? [eq(budgetItems.siteId, siteId)] : [];
+    const budgetRows = await db.select().from(budgetItems)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    // Filter to Budget section items only
+    const budgetItems_data = budgetRows.filter(it => it.section === 'Budget');
+
+    // Group by year/month
+    const grouped = new Map<string, typeof budgetItems_data>();
+    for (const item of budgetItems_data) {
+      const key = `${item.year}-${String(item.month).padStart(2, '0')}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(item);
+    }
+
+    let consolidated = 0;
+    let deleted = 0;
+
+    // For each month with multiple Budget items, consolidate
+    for (const [key, items] of grouped) {
+      if (items.length <= 1) continue;
+
+      // Sum planned values
+      const totalPlanned = items.reduce((s, it) => s + (it.planned || 0), 0);
+      const totalActual = items.reduce((s, it) => s + (it.actual || 0), 0);
+
+      // Keep the first item and update with sum
+      const [y, m] = key.split('-').map(Number);
+      const firstItem = items[0];
+      await db.update(budgetItems).set({
+        planned: totalPlanned,
+        actual: totalActual,
+        name: 'Total Budget',
+        updatedAt: new Date().toISOString(),
+      }).where(eq(budgetItems.id, firstItem.id));
+
+      // Delete the rest
+      for (let i = 1; i < items.length; i++) {
+        await db.delete(budgetItems).where(eq(budgetItems.id, items[i].id));
+        deleted++;
+      }
+      consolidated++;
+    }
+
+    res.json({ success: true, consolidated, deleted });
+  } catch (err) {
+    console.error('consolidate-budget error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 /**
  * Upsert a budget item updating only the planned value.
  * Existing actual values are preserved; new rows get actual=0.

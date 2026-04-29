@@ -360,6 +360,15 @@ export function Budget() {
     setSyncing(false);
   };
 
+  const handleConsolidateBudget = async () => {
+    if (!confirm('Consolidar múltiplos itens de orçamento em um único por mês?')) return;
+    try {
+      const result = await api.post<{ success: boolean; consolidated: number; deleted: number }>('/budget-items/consolidate-budget', {});
+      setLastSync(`${result.consolidated} meses consolidados, ${result.deleted} itens removidos`);
+      await fetchData();
+    } catch (err) { setLastSync(`Erro ao consolidar: ${err}`); }
+  };
+
   // Unique values for filters
   const strategies = useMemo(() => {
     const set = new Set<string>();
@@ -632,7 +641,8 @@ export function Budget() {
 
   const itemRows = useMemo(() => {
     const map = new Map<string, ItemRow>();
-    detailFiltered.forEach(d => {
+    // Exclude Budget section from detail table (shown only at top in Orçamento Mensal)
+    detailFiltered.filter(d => d.section !== 'Budget').forEach(d => {
       const key = `${d.section}|${d.name}`;
       if (!map.has(key)) {
         map.set(key, {
@@ -812,6 +822,10 @@ export function Budget() {
         actions={
           <div className="flex items-center gap-2">
             {lastSync && <span className="text-xs text-gray-500">{lastSync}</span>}
+            <button onClick={handleConsolidateBudget}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700">
+              Consolidar Orçamentos
+            </button>
             <button onClick={handleSync} disabled={syncing}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800 disabled:opacity-50">
               <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
