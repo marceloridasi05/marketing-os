@@ -157,11 +157,26 @@ export default function UnitEconomicsPage() {
         ]);
 
         if (configRes.ok) setConfig(await configRes.json());
-        if (cacRes.ok) setCacMetrics(await cacRes.json());
-        if (ltvRes.ok) setLtvMetrics(await ltvRes.json());
-        if (ratioRes.ok) setRatios(await ratioRes.json());
-        if (paybackRes.ok) setPaybackData(await paybackRes.json());
-        if (insightRes.ok) setInsights(await insightRes.json());
+        if (cacRes.ok) {
+          const cacData = await cacRes.json();
+          setCacMetrics(Array.isArray(cacData) ? cacData : cacData.data || []);
+        }
+        if (ltvRes.ok) {
+          const ltvData = await ltvRes.json();
+          setLtvMetrics(ltvData.recommended ? ltvData : null);
+        }
+        if (ratioRes.ok) {
+          const ratioData = await ratioRes.json();
+          setRatios(ratioData.ratio ? ratioData : null);
+        }
+        if (paybackRes.ok) {
+          const paybackData = await paybackRes.json();
+          setPaybackData(Array.isArray(paybackData) ? paybackData : paybackData.data || []);
+        }
+        if (insightRes.ok) {
+          const insightData = await insightRes.json();
+          setInsights(Array.isArray(insightData) ? insightData : (insightData.data || []));
+        }
       } catch (err) {
         console.error('Failed to load unit economics data:', err);
       } finally {
