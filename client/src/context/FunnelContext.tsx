@@ -56,6 +56,7 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    console.log('[FunnelContext] Loading config for model:', funnelModelId, 'site:', selectedSite.id);
     setLoading(true);
     setError(null);
 
@@ -64,12 +65,17 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
         `/api/funnels/${funnelModelId}?siteId=${selectedSite.id}`
       )
       .then(response => {
+        console.log('[FunnelContext] Config loaded successfully:', {
+          modelId: response.model.id,
+          name: response.model.name,
+          stages: response.model.stages.length,
+        });
         setFunnelConfig(response.model);
         setCustomFunnels(response.customFunnels || []);
       })
       .catch(err => {
         setError(String(err));
-        console.error('Failed to load funnel config:', err);
+        console.error('[FunnelContext] Failed to load funnel config:', err);
       })
       .finally(() => setLoading(false));
   }, [funnelModelId, selectedSite]);

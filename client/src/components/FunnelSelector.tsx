@@ -6,10 +6,13 @@ export function FunnelSelector() {
   const { funnelModelId, funnelConfig, loading, setFunnelModel } = useFunnel();
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModelId = e.target.value;
+    console.log('[FunnelSelector] Changing model to:', newModelId);
     try {
-      await setFunnelModel(e.target.value);
+      await setFunnelModel(newModelId);
+      console.log('[FunnelSelector] Successfully changed to:', newModelId);
     } catch (err) {
-      console.error('Failed to change funnel model:', err);
+      console.error('[FunnelSelector] Failed to change funnel model:', err);
     }
   };
 

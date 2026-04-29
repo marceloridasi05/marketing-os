@@ -705,6 +705,18 @@ export function Dashboard() {
 
   // ── Build dynamic objective cards based on funnel config ─────────────────────
 
+  // Debug: Log when funnel config changes
+  useEffect(() => {
+    if (funnelConfig) {
+      console.log('[Dashboard] FunnelConfig updated:', {
+        modelId: funnelConfig.id,
+        name: funnelConfig.name,
+        stageCount: funnelConfig.stages.length,
+        stages: funnelConfig.stages.map(s => ({ id: s.id, label: s.label })),
+      });
+    }
+  }, [funnelConfig]);
+
   const buildObjectiveCards = useMemo(() => {
     if (!funnelConfig) {
       // Fallback to default layout if no funnel config
