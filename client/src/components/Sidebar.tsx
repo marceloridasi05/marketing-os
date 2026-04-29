@@ -157,9 +157,9 @@ function NavSection({
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-300 hover:bg-gray-800/30 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider hover:bg-gray-800/30 transition-colors"
       >
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2 text-orange-500">
           <Icon size={13} className="shrink-0" />
           {section.label}
         </span>
