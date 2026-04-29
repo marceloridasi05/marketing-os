@@ -171,8 +171,9 @@ export function AdsBudgets() {
         <div className="py-12 text-center text-gray-400">Carregando...</div>
       ) : (
         <>
-          {/* KPI Tiles — Google + LinkedIn + Meta */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+          {/* KPI Tiles — First line: Google, Meta, LinkedIn (daily + monthly) */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
+            {/* Google */}
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Diária Google</p>
               <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyGoogle ?? null)}</p>
@@ -181,14 +182,8 @@ export function AdsBudgets() {
               <p className="text-xs font-medium text-gray-500 uppercase">Mensal Google</p>
               <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyGoogle ?? null)}</p>
             </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Diária LinkedIn</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyLinkedin ?? null)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Mensal LinkedIn</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyLinkedin ?? null)}</p>
-            </Card>
+
+            {/* Meta */}
             <Card className="min-w-0">
               <p className="text-xs font-medium text-gray-500 uppercase">Diária Meta</p>
               <p className={`text-lg font-semibold mt-1 ${currentLimit?.dailyMeta ? 'text-gray-900' : 'text-gray-300'}`}>
@@ -201,40 +196,33 @@ export function AdsBudgets() {
                 {fmtMoney(currentLimit?.monthlyMeta ?? 0)}
               </p>
             </Card>
+
+            {/* LinkedIn */}
             <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Consumido</p>
-              <p className="text-xl font-semibold text-gray-900 mt-1">{fmtMoney(totalUsed)}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase">Diária LinkedIn</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyLinkedin ?? null)}</p>
             </Card>
             <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Saldo Disponível</p>
-              <p className={`text-xl font-semibold mt-1 ${totalAvailable < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totalAvailable)}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase">Mensal LinkedIn</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyLinkedin ?? null)}</p>
             </Card>
           </div>
 
-          {/* Summary tiles Google / LinkedIn / Meta */}
+          {/* Second line: Aggregated totals */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
             <Card className="min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 rounded-full bg-green-500" />
-                <p className="text-sm font-medium text-gray-700">Google Ads — Consumo no Período</p>
-              </div>
-              <p className="text-2xl font-semibold text-gray-900">{fmtMoney(totalGoogle)}</p>
+              <p className="text-xs font-medium text-gray-500 uppercase">Total Google</p>
+              <p className="text-lg font-semibold text-green-600 mt-1">{fmtMoney(totalGoogle)}</p>
             </Card>
             <Card className="min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 rounded-full bg-blue-600" />
-                <p className="text-sm font-medium text-gray-700">LinkedIn Ads — Consumo no Período</p>
-              </div>
-              <p className="text-2xl font-semibold text-gray-900">{fmtMoney(totalLinkedin)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 rounded-full bg-blue-400" />
-                <p className="text-sm font-medium text-gray-700">Meta Ads — Consumo no Período</p>
-              </div>
-              <p className={`text-2xl font-semibold ${totalMeta > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+              <p className="text-xs font-medium text-gray-500 uppercase">Total Meta</p>
+              <p className={`text-lg font-semibold mt-1 ${totalMeta > 0 ? 'text-blue-400' : 'text-gray-300'}`}>
                 {fmtMoney(totalMeta)}
               </p>
+            </Card>
+            <Card className="min-w-0">
+              <p className="text-xs font-medium text-gray-500 uppercase">Total LinkedIn</p>
+              <p className="text-lg font-semibold text-blue-600 mt-1">{fmtMoney(totalLinkedin)}</p>
             </Card>
           </div>
 
