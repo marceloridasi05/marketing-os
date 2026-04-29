@@ -567,6 +567,85 @@ export const utmLibrary = sqliteTable('utm_library', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+// ── UTM Preset Enforcement: Progressive Enforcement Configuration ────────────────
+
+export const utmEnforcementConfig = sqliteTable('utm_enforcement_config', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Enforcement mode: 'flexible' (warn only) → 'strict' (reject non-standard)
+  enforcementMode: text('enforcement_mode').default('flexible').notNull(), // flexible | moderate | strict
+  // Strictness level: 0 (none) → 100 (maximum)
+  strictnessLevel: integer('strictness_level').default(0).notNull(),
+  // Allow free-text but warn
+  allowFreeText: integer('allow_free_text', { mode: 'boolean' }).default(true).notNull(),
+  // Auto-normalize detected duplicates
+  autoNormalize: integer('auto_normalize', { mode: 'boolean' }).default(true).notNull(),
+  // Fuzzy matching threshold (0-1): how similar values must be to suggest mapping
+  fuzzyMatchThreshold: real('fuzzy_match_threshold').default(0.85).notNull(),
+  // Track when strictness was last increased
+  lastStrictnessIncrease: text('last_strictness_increase'),
+  // Admin notes about enforcement policy
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmDataQualityMetrics = sqliteTable('utm_data_quality_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Period for measurement
+  periodStart: text('period_start').notNull(), // YYYY-MM-DD
+  periodEnd: text('period_end').notNull(),
+  // Quality scores (0-100%)
+  standardizationScore: real('standardization_score'), // % of UTMs using standard values
+  attributionCoverageScore: real('attribution_coverage_score'), // % of traffic with complete UTMs
+  deduplicationScore: real('deduplication_score'), // % of campaigns without duplicates
+  overallDataQuality: real('overall_data_quality'), // Weighted average
+  // Detailed metrics
+  totalCampaigns: integer('total_campaigns').default(0),
+  standardizedCampaigns: integer('standardized_campaigns').default(0),
+  duplicateCampaigns: integer('duplicate_campaigns').default(0),
+  uniqueSourceValues: integer('unique_source_values').default(0),
+  uniqueMediumValues: integer('unique_medium_values').default(0),
+  // Trend analysis
+  previousScore: real('previous_score'), // Score from previous period
+  scoreChange: real('score_change'), // % change from previous period
+  // Recommendations
+  recommendations: text('recommendations'), // JSON: [{ priority, action, expectedImpact }]
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmSuggestionCache = sqliteTable('utm_suggestion_cache', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // User input (partial or complete)
+  userInput: text('user_input').notNull(),
+  inputType: text('input_type').notNull(), // 'source' | 'medium' | 'campaign'
+  // Cached suggestions (avoid recalculating)
+  suggestions: text('suggestions').notNull(), // JSON: [{ value, type, confidence, reason }]
+  // How confident we are in these suggestions
+  confidenceScore: real('confidence_score'), // 0-1
+  // When this cache expires (for periodic refresh)
+  expiresAt: text('expires_at'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const utmValueHistory = sqliteTable('utm_value_history', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  // Track how a UTM value evolves
+  canonicalValue: text('canonical_value').notNull(), // The standardized version
+  variants: text('variants').notNull(), // JSON: [{ value, usageCount, firstSeen, lastSeen }]
+  valueType: text('value_type').notNull(), // 'source' | 'medium' | 'campaign'
+  // When standardization happened
+  standardizedAt: text('standardized_at'), // When this became the canonical version
+  // Admin notes
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
 // ── UTM Preset Enforcement: Mappings & Rules ────────────────────────────────────
 
 export const channelMappings = sqliteTable('channel_mappings', {

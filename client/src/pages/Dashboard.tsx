@@ -703,6 +703,104 @@ export function Dashboard() {
     setTimeout(() => aiCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
+  // ── Build dynamic objective cards based on funnel config ─────────────────────
+
+  const buildObjectiveCards = useMemo(() => {
+    if (!funnelConfig) {
+      // Fallback to default layout if no funnel config
+      return [
+        {
+          title: 'Aquisição',
+          stage: 'acquisition',
+          status: acquisitionStatus,
+          hero: { label: 'Sessões', value: totalSessions, prev: prevSessions, fmt: 'num' as const },
+          metrics: [
+            { label: 'Cliques GA', value: gaClicks || null, prev: pGaClicks || null, fmt: 'num' as const },
+            { label: 'Novos Usuários', value: newUsers || null, prev: pNewUsers || null, fmt: 'num' as const },
+            { label: 'Blog', value: blogSessions || null, fmt: 'num' as const },
+          ],
+        },
+        {
+          title: 'Conversão',
+          stage: 'conversion',
+          status: conversionStatus,
+          hero: { label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' as const },
+          metrics: [
+            { label: 'CTR', value: ctr != null ? ctr * 100 : null, prev: prevCtr != null ? prevCtr * 100 : null, fmt: 'pct' as const },
+            { label: 'CVR', value: cvr != null ? cvr * 100 : null, prev: prevCvr != null ? prevCvr * 100 : null, fmt: 'pct' as const },
+            { label: 'CPL', value: cpl, prev: prevCpl, fmt: 'money' as const, lowerIsBetter: true },
+          ],
+        },
+        {
+          title: 'Receita',
+          stage: 'revenue',
+          status: revenueStatus,
+          hero: { label: 'Investimento Ads', value: totalAdsSpend || null, prev: prevAdsSpend || null, fmt: 'money' as const, lowerIsBetter: true },
+          metrics: [
+            { label: 'Total Mktg', value: totalMktgSpend || null, fmt: 'money' as const, lowerIsBetter: true },
+            { label: 'Savings', value: fBudget.length > 0 ? totalSavings : null, fmt: 'money' as const },
+          ],
+          budgetBar: budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined,
+        },
+      ];
+    }
+
+    // Build cards dynamically from funnelConfig stages
+    const cards = funnelConfig.stages.map(stage => {
+      const stageId = stage.id;
+      let title = stage.name;
+      let heroMetric = { label: '', value: null as number | null, prev: null as number | null, fmt: 'num' as const };
+      let metrics: MetricSpec[] = [];
+      let status: ObjStatus = 'neutral';
+
+      // Map stage IDs to metrics
+      if (stageId === 'awareness') {
+        title = funnelConfig.stages.find(s => s.id === 'awareness')?.name || 'Awareness';
+        heroMetric = { label: 'Sessões', value: totalSessions, prev: prevSessions, fmt: 'num' as const };
+        metrics = [
+          { label: 'Impressões', value: 0, fmt: 'num' as const },
+          { label: 'Cliques', value: gaClicks || null, prev: pGaClicks || null, fmt: 'num' as const },
+        ];
+        status = acquisitionStatus;
+      } else if (stageId === 'consideration') {
+        title = funnelConfig.stages.find(s => s.id === 'consideration')?.name || 'Consideration';
+        heroMetric = { label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' as const };
+        metrics = [
+          { label: 'CTR', value: ctr != null ? ctr * 100 : null, prev: prevCtr != null ? prevCtr * 100 : null, fmt: 'pct' as const },
+          { label: 'CPL', value: cpl, prev: prevCpl, fmt: 'money' as const, lowerIsBetter: true },
+        ];
+        status = conversionStatus;
+      } else if (stageId === 'conversion' || stageId === 'acquisition') {
+        title = funnelConfig.stages.find(s => s.id === stageId)?.name || 'Conversion';
+        heroMetric = { label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' as const };
+        metrics = [
+          { label: 'CVR', value: cvr != null ? cvr * 100 : null, prev: prevCvr != null ? prevCvr * 100 : null, fmt: 'pct' as const },
+          { label: 'CPL', value: cpl, prev: prevCpl, fmt: 'money' as const, lowerIsBetter: true },
+        ];
+        status = conversionStatus;
+      } else if (stageId === 'revenue' || stageId === 'retention') {
+        title = funnelConfig.stages.find(s => s.id === stageId)?.name || 'Revenue';
+        heroMetric = { label: 'Investimento Ads', value: totalAdsSpend || null, prev: prevAdsSpend || null, fmt: 'money' as const, lowerIsBetter: true };
+        metrics = [
+          { label: 'Total Mktg', value: totalMktgSpend || null, fmt: 'money' as const, lowerIsBetter: true },
+          { label: 'Savings', value: fBudget.length > 0 ? totalSavings : null, fmt: 'money' as const },
+        ];
+        status = revenueStatus;
+      }
+
+      return {
+        title,
+        stage: stageId,
+        status,
+        hero: heroMetric,
+        metrics,
+        budgetBar: stageId === 'revenue' && budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined,
+      };
+    });
+
+    return cards;
+  }, [funnelConfig, totalSessions, prevSessions, gaClicks, pGaClicks, newUsers, pNewUsers, blogSessions, totalLeads, prevLeads, ctr, prevCtr, cvr, prevCvr, cpl, prevCpl, totalAdsSpend, prevAdsSpend, totalMktgSpend, fBudget, totalSavings, budgetPlanned, acquisitionStatus, conversionStatus, revenueStatus]);
+
   // ── Overall status ───────────────────────────────────────────────────────────
 
   const overallStatus: ObjStatus =
@@ -787,6 +885,9 @@ export function Dashboard() {
             </div>
           )}
 
+          {/* ── MODE: NORMAL VIEW ────────────────────────────────────────────────────── */}
+          {dashboardMode === 'normal' && (
+            <>
           {/* ── 1. Executive Summary ───────────────────────────────────────────── */}
           {executiveSummary && (
             <div className={`mb-5 rounded-xl border border-l-4 p-4 flex items-start gap-4 ${bottleneckBg}`}>
@@ -802,43 +903,24 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── 2. Objective cards ─────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            <ObjectiveCard
-              title="Aquisição"
-              stage="acquisition"
-              status={acquisitionStatus}
-              hero={{ label: 'Sessões', value: totalSessions, prev: prevSessions, fmt: 'num' }}
-              metrics={[
-                { label: 'Cliques GA',     value: gaClicks   || null, prev: pGaClicks   || null, fmt: 'num' },
-                { label: 'Novos Usuários', value: newUsers   || null, prev: pNewUsers   || null, fmt: 'num' },
-                { label: 'Blog',           value: blogSessions || null, fmt: 'num' },
-              ]}
-            />
-
-            <ObjectiveCard
-              title="Conversão"
-              stage="conversion"
-              status={conversionStatus}
-              hero={{ label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' }}
-              metrics={[
-                { label: 'CTR',  value: ctr  != null ? ctr  * 100 : null, prev: prevCtr  != null ? prevCtr  * 100 : null, fmt: 'pct' },
-                { label: 'CVR',  value: cvr  != null ? cvr  * 100 : null, prev: prevCvr  != null ? prevCvr  * 100 : null, fmt: 'pct' },
-                { label: 'CPL',  value: cpl,         prev: prevCpl,       fmt: 'money', lowerIsBetter: true },
-              ]}
-            />
-
-            <ObjectiveCard
-              title="Receita"
-              stage="revenue"
-              status={revenueStatus}
-              hero={{ label: 'Investimento Ads', value: totalAdsSpend || null, prev: prevAdsSpend || null, fmt: 'money', lowerIsBetter: true }}
-              metrics={[
-                { label: 'Total Mktg', value: totalMktgSpend || null, fmt: 'money', lowerIsBetter: true },
-                { label: 'Savings',    value: fBudget.length > 0 ? totalSavings : null, fmt: 'money' },
-              ]}
-              budgetBar={budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined}
-            />
+          {/* ── 2. Objective cards (Dynamic from Funnel Model) ─────────────────────── */}
+          <div className={`grid gap-4 mb-5 ${
+            buildObjectiveCards.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+            buildObjectiveCards.length >= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+            'grid-cols-1 md:grid-cols-3'
+          }`}>
+            {buildObjectiveCards.map((card, idx) => (
+              <ObjectiveCard
+                key={idx}
+                title={card.title}
+                stageId={card.stage}
+                stageMeta={STAGE_META[card.stage as keyof typeof STAGE_META] || null}
+                status={card.status}
+                hero={card.hero}
+                metrics={card.metrics}
+                budgetBar={card.budgetBar}
+              />
+            ))}
           </div>
 
           {/* ── 2.5. UTM CAC Widget ───────────────────────────────────────────────── */}
@@ -1102,8 +1184,20 @@ export function Dashboard() {
             </div>
           </CollapsibleCard>
 
+            </>
+          )}
+
+          {/* ── MODE: ABM VIEW ────────────────────────────────────────────────────── */}
+          {dashboardMode === 'abm' && (
+            <>
+              {/* ABM Header */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Account-Based Marketing Intelligence</h2>
+                <p className="text-sm text-gray-600">Monitore contas estratégicas e intenção de compra em tempo real</p>
+              </div>
+
           {/* ── 7. ABM Intelligence ────────────────────────────────────────────── */}
-          <CollapsibleCard title="ABM Intelligence" className="mb-4" defaultOpen={false}
+          <CollapsibleCard title="ABM Intelligence" className="mb-4" defaultOpen={true}
             actions={abmData?.abmUrl ? (
               <a href={abmData.abmUrl} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors">
@@ -1305,9 +1399,11 @@ export function Dashboard() {
                 )}
               </div>
             </div>
-          </CollapsibleCard>
+            </CollapsibleCard>
+            </>
+          )}
 
-          {/* ── 9. AI Analysis ─────────────────────────────────────────────────── */}
+          {/* ── 9. AI Analysis (Shared) ─────────────────────────────────────────────────── */}
           <div ref={aiCardRef}>
             <CollapsibleCard title="Análise IA" defaultOpen={!!aiAnalysis || aiLoading}
               actions={aiTimestamp ? (

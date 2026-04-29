@@ -306,7 +306,7 @@ export async function getActiveNormalizationRules(
       .where(
         and(
           eq(campaignNormalizationRules.siteId, siteId),
-          eq(campaignNormalizationRules.active, 1)
+          eq(campaignNormalizationRules.active, true)
         )
       );
 

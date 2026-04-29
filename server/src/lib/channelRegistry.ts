@@ -129,7 +129,7 @@ export async function seedChannelMappings(siteId: number): Promise<void> {
     const existingChannels = await db
       .select({ id: channels.id, name: channels.name })
       .from(channels)
-      .where(and(eq(channels.siteId, siteId), eq(channels.isStandard, 1)));
+      .where(and(eq(channels.siteId, siteId), eq(channels.isStandard, true)));
 
     const channelMap = new Map<string, number>();
     for (const ch of existingChannels) {
@@ -145,9 +145,9 @@ export async function seedChannelMappings(siteId: number): Promise<void> {
             siteId,
             name: stdChannel.name,
             category: stdChannel.category,
-            isStandard: 1,
-            allowCustomNames: 1,
-          });
+            isStandard: true,
+            allowCustomNames: true,
+          } as any);
         channelMap.set(stdChannel.name, result.lastInsertRowid as number);
       }
     }
@@ -438,7 +438,7 @@ export async function isChannelValid(
         and(
           eq(channels.id, channelId),
           eq(channels.siteId, siteId),
-          eq(channels.active, 1)
+          eq(channels.active, true)
         )
       )
       .limit(1);

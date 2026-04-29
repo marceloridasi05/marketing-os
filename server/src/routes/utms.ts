@@ -9,8 +9,14 @@ import {
   utmCacAnalysis,
   growthLoopAttributions,
   growthLoops,
+  utmSourceEnum,
+  utmMediumEnum,
+  utmEnforcementConfig,
+  utmDataQualityMetrics,
+  utmSuggestionCache,
+  utmValueHistory,
 } from '../db/schema.js';
-import { eq, and, sql, like, gte, lte } from 'drizzle-orm';
+import { eq, and, sql, like, gte, lte, ne } from 'drizzle-orm';
 import {
   calculateFirstTouchAttribution,
   calculateLastTouchAttribution,
@@ -19,6 +25,18 @@ import {
   combineAttributionResults,
   calculateCAC,
 } from '../lib/attributionModels.js';
+import {
+  getSuggestions,
+  getEnforcementConfig,
+  updateEnforcementConfig,
+} from '../lib/intelligentSuggestions.js';
+import {
+  calculateDataQualityMetrics,
+  getLatestDataQualityMetrics,
+  getDataQualityMetricsHistory,
+  getDataQualityStatus,
+  getScoreTrend,
+} from '../lib/dataQualityCalculator.js';
 
 const router = Router();
 
@@ -329,7 +347,8 @@ router.post('/validate', async (req, res) => {
 
 /**
  * GET /api/utms/suggestions
- * Get suggestions for standardized UTM values based on site history
+ * Get intelligent suggestions for UTM values with fuzzy matching and normalization
+ * Query params: input (string), type (source|medium|campaign), siteId (number)
  */
 router.get('/suggestions', async (req, res) => {
   try {
@@ -338,20 +357,59 @@ router.get('/suggestions', async (req, res) => {
       return res.status(400).json({ error: 'siteId required' });
     }
 
-    const campaigns = await db
-      .select()
-      .from(utmCampaigns)
-      .where(eq(utmCampaigns.siteId, siteId));
+    const input = String(req.query.input || '');
+    const type = String(req.query.type || 'source') as 'source' | 'medium' | 'campaign';
 
-    // Extract unique values from existing campaigns
-    const sources = [...new Set(campaigns.map(c => c.source))];
-    const mediums = [...new Set(campaigns.map(c => c.medium))];
-    const terms = campaigns
-      .filter(c => c.term)
-      .map(c => c.term)
-      .filter((v): v is string => v !== null);
+    // If no input provided, return all available presets for the type
+    if (!input) {
+      if (type === 'source') {
+        const sources = await db
+          .select()
+          .from(utmSourceEnum)
+          .where(eq(utmSourceEnum.siteId, siteId));
+        const config = await getEnforcementConfig(siteId);
+        return res.json({
+          input: '',
+          suggestions: sources.map(s => ({
+            value: s.source,
+            type: 'standard',
+            confidence: 1.0,
+            reason: 'Standard source value',
+            displayName: s.displayName,
+          })),
+          enforcement: {
+            mode: config.enforcementMode as any,
+            allowFreeText: config.allowFreeText,
+            strictnessLevel: config.strictnessLevel,
+          },
+        });
+      } else if (type === 'medium') {
+        const mediums = await db
+          .select()
+          .from(utmMediumEnum)
+          .where(eq(utmMediumEnum.siteId, siteId));
+        const config = await getEnforcementConfig(siteId);
+        return res.json({
+          input: '',
+          suggestions: mediums.map(m => ({
+            value: m.medium,
+            type: 'standard',
+            confidence: 1.0,
+            reason: 'Standard medium value',
+            displayName: m.displayName,
+          })),
+          enforcement: {
+            mode: config.enforcementMode as any,
+            allowFreeText: config.allowFreeText,
+            strictnessLevel: config.strictnessLevel,
+          },
+        });
+      }
+    }
 
-    res.json({ sources, mediums, terms });
+    // Get intelligent suggestions
+    const response = await getSuggestions(input, type, siteId);
+    res.json(response);
   } catch (err) {
     console.error('Failed to get UTM suggestions:', err);
     res.status(500).json({ error: String(err) });
@@ -836,12 +894,8 @@ router.get('/roi', async (req, res) => {
       const nextMonth = parseInt(month) === 12 ? `${parseInt(year) + 1}-01` : `${year}-${(parseInt(month) + 1).toString().padStart(2, '0')}`;
       const endDate = `${nextMonth}-01`;
 
-      conditions.push(
-        and(
-          gte(utmCacAnalysis.periodStart, startDate),
-          lte(utmCacAnalysis.periodStart, endDate)
-        )
-      );
+      conditions.push(gte(utmCacAnalysis.periodStart, startDate));
+      conditions.push(lte(utmCacAnalysis.periodStart, endDate));
     }
 
     const roiData = await db
@@ -977,16 +1031,15 @@ router.get('/campaigns-by-loop', async (req, res) => {
       .where(eq(growthLoops.siteId, siteId));
 
     // Get all attributions (filtered by loop if provided)
-    let attrQuery = db
-      .select()
-      .from(growthLoopAttributions)
-      .where(eq(growthLoopAttributions.siteId, siteId));
-
+    const attrConditions = [eq(growthLoopAttributions.siteId, siteId)];
     if (loopId) {
-      attrQuery = attrQuery.where(eq(growthLoopAttributions.loopId, loopId)) as any;
+      attrConditions.push(eq(growthLoopAttributions.loopId, loopId));
     }
 
-    const attributions = await attrQuery;
+    const attributions = await db
+      .select()
+      .from(growthLoopAttributions)
+      .where(and(...attrConditions));
 
     // Group by loop and get campaign data
     const loopsWithCampaigns: any[] = [];
@@ -1122,6 +1175,247 @@ router.get('/campaign/:id/loop-impact', async (req, res) => {
     });
   } catch (err) {
     console.error('Failed to get loop impact for campaign:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── UTM Enforcement & Data Quality ────────────────────────────────────────
+
+/**
+ * GET /api/utms/enforcement-config
+ * Get enforcement configuration for a site
+ */
+router.get('/enforcement-config', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const config = await getEnforcementConfig(siteId);
+    res.json(config);
+  } catch (err) {
+    console.error('Failed to get enforcement config:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * PUT /api/utms/enforcement-config
+ * Update enforcement configuration for a site
+ */
+router.put('/enforcement-config', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const {
+      enforcementMode,
+      strictnessLevel,
+      allowFreeText,
+      autoNormalize,
+      fuzzyMatchThreshold,
+    } = req.body;
+
+    const result = await updateEnforcementConfig(siteId, {
+      enforcementMode,
+      strictnessLevel,
+      allowFreeText,
+      autoNormalize,
+      fuzzyMatchThreshold,
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json({ success: true, message: 'Enforcement config updated' });
+  } catch (err) {
+    console.error('Failed to update enforcement config:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * GET /api/utms/source-presets
+ * Get list of allowed source values (enums) for a site
+ */
+router.get('/source-presets', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const sources = await db
+      .select()
+      .from(utmSourceEnum)
+      .where(eq(utmSourceEnum.siteId, siteId))
+      .orderBy(utmSourceEnum.source);
+
+    res.json({
+      siteId,
+      count: sources.length,
+      sources: sources.map(s => ({
+        id: s.id,
+        value: s.source,
+        displayName: s.displayName,
+        icon: s.icon,
+        category: s.category,
+        isDefault: s.isDefault,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to get source presets:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * GET /api/utms/medium-presets
+ * Get list of allowed medium values (enums) for a site
+ */
+router.get('/medium-presets', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const mediums = await db
+      .select()
+      .from(utmMediumEnum)
+      .where(eq(utmMediumEnum.siteId, siteId))
+      .orderBy(utmMediumEnum.medium);
+
+    res.json({
+      siteId,
+      count: mediums.length,
+      mediums: mediums.map(m => ({
+        id: m.id,
+        value: m.medium,
+        displayName: m.displayName,
+        costType: m.costType,
+        isDefault: m.isDefault,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to get medium presets:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * POST /api/utms/data-quality/calculate
+ * Calculate and store data quality metrics for a site
+ */
+router.post('/data-quality/calculate', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const metrics = await calculateDataQualityMetrics(siteId);
+    const status = getDataQualityStatus(metrics.overallDataQuality);
+
+    res.json({
+      siteId,
+      status,
+      ...metrics,
+    });
+  } catch (err) {
+    console.error('Failed to calculate data quality metrics:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * GET /api/utms/data-quality/metrics
+ * Get latest data quality metrics for a site
+ */
+router.get('/data-quality/metrics', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const latest = await getLatestDataQualityMetrics(siteId);
+
+    if (!latest) {
+      return res.json({
+        siteId,
+        status: 'unknown',
+        message: 'No metrics calculated yet. Run POST /api/utms/data-quality/calculate first.',
+      });
+    }
+
+    const previousMetrics = await db
+      .select()
+      .from(utmDataQualityMetrics)
+      .where(eq(utmDataQualityMetrics.siteId, siteId))
+      .orderBy(sql`${utmDataQualityMetrics.createdAt} DESC`)
+      .limit(2)
+      .offset(1)
+      .get();
+
+    const status = getDataQualityStatus(latest.overallDataQuality);
+    const trend = previousMetrics
+      ? getScoreTrend(
+          latest.overallDataQuality,
+          (previousMetrics.overallDataQuality ?? latest.overallDataQuality) as number
+        )
+      : 'stable';
+
+    const { siteId: _, ...latestWithoutSiteId } = latest;
+    res.json({
+      siteId,
+      status,
+      trend,
+      ...latestWithoutSiteId,
+    });
+  } catch (err) {
+    console.error('Failed to get data quality metrics:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
+ * GET /api/utms/data-quality/history
+ * Get data quality metrics history (last N periods)
+ */
+router.get('/data-quality/history', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const limit = req.query.limit ? +req.query.limit : 12;
+
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId required' });
+    }
+
+    const history = await getDataQualityMetricsHistory(siteId, limit);
+
+    res.json({
+      siteId,
+      count: history.length,
+      limit,
+      history: history.map(item => ({
+        periodStart: item.periodStart,
+        periodEnd: item.periodEnd,
+        overallDataQuality: item.overallDataQuality,
+        standardizationScore: item.standardizationScore,
+        attributionCoverageScore: item.attributionCoverageScore,
+        deduplicationScore: item.deduplicationScore,
+        scoreChange: item.scoreChange,
+        status: getDataQualityStatus(item.overallDataQuality),
+        createdAt: item.createdAt,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to get data quality history:', err);
     res.status(500).json({ error: String(err) });
   }
 });

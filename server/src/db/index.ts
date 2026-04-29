@@ -404,6 +404,64 @@ sqlite.exec(`
   )
 `);
 
+// Migration: UTM Preset Enforcement - Progressive Enforcement Configuration (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS utm_enforcement_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    enforcement_mode TEXT NOT NULL DEFAULT 'flexible',
+    strictness_level INTEGER NOT NULL DEFAULT 0,
+    allow_free_text INTEGER NOT NULL DEFAULT 1,
+    auto_normalize INTEGER NOT NULL DEFAULT 1,
+    fuzzy_match_threshold REAL NOT NULL DEFAULT 0.85,
+    last_strictness_increase TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_data_quality_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    standardization_score REAL,
+    attribution_coverage_score REAL,
+    deduplication_score REAL,
+    overall_data_quality REAL,
+    total_campaigns INTEGER DEFAULT 0,
+    standardized_campaigns INTEGER DEFAULT 0,
+    duplicate_campaigns INTEGER DEFAULT 0,
+    unique_source_values INTEGER DEFAULT 0,
+    unique_medium_values INTEGER DEFAULT 0,
+    previous_score REAL,
+    score_change REAL,
+    recommendations TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_suggestion_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    user_input TEXT NOT NULL,
+    input_type TEXT NOT NULL,
+    suggestions TEXT NOT NULL,
+    confidence_score REAL,
+    expires_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS utm_value_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    canonical_value TEXT NOT NULL,
+    variants TEXT NOT NULL,
+    value_type TEXT NOT NULL,
+    standardized_at TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Migration: UTM Preset Enforcement - Enum tables (idempotent)
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS utm_source_enum (
@@ -867,6 +925,12 @@ try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_medium_enum_idx ON u
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_mapped_channel_idx ON utm_campaigns(mapped_channel_id)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_campaigns_site_duplicate_idx ON utm_campaigns(site_id, is_duplicate)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS campaign_normalization_rules_site_idx ON campaign_normalization_rules(site_id, active)`); } catch { /* already exists */ }
+
+// Indexes for Gradual Enforcement tables
+try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_enforcement_config_site_idx ON utm_enforcement_config(site_id)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_data_quality_metrics_site_period_idx ON utm_data_quality_metrics(site_id, period_start DESC)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_suggestion_cache_input_idx ON utm_suggestion_cache(site_id, input_type, user_input)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS utm_value_history_site_type_idx ON utm_value_history(site_id, value_type, canonical_value)`); } catch { /* already exists */ }
 
 // Indexes for Growth Loops tables
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_metrics_site_loop_period_idx ON growth_loop_metrics(site_id, loop_id, period_start)`); } catch { /* already exists */ }
