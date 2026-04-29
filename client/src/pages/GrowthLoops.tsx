@@ -88,6 +88,10 @@ const GrowthLoopsPage: React.FC = () => {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [selectedLoopId, setSelectedLoopId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newLoopName, setNewLoopName] = useState('');
+  const [newLoopType, setNewLoopType] = useState('paid');
+  const [creatingLoop, setCreatingLoop] = useState(false);
 
   useEffect(() => {
     if (siteId) {
@@ -130,6 +134,49 @@ const GrowthLoopsPage: React.FC = () => {
     }
   };
 
+  const handleCreateLoop = async () => {
+    if (!newLoopName.trim()) {
+      alert('Por favor, insira um nome para o loop');
+      return;
+    }
+
+    try {
+      setCreatingLoop(true);
+      const res = await fetch(`/api/growth-loops?siteId=${siteId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newLoopName,
+          description: '',
+          type: newLoopType,
+          inputType: 'traffic',
+          actionType: 'click',
+          outputMetricKey: 'conversions',
+          targetCac: 50,
+          targetLtv: 300,
+          targetPaybackMonths: 12,
+          targetCycleHours: 24,
+          isActive: true,
+          isPriority: false,
+        }),
+      });
+
+      if (res.ok) {
+        setShowCreateModal(false);
+        setNewLoopName('');
+        setNewLoopType('paid');
+        await fetchLoops();
+      } else {
+        alert('Erro ao criar o loop');
+      }
+    } catch (error) {
+      console.error('Error creating loop:', error);
+      alert('Erro ao criar o loop');
+    } finally {
+      setCreatingLoop(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -142,11 +189,73 @@ const GrowthLoopsPage: React.FC = () => {
     return (
       <div className="p-6 text-center">
         <Zap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">No growth loops yet</h2>
-        <p className="text-gray-500 mb-6">Create your first growth loop to start tracking</p>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-          Create Loop
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Nenhum Growth Loop criado</h2>
+        <p className="text-gray-500 mb-6">Crie seu primeiro growth loop para começar a acompanhar</p>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto">
+          <Plus size={18} />
+          Criar Loop
         </button>
+
+        {/* Create Loop Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Criar novo Growth Loop</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome do Loop *
+                  </label>
+                  <input
+                    type="text"
+                    value={newLoopName}
+                    onChange={(e) => setNewLoopName(e.target.value)}
+                    placeholder="ex: Google Ads Loop, Viral Referral"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Loop
+                  </label>
+                  <select
+                    value={newLoopType}
+                    onChange={(e) => setNewLoopType(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="paid">Paid Ads</option>
+                    <option value="viral">Viral</option>
+                    <option value="content">Content</option>
+                    <option value="sales">Sales</option>
+                    <option value="abm">ABM</option>
+                    <option value="event">Event</option>
+                    <option value="product">Product</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateLoop}
+                  disabled={creatingLoop}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  {creatingLoop ? 'Criando...' : 'Criar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
