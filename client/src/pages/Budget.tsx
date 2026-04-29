@@ -641,8 +641,7 @@ export function Budget() {
 
   const itemRows = useMemo(() => {
     const map = new Map<string, ItemRow>();
-    // Exclude Budget section from detail table (shown only at top in Orçamento Mensal)
-    detailFiltered.filter(d => d.section !== 'Budget').forEach(d => {
+    detailFiltered.forEach(d => {
       const key = `${d.section}|${d.name}`;
       if (!map.has(key)) {
         map.set(key, {
@@ -666,7 +665,10 @@ export function Budget() {
       row.total += dv;
       row.totalActual += d.actual;
     });
-    return [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
+    // Sort: non-Budget items first (by section then name), Budget at end
+    const nonBudgetRows = [...map.values()].filter(r => r.section !== 'Budget').sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
+    const budgetRows = [...map.values()].filter(r => r.section === 'Budget');
+    return [...nonBudgetRows, ...budgetRows];
   }, [detailFiltered]);
 
   // Section summary — uses detailYear
