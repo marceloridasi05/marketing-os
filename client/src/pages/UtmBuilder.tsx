@@ -332,7 +332,7 @@ export function UtmBuilder() {
     setLoading(true);
     try {
       const statusQuery = filterStatus === 'all' ? '' : `&status=${filterStatus}`;
-      const data = await api.get<UtmCampaign[]>(`/utms/campaigns${statusQuery}`);
+      const data = await api.get<UtmCampaign[]>(`/utms/campaigns?siteId=${selectedSite.id}${statusQuery}`);
       setCampaigns(data);
     } catch (err) {
       console.error('Failed to fetch campaigns:', err);
@@ -349,7 +349,7 @@ export function UtmBuilder() {
     setDuplicateError(null);
     setLoading(true);
     try {
-      await api.post('/utms/campaigns', {
+      await api.post(`/utms/campaigns?siteId=${selectedSite.id}`, {
         ...form,
         channels: [],
       });
@@ -368,7 +368,7 @@ export function UtmBuilder() {
   const handleArchive = async (id: number) => {
     if (!selectedSite || !confirm('Archive this campaign?')) return;
     try {
-      await api.del(`/utms/campaigns/${id}`);
+      await api.del(`/utms/campaigns/${id}?siteId=${selectedSite.id}`);
       await fetchCampaigns();
     } catch (err) {
       console.error('Failed to archive campaign:', err);
