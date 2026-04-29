@@ -3,7 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { api } from '../lib/api';
-import { Plus, Pencil, Trash2, X, ExternalLink, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ExternalLink, Save, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 
 // --- Types ---
@@ -155,115 +155,6 @@ function extractSheetId(input: string): string {
   // Accept full URL or raw ID
   const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : input.trim();
-}
-
-function SheetConfigCard() {
-  const { selectedSite, refreshSites } = useSite();
-  const [cfg, setCfg] = useState<SheetConfig>({ spreadsheetId: '', gids: {} });
-  const [urlInput, setUrlInput] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!selectedSite) return;
-    try {
-      const raw = selectedSite.sheetConfig
-        ? JSON.parse(selectedSite.sheetConfig as unknown as string)
-        : {};
-      setCfg({ spreadsheetId: raw.spreadsheetId ?? '', gids: raw.gids ?? {} });
-      setUrlInput(parsed.spreadsheetId
-        ? `https://docs.google.com/spreadsheets/d/${parsed.spreadsheetId}/edit`
-        : '');
-    } catch {
-      setCfg({ spreadsheetId: '', gids: {} });
-    }
-  }, [selectedSite]);
-
-  const handleSave = async () => {
-    if (!selectedSite) return;
-    const spreadsheetId = extractSheetId(urlInput);
-    const newCfg = { ...cfg, spreadsheetId };
-    setSaving(true);
-    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: newCfg });
-    await refreshSites();
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const setGid = (key: keyof SheetGids, val: string) => {
-    const n = val === '' ? undefined : Number(val);
-    setCfg(c => ({ ...c, gids: { ...c.gids, [key]: n } }));
-  };
-
-  if (!selectedSite) return null;
-
-  return (
-    <Card className="mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-medium text-gray-700">Google Sheets — Planilha de Dados</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            A planilha deve ser pública (qualquer pessoa com o link pode ver).
-          </p>
-        </div>
-        {cfg.spreadsheetId && (
-          <a
-            href={`https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/edit`}
-            target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
-          >
-            <ExternalLink size={13} /> Abrir planilha
-          </a>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">URL da planilha</label>
-          <input
-            value={urlInput}
-            onChange={e => setUrlInput(e.target.value)}
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-            className={inputCls}
-          />
-          <p className="text-xs text-gray-400 mt-1">Cole a URL completa ou apenas o ID da planilha.</p>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">IDs das abas (GID)</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {GID_LABELS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="block text-xs text-gray-500 mb-0.5">{label}</label>
-                <input
-                  type="number"
-                  value={cfg.gids[key] ?? ''}
-                  onChange={e => setGid(key, e.target.value)}
-                  placeholder="ex: 114212584"
-                  className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono"
-                />
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            O GID de cada aba aparece na URL ao clicar na aba: <code className="bg-gray-100 px-1 rounded">…/edit?gid=<strong>114212584</strong></code>
-          </p>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
-          >
-            <Save size={14} />
-            {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar configuração'}
-          </button>
-        </div>
-      </div>
-    </Card>
-  );
 }
 
 // --- Channel Form ---
@@ -442,8 +333,54 @@ function RefItemSection({ type, label }: { type: string; label: string }) {
   );
 }
 
-// --- Main ---
-export function SettingsPage() {
+// --- Sheet Mapping Status Table ---
+function SheetMappingTable({ gids }: { gids: SheetGids }) {
+  const getMappingStatus = (gid: number | undefined): { mapped: boolean; label: string } => {
+    if (gid === undefined) return { mapped: false, label: 'Não mapeado' };
+    return { mapped: true, label: 'Mapeado' };
+  };
+
+  return (
+    <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left py-2.5 px-4 font-medium text-gray-700">Tipo de Dados</th>
+            <th className="text-center py-2.5 px-4 font-medium text-gray-700">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {GID_LABELS.map(({ key, label }) => {
+            const status = getMappingStatus(gids[key]);
+            return (
+              <tr key={key} className="border-t border-gray-100 hover:bg-gray-50">
+                <td className="py-2.5 px-4 text-gray-700">{label}</td>
+                <td className="py-2.5 px-4 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    {status.mapped ? (
+                      <>
+                        <CheckCircle size={16} className="text-green-600" />
+                        <span className="text-green-700 font-medium text-xs">{status.label}</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={16} className="text-amber-600" />
+                        <span className="text-amber-700 font-medium text-xs">{status.label}</span>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --- Advanced Channels Section ---
+function AdvancedChannelsSection() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [showChForm, setShowChForm] = useState(false);
   const [editCh, setEditCh] = useState<Channel | null>(null);
@@ -462,60 +399,43 @@ export function SettingsPage() {
   };
 
   return (
-    <div>
-      <PageHeader title="Configurações" description="Gerenciar dados de referência e configuração" />
-
-      {/* Configuração do Cliente */}
-      <ClientConfigCard />
-
-      {/* Google Sheets */}
-      <SheetConfigCard />
-
-      {/* Canais */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-500">Canais</h3>
-          <button onClick={() => { setEditCh(null); setShowChForm(true); }}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
-            <Plus size={14} /> Adicionar
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2.5 px-3 font-medium text-gray-500">Nome</th>
-                <th className="text-left py-2.5 px-3 font-medium text-gray-500">Categoria</th>
-                <th className="text-center py-2.5 px-3 font-medium text-gray-500">Situação</th>
-                <th className="py-2.5 px-3 w-20"></th>
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-medium text-gray-700">Canais</h4>
+        <button onClick={() => { setEditCh(null); setShowChForm(true); }}
+          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-800">
+          <Plus size={14} /> Adicionar
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-2.5 px-3 font-medium text-gray-500">Nome</th>
+              <th className="text-left py-2.5 px-3 font-medium text-gray-500">Categoria</th>
+              <th className="text-center py-2.5 px-3 font-medium text-gray-500">Situação</th>
+              <th className="py-2.5 px-3 w-20"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {channels.map(ch => (
+              <tr key={ch.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="py-2.5 px-3 font-medium text-gray-700">{ch.name}</td>
+                <td className="py-2.5 px-3 text-gray-600">{ch.category}</td>
+                <td className="py-2.5 px-3 text-center">
+                  <Badge variant={ch.active ? 'success' : 'default'}>{ch.active ? 'Ativo' : 'Inativo'}</Badge>
+                </td>
+                <td className="py-2.5 px-3">
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={() => { setEditCh(ch); setShowChForm(true); }} className="p-1 text-gray-400 hover:text-blue-600"><Pencil size={14} /></button>
+                    <button onClick={() => handleDeleteCh(ch.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {channels.map(ch => (
-                <tr key={ch.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-2.5 px-3 font-medium text-gray-700">{ch.name}</td>
-                  <td className="py-2.5 px-3 text-gray-600">{ch.category}</td>
-                  <td className="py-2.5 px-3 text-center">
-                    <Badge variant={ch.active ? 'success' : 'default'}>{ch.active ? 'Ativo' : 'Inativo'}</Badge>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex gap-1 justify-end">
-                      <button onClick={() => { setEditCh(ch); setShowChForm(true); }} className="p-1 text-gray-400 hover:text-blue-600"><Pencil size={14} /></button>
-                      <button onClick={() => handleDeleteCh(ch.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Seções de dados de referência */}
-      {REF_TYPES.map(type => (
-        <RefItemSection key={type} type={type} label={REF_TYPE_LABELS[type]} />
-      ))}
-
+            ))}
+          </tbody>
+        </table>
+      </div>
       {showChForm && (
         <ChannelFormModal
           initial={editCh ? { name: editCh.name, category: editCh.category, active: editCh.active } : { name: '', category: '', active: true }}
@@ -524,6 +444,279 @@ export function SettingsPage() {
           onSaved={() => { setShowChForm(false); setEditCh(null); fetchChannels(); }}
         />
       )}
+    </>
+  );
+}
+
+// --- Active Channels Checkboxes ---
+function ActiveChannelsCheckboxes() {
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const fetchChannels = useCallback(async () => {
+    const rows = await api.get<Channel[]>('/channels');
+    setChannels(rows);
+  }, []);
+
+  useEffect(() => { fetchChannels(); }, [fetchChannels]);
+
+  const handleToggleChannel = async (channel: Channel) => {
+    setSaving(true);
+    await api.put(`/channels/${channel.id}`, { ...channel, active: !channel.active });
+    await fetchChannels();
+    setSaving(false);
+  };
+
+  const activeChannels = channels.filter(ch => ch.active);
+  const inactiveChannels = channels.filter(ch => !ch.active);
+
+  return (
+    <div className="space-y-6">
+      {/* Active */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Canais ativos</h4>
+        <div className="space-y-2">
+          {activeChannels.length === 0 ? (
+            <p className="text-sm text-gray-400">Nenhum canal ativo. Configure seus canais na seção de configurações avançadas.</p>
+          ) : (
+            activeChannels.map(ch => (
+              <label key={ch.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={true}
+                  onChange={() => handleToggleChannel(ch)}
+                  disabled={saving}
+                  className="rounded border-gray-300 text-gray-900"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">{ch.name}</p>
+                  <p className="text-xs text-gray-500">{ch.category}</p>
+                </div>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Inactive */}
+      {inactiveChannels.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Canais inativos</h4>
+          <div className="space-y-2">
+            {inactiveChannels.map(ch => (
+              <label key={ch.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer opacity-60">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  onChange={() => handleToggleChannel(ch)}
+                  disabled={saving}
+                  className="rounded border-gray-300"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">{ch.name}</p>
+                  <p className="text-xs text-gray-500">{ch.category}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Collapsible Advanced Section ---
+function AdvancedConfigSection() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Card className="mt-8 border-t-4 border-t-gray-200">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between py-2"
+      >
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">Configurações avançadas</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Gerenciar canais, tipos de campanhas e objetivos</p>
+        </div>
+        {isOpen ? (
+          <ChevronUp size={20} className="text-gray-400" />
+        ) : (
+          <ChevronDown size={20} className="text-gray-400" />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="mt-6 pt-6 border-t border-gray-200 space-y-8">
+          {/* Channels Section */}
+          <div>
+            <AdvancedChannelsSection />
+          </div>
+
+          {/* Reference Items Sections */}
+          <div className="space-y-6">
+            {REF_TYPES.map(type => (
+              <div key={type}>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">{REF_TYPE_LABELS[type]}</h4>
+                <RefItemSection type={type} label={REF_TYPE_LABELS[type]} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// --- Refactored Sheet Config Card ---
+function SheetConfigCardRefactored() {
+  const { selectedSite, refreshSites } = useSite();
+  const [cfg, setCfg] = useState<SheetConfig>({ spreadsheetId: '', gids: {} });
+  const [urlInput, setUrlInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    try {
+      const raw = selectedSite.sheetConfig
+        ? JSON.parse(selectedSite.sheetConfig as unknown as string)
+        : {};
+      setCfg({ spreadsheetId: raw.spreadsheetId ?? '', gids: raw.gids ?? {} });
+      setUrlInput(raw.spreadsheetId
+        ? `https://docs.google.com/spreadsheets/d/${raw.spreadsheetId}/edit`
+        : '');
+    } catch {
+      setCfg({ spreadsheetId: '', gids: {} });
+    }
+  }, [selectedSite]);
+
+  const handleSave = async () => {
+    if (!selectedSite) return;
+    const spreadsheetId = extractSheetId(urlInput);
+    const newCfg = { ...cfg, spreadsheetId };
+    setSaving(true);
+    await api.put(`/sites/${selectedSite.id}`, { sheetConfig: newCfg });
+    await refreshSites();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const setGid = (key: keyof SheetGids, val: string) => {
+    const n = val === '' ? undefined : Number(val);
+    setCfg(c => ({ ...c, gids: { ...c.gids, [key]: n } }));
+  };
+
+  if (!selectedSite) return null;
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Fonte de dados do sistema</h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Configure a planilha Google Sheets que alimenta o marketing-os com dados de desempenho, orçamento e planejamento.
+          </p>
+        </div>
+        {cfg.spreadsheetId && (
+          <a
+            href={`https://docs.google.com/spreadsheets/d/${cfg.spreadsheetId}/edit`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-md hover:bg-indigo-50"
+          >
+            <ExternalLink size={13} /> Abrir planilha
+          </a>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">URL da planilha</label>
+          <input
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+            className={inputCls}
+          />
+          <p className="text-xs text-gray-500 mt-1">Cole a URL completa ou apenas o ID. A planilha deve ser pública (qualquer pessoa com o link pode ver).</p>
+        </div>
+
+        {cfg.spreadsheetId && <SheetMappingTable gids={cfg.gids} />}
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-medium text-gray-700">IDs das abas (GID)</label>
+            <span className="text-xs text-gray-400">Opcional - clique na aba para ver o GID na URL</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {GID_LABELS.map(({ key, label }) => (
+              <div key={key}>
+                <label className="block text-xs text-gray-600 mb-0.5">{label}</label>
+                <input
+                  type="number"
+                  value={cfg.gids[key] ?? ''}
+                  onChange={e => setGid(key, e.target.value)}
+                  placeholder="ex: 114212584"
+                  className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono text-gray-700"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar configuração'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// --- Main ---
+export function SettingsPage() {
+  return (
+    <div>
+      {/* Page Title Section */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Setup do Sistema de Marketing</h1>
+        <p className="text-base text-gray-600 mt-2">Configure como o marketing funciona na sua organização e conecte suas fontes de dados</p>
+      </div>
+
+      {/* Section 1: Business Context */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Como o marketing funciona hoje</h2>
+        <p className="text-sm text-gray-600 mb-4">Descreva o negócio, modelo de crescimento e objetivos principais</p>
+        <Card>
+          <ClientConfigCard />
+        </Card>
+      </div>
+
+      {/* Section 2: Data Source */}
+      <div className="mb-8">
+        <Card>
+          <SheetConfigCardRefactored />
+        </Card>
+      </div>
+
+      {/* Section 3: Active Channels */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Onde o marketing acontece</h2>
+        <p className="text-sm text-gray-600 mb-4">Selecione quais canais estão ativos na sua estratégia</p>
+        <Card>
+          <ActiveChannelsCheckboxes />
+        </Card>
+      </div>
+
+      {/* Section 4: Advanced Config */}
+      <AdvancedConfigSection />
     </div>
   );
 }
