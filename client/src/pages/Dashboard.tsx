@@ -1180,7 +1180,7 @@ export function Dashboard() {
           )}
 
           {/* ── 6. Historical charts (collapsible) ─────────────────────────────── */}
-          <CollapsibleCard title="Série Histórica" className="mb-4" defaultOpen={false}>
+          <CollapsibleCard title="Série Histórica" className="mb-4" defaultOpen={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AnnotatedChart title="Sessões & Leads" data={siteChartData} xKey="week"
                 lines={[{ dataKey: 'Sessões', color: '#3b82f6', name: 'Sessões' }, { dataKey: 'Leads', color: '#10b981', name: 'Leads' }]}

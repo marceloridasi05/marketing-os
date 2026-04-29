@@ -479,10 +479,11 @@ export function Sidebar() {
   // Collapsed state per section, persisted in localStorage
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     const stored = loadCollapsed();
-    // Default: all sections open
+    // Default: all sections open, except settings which is collapsed
     const defaults: Record<string, boolean> = {};
     [...navSections, settingsSection].forEach(s => {
-      defaults[s.id] = stored[s.id] ?? false;
+      // Settings section starts collapsed (true), others start open (false)
+      defaults[s.id] = s.id === 'settings' ? true : (stored[s.id] ?? false);
     });
     return defaults;
   });
