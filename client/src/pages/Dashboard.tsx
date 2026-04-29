@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
-import { PageLayout } from '../components/PageLayout';
 import { Card } from '../components/Card';
 import { FunnelSelector } from '../components/FunnelSelector';
 import { ModeToggle, useDashboardMode } from '../components/ModeToggle';
@@ -835,30 +834,29 @@ export function Dashboard() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout fullWidth={false} padding="md">
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Painel"
-          description="Visão por objetivo de negócio"
-          actions={
-            <div className="flex items-center gap-3">
-              <ModeToggle mode={dashboardMode} onModeChange={setDashboardMode} />
-              <button onClick={handleSyncAll} disabled={syncing || loading}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 disabled:opacity-50 border border-gray-200 transition-colors">
-                {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                Sincronizar
-              </button>
-              <button onClick={handleAiAnalysis} disabled={aiLoading || loading}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-sm">
-                {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
-                Análise IA
-              </button>
-            </div>
-          }
-        />
+    <div>
+      <PageHeader
+        title="Painel"
+        description="Visão por objetivo de negócio"
+        actions={
+          <div className="flex items-center gap-3">
+            <ModeToggle mode={dashboardMode} onModeChange={setDashboardMode} />
+            <button onClick={handleSyncAll} disabled={syncing || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 disabled:opacity-50 border border-gray-200 transition-colors">
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Sincronizar
+            </button>
+            <button onClick={handleAiAnalysis} disabled={aiLoading || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-sm">
+              {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
+              Análise IA
+            </button>
+          </div>
+        }
+      />
 
-        {/* Controls: Period, Funnel Model, UTM Campaign, etc. */}
-        <div className="flex flex-wrap items-center gap-4">
+      {/* Controls: Period, Funnel Model, UTM Campaign, etc. */}
+      <div className="flex flex-wrap items-center gap-4 mb-6">
         <TimeFilter {...filterProps} />
         <div className="border-l border-gray-200 pl-4">
           <FunnelSelector />
@@ -1451,7 +1449,6 @@ export function Dashboard() {
           </div>
         </>
       )}
-      </div>
-    </PageLayout>
+    </div>
   );
 }
