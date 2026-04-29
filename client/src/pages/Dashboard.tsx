@@ -746,44 +746,45 @@ export function Dashboard() {
     }
 
     // Build cards dynamically from funnelConfig stages
-    const cards = funnelConfig.stages.map(stage => {
+    // Map each stage to appropriate metrics based on position in funnel
+    const cards = funnelConfig.stages.map((stage, idx) => {
       const stageId = stage.id;
+      const stagePosition = idx;
+      const totalStages = funnelConfig.stages.length;
+
       let title = stage.name;
       let heroMetric = { label: '', value: null as number | null, prev: null as number | null, fmt: 'num' as const };
       let metrics: MetricSpec[] = [];
       let status: ObjStatus = 'neutral';
 
-      // Map stage IDs to metrics
-      if (stageId === 'awareness') {
-        title = funnelConfig.stages.find(s => s.id === 'awareness')?.name || 'Awareness';
+      // Map based on funnel position (order) rather than specific stage IDs
+      // This works for all funnel models
+      const isEarlyStage = stagePosition < Math.ceil(totalStages / 3);        // First 1/3: awareness/acquisition
+      const isMiddleStage = stagePosition >= Math.ceil(totalStages / 3) && stagePosition < Math.ceil(2 * totalStages / 3); // Middle: consideration/engagement
+      const isLateStage = stagePosition >= Math.ceil(2 * totalStages / 3);    // Last 1/3: conversion/revenue
+
+      if (isEarlyStage) {
+        // Early stage: Focus on awareness/acquisition metrics
         heroMetric = { label: 'Sessões', value: totalSessions, prev: prevSessions, fmt: 'num' as const };
         metrics = [
-          { label: 'Impressões', value: 0, fmt: 'num' as const },
           { label: 'Cliques', value: gaClicks || null, prev: pGaClicks || null, fmt: 'num' as const },
+          { label: 'Novos Usuários', value: newUsers || null, prev: pNewUsers || null, fmt: 'num' as const },
         ];
         status = acquisitionStatus;
-      } else if (stageId === 'consideration') {
-        title = funnelConfig.stages.find(s => s.id === 'consideration')?.name || 'Consideration';
+      } else if (isMiddleStage) {
+        // Middle stage: Focus on engagement/consideration metrics
         heroMetric = { label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' as const };
         metrics = [
           { label: 'CTR', value: ctr != null ? ctr * 100 : null, prev: prevCtr != null ? prevCtr * 100 : null, fmt: 'pct' as const },
           { label: 'CPL', value: cpl, prev: prevCpl, fmt: 'money' as const, lowerIsBetter: true },
         ];
         status = conversionStatus;
-      } else if (stageId === 'conversion' || stageId === 'acquisition') {
-        title = funnelConfig.stages.find(s => s.id === stageId)?.name || 'Conversion';
-        heroMetric = { label: 'Leads', value: totalLeads, prev: prevLeads, fmt: 'num' as const };
-        metrics = [
-          { label: 'CVR', value: cvr != null ? cvr * 100 : null, prev: prevCvr != null ? prevCvr * 100 : null, fmt: 'pct' as const },
-          { label: 'CPL', value: cpl, prev: prevCpl, fmt: 'money' as const, lowerIsBetter: true },
-        ];
-        status = conversionStatus;
-      } else if (stageId === 'revenue' || stageId === 'retention') {
-        title = funnelConfig.stages.find(s => s.id === stageId)?.name || 'Revenue';
+      } else {
+        // Late stage: Focus on conversion/revenue metrics
         heroMetric = { label: 'Investimento Ads', value: totalAdsSpend || null, prev: prevAdsSpend || null, fmt: 'money' as const, lowerIsBetter: true };
         metrics = [
+          { label: 'CVR', value: cvr != null ? cvr * 100 : null, prev: prevCvr != null ? prevCvr * 100 : null, fmt: 'pct' as const },
           { label: 'Total Mktg', value: totalMktgSpend || null, fmt: 'money' as const, lowerIsBetter: true },
-          { label: 'Savings', value: fBudget.length > 0 ? totalSavings : null, fmt: 'money' as const },
         ];
         status = revenueStatus;
       }
@@ -794,7 +795,7 @@ export function Dashboard() {
         status,
         hero: heroMetric,
         metrics,
-        budgetBar: stageId === 'revenue' && budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined,
+        budgetBar: isLateStage && budgetPlanned > 0 ? { planned: budgetPlanned, actual: totalMktgSpend } : undefined,
       };
     });
 
