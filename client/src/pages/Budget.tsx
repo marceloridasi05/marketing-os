@@ -641,7 +641,8 @@ export function Budget() {
 
   const itemRows = useMemo(() => {
     const map = new Map<string, ItemRow>();
-    detailFiltered.forEach(d => {
+    // Exclude Budget section from detail rows (will be added from monthBudgetSavings at the end)
+    detailFiltered.filter(d => d.section !== 'Budget').forEach(d => {
       const key = `${d.section}|${d.name}`;
       if (!map.has(key)) {
         map.set(key, {
@@ -665,11 +666,29 @@ export function Budget() {
       row.total += dv;
       row.totalActual += d.actual;
     });
-    // Sort: non-Budget items first (by section then name), Budget at end
-    const nonBudgetRows = [...map.values()].filter(r => r.section !== 'Budget').sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
-    const budgetRows = [...map.values()].filter(r => r.section === 'Budget');
-    return [...nonBudgetRows, ...budgetRows];
-  }, [detailFiltered]);
+    const sortedRows = [...map.values()].sort((a, b) => a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
+
+    // Add a Budget row from monthBudgetSavings (single source of truth)
+    const budgetRow: ItemRow = {
+      name: 'Total Budget',
+      section: 'Budget',
+      strategy: '',
+      expenseType: '',
+      total: 0,
+      totalActual: 0,
+      months: {},
+      monthsActual: {},
+      monthsPlanned: {},
+    };
+    for (const mk of monthKeys) {
+      const budgetVal = monthBudgetSavings[mk]?.budget ?? 0;
+      budgetRow.months[mk] = budgetVal;
+      budgetRow.monthsPlanned[mk] = budgetVal;
+      budgetRow.total += budgetVal;
+    }
+
+    return [...sortedRows, budgetRow];
+  }, [detailFiltered, monthBudgetSavings, monthKeys]);
 
   // Section summary — uses detailYear
   interface SectionRow {
