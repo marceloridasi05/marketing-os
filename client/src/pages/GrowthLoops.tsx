@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, TrendingUp, Target, Zap } from 'lucide-react';
+import { AlertCircle, TrendingUp, Target, Zap, Plus } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 
 interface Loop {
