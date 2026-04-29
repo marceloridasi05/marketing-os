@@ -114,9 +114,10 @@ const GrowthLoopsPage: React.FC = () => {
             `/api/growth-loops/metrics/${loop.id}?siteId=${siteId}`
           );
           const metricsData = await metricsRes.json();
-          if (metricsData.data?.length > 0) {
+          const metricsArray = Array.isArray(metricsData) ? metricsData : (metricsData.data || []);
+          if (metricsArray?.length > 0) {
             // Get latest metric
-            loopMetrics[loop.id] = metricsData.data[metricsData.data.length - 1];
+            loopMetrics[loop.id] = metricsArray[metricsArray.length - 1];
           }
         }
         setMetrics(loopMetrics);
@@ -125,7 +126,11 @@ const GrowthLoopsPage: React.FC = () => {
         // Fetch insights
         const insightsRes = await fetch(`/api/growth-loops/insights?siteId=${siteId}`);
         const insightsData = await insightsRes.json();
-        setInsights(insightsData.data || []);
+        const insightsArray = Array.isArray(insightsData) ? insightsData : (insightsData.data || []);
+        setInsights(insightsArray);
+      } else {
+        setInsights([]);
+        setMetrics({});
       }
     } catch (error) {
       console.error('Error fetching loops:', error);
