@@ -3,6 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { FunnelSelector } from '../components/FunnelSelector';
 import { ModeToggle, useDashboardMode } from '../components/ModeToggle';
+import { FunnelFlow } from '../components/FunnelFlow';
 import { api } from '../lib/api';
 import { useFunnel } from '../context/FunnelContext';
 import { groupByStageInModel, getStageMetaInModel } from '../lib/metricClassification';
@@ -20,6 +21,8 @@ import { ExecutionPriority } from '../components/ExecutionPriority';
 import { UnitEconomicsWidget } from '../components/UnitEconomicsWidget';
 import GrowthLoopWidget from '../components/GrowthLoopWidget';
 import { useSite } from '../context/SiteContext';
+import { aggregateMetricsByStage, getTopMetricDelta } from '../lib/funnelLogic';
+import { analyzeTransitionBottlenecks, generateFunnelAdaptiveExecSummary } from '../lib/funnelStatusLogic';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -916,25 +919,110 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── 2. Objective cards (Dynamic from Funnel Model) ─────────────────────── */}
-          <div className={`grid gap-4 mb-5 ${
-            buildObjectiveCards.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-            buildObjectiveCards.length >= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
-            'grid-cols-1 md:grid-cols-3'
-          }`}>
-            {buildObjectiveCards.map((card, idx) => (
-              <ObjectiveCard
-                key={idx}
-                title={card.title}
-                stageId={card.stage}
-                stageMeta={STAGE_META[card.stage as keyof typeof STAGE_META] || null}
-                status={card.status}
-                hero={card.hero}
-                metrics={card.metrics}
-                budgetBar={card.budgetBar}
-              />
-            ))}
-          </div>
+          {/* ── 2. Funnel View (Dynamic from Selected Funnel Model) ─────────────────────── */}
+          {funnelConfig && (
+            <div className="mb-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  {funnelConfig.name} Funnel Flow
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Progression through {funnelConfig.stages.length} stages with conversion rates and bottleneck analysis
+                </p>
+              </div>
+              <Card>
+                {funnelConfig && funnelConfig.stages.length > 0 && siteData.length > 0 ? (
+                  <>
+                    {/* Aggregate metrics by stage */}
+                    {useMemo(() => {
+                      const currentMetricsData = siteData.map(row => ({
+                        sessions: row.sessions,
+                        totalUsers: row.totalUsers,
+                        paidClicks: row.paidClicks,
+                        newUsers: row.newUsers,
+                        leadsGenerated: row.leadsGenerated,
+                        weeklyGains: row.weeklyGains,
+                      }));
+
+                      const previousMetricsData = prevSiteData.map(row => ({
+                        sessions: row.sessions,
+                        totalUsers: row.totalUsers,
+                        paidClicks: row.paidClicks,
+                        newUsers: row.newUsers,
+                        leadsGenerated: row.leadsGenerated,
+                        weeklyGains: row.weeklyGains,
+                      }));
+
+                      // Also include ads data
+                      const currentAdsData = adsKpis.map(row => ({
+                        gaImpressions: row.gaImpressions,
+                        gaClicks: row.gaClicks,
+                        gaConversions: row.gaConversions,
+                        liImpressions: row.liImpressions,
+                        liClicks: row.liClicks,
+                      }));
+
+                      const previousAdsData = prevAdsKpis.map(row => ({
+                        gaImpressions: row.gaImpressions,
+                        gaClicks: row.gaClicks,
+                        gaConversions: row.gaConversions,
+                        liImpressions: row.liImpressions,
+                        liClicks: row.liClicks,
+                      }));
+
+                      const allCurrent = [...currentMetricsData, ...currentAdsData];
+                      const allPrevious = [...previousMetricsData, ...previousAdsData];
+
+                      const stageMetrics = aggregateMetricsByStage(funnelConfig, allCurrent, allPrevious);
+                      const bottleneck = analyzeTransitionBottlenecks(funnelConfig, new Map(Array.from(stageMetrics.entries()).map(([id, metrics]) => [
+                        id,
+                        {
+                          value: metrics.heroMetric?.value || null,
+                          prev: metrics.heroMetric?.prev || null,
+                          conversionRate: metrics.conversionToNextStage?.rate || null,
+                          conversionDelta: metrics.conversionToNextStage?.delta || null,
+                          label: metrics.stageMeta.label
+                        }
+                      ])), Array.from(stageMetrics.keys()));
+
+                      return (
+                        <FunnelFlow
+                          stages={stageMetrics}
+                          bottleneckStageId={bottleneck?.fromStageId}
+                        />
+                      );
+                    }, [funnelConfig, siteData, prevSiteData, adsKpis, prevAdsKpis])}
+                  </>
+                ) : (
+                  <div className="py-8 text-center text-gray-400">
+                    No data available for this funnel model
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+
+          {/* ── 2.1. Legacy Objective Cards (Kept for backward compatibility) ───────── */}
+          {!funnelConfig && (
+            <div className={`grid gap-4 mb-5 ${
+              buildObjectiveCards.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+              buildObjectiveCards.length >= 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+              'grid-cols-1 md:grid-cols-3'
+            }`}>
+              {buildObjectiveCards.map((card, idx) => (
+                <ObjectiveCard
+                  key={idx}
+                  title={card.title}
+                  stageId={card.stage}
+                  stageMeta={STAGE_META[card.stage as keyof typeof STAGE_META] || null}
+                  status={card.status}
+                  hero={card.hero}
+                  metrics={card.metrics}
+                  budgetBar={card.budgetBar}
+                />
+              ))}
+            </div>
+          )}
 
           {/* ── 2.5. UTM CAC Widget ───────────────────────────────────────────────── */}
           {selectedUtmCampaignId && (
