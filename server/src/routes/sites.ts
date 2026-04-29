@@ -13,6 +13,12 @@ router.get('/', async (_req, res) => {
   res.json(rows);
 });
 
+router.get('/:id', async (req, res) => {
+  const [row] = await db.select().from(sites).where(eq(sites.id, +req.params.id));
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  res.json(row);
+});
+
 router.post('/', async (req, res) => {
   const { name, url, sheetConfig, clientConfig } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });

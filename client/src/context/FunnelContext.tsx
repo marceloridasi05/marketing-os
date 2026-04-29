@@ -29,6 +29,26 @@ export function FunnelProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load funnel model from server first time site loads
+  useEffect(() => {
+    if (!selectedSite) return;
+
+    setLoading(true);
+    api
+      .get<{ funnelModelId: string }>(`/api/sites/${selectedSite.id}`)
+      .then(response => {
+        const serverModelId = response.funnelModelId || 'sales_led';
+        setFunnelModelId(serverModelId);
+        if (STORAGE_KEY) {
+          localStorage.setItem(STORAGE_KEY, serverModelId);
+        }
+      })
+      .catch(() => {
+        // Fallback to localStorage/default if fetch fails
+      })
+      .finally(() => setLoading(false));
+  }, [selectedSite, STORAGE_KEY]);
+
   // Load funnel config when site or model changes
   useEffect(() => {
     if (!selectedSite) {
