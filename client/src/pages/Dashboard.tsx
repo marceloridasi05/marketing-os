@@ -935,7 +935,7 @@ export function Dashboard() {
                   <>
                     {/* Aggregate metrics by stage */}
                     {useMemo(() => {
-                      const currentMetricsData = siteData.map(row => ({
+                      const currentMetricsData = fSite.map(row => ({
                         sessions: row.sessions,
                         totalUsers: row.totalUsers,
                         paidClicks: row.paidClicks,
@@ -944,7 +944,7 @@ export function Dashboard() {
                         weeklyGains: row.weeklyGains,
                       }));
 
-                      const previousMetricsData = prevSiteData.map(row => ({
+                      const previousMetricsData = pSite.map(row => ({
                         sessions: row.sessions,
                         totalUsers: row.totalUsers,
                         paidClicks: row.paidClicks,
@@ -954,7 +954,7 @@ export function Dashboard() {
                       }));
 
                       // Also include ads data
-                      const currentAdsData = adsKpis.map(row => ({
+                      const currentAdsData = fAds.map(row => ({
                         gaImpressions: row.gaImpressions,
                         gaClicks: row.gaClicks,
                         gaConversions: row.gaConversions,
@@ -962,7 +962,7 @@ export function Dashboard() {
                         liClicks: row.liClicks,
                       }));
 
-                      const previousAdsData = prevAdsKpis.map(row => ({
+                      const previousAdsData = pAds.map(row => ({
                         gaImpressions: row.gaImpressions,
                         gaClicks: row.gaClicks,
                         gaConversions: row.gaConversions,
@@ -991,7 +991,7 @@ export function Dashboard() {
                           bottleneckStageId={bottleneck?.fromStageId}
                         />
                       );
-                    }, [funnelConfig, siteData, prevSiteData, adsKpis, prevAdsKpis])}
+                    }, [funnelConfig, fSite, pSite, fAds, pAds])}
                   </>
                 ) : (
                   <div className="py-8 text-center text-gray-400">
