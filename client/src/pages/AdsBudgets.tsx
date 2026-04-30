@@ -4,7 +4,15 @@ import { Card } from '../components/Card';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { MonthlyBudgetAllocationEditor } from '../components/MonthlyBudgetAllocationEditor';
+import { BudgetControlCard, BudgetControlTotalCard } from '../components/BudgetControlCard';
 import { api } from '../lib/api';
+import {
+  calculateBudgetControlSummary,
+  getMostRecentMonthWithData,
+  getMonthFromDateRange,
+  getCurrentDayOfMonth,
+  calculateDaysInMonth,
+} from '../lib/budgetControlLogic';
 import { RefreshCw } from 'lucide-react';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 // recharts imports kept for potential future use
@@ -192,6 +200,33 @@ export function AdsBudgets() {
     return result;
   }, [filtered]);
 
+  // Budget Control Section: Determine which month to analyze
+  const analyzeMonth = useMemo(() => {
+    // If filter is "Todo período", get most recent month with data
+    if (!dateRange || !dateRange.start) {
+      return getMostRecentMonthWithData(data);
+    }
+    // Otherwise, extract month from dateRange if single month
+    return getMonthFromDateRange(dateRange);
+  }, [dateRange, data]);
+
+  // Calculate budget control summary for the analyzed month
+  const budgetControlSummary = useMemo(() => {
+    if (!analyzeMonth) return null;
+
+    // Find the row for this month
+    const monthRow = data.find(r => r.year === analyzeMonth.year && r.month === analyzeMonth.month);
+    if (!monthRow) return null;
+
+    return calculateBudgetControlSummary(monthRow, allocations, analyzeMonth.year, analyzeMonth.month);
+  }, [analyzeMonth, data, allocations]);
+
+  // Format month name for display
+  const monthDisplayName = useMemo(() => {
+    if (!analyzeMonth) return null;
+    return `${MONTHS[analyzeMonth.month]}/${analyzeMonth.year}`;
+  }, [analyzeMonth]);
+
   return (
     <div>
       <PageHeader title="Verbas Ads" description="Controle de verbas e consumo de mídia paga"
@@ -296,6 +331,39 @@ export function AdsBudgets() {
               page="ads-budgets" chartKey="trend" height={240} />
           </div>
 
+          {/* Budget Control Section (Controle de Verba do Mês) */}
+          {budgetControlSummary ? (
+            <div className="mb-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Controle de Verba do Mês</h2>
+                <p className="text-sm text-gray-600">Mês analisado: {monthDisplayName}</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <BudgetControlCard
+                  channel="google"
+                  control={budgetControlSummary.channels.google}
+                  isLoading={loading}
+                />
+                <BudgetControlCard
+                  channel="meta"
+                  control={budgetControlSummary.channels.meta}
+                  isLoading={loading}
+                />
+                <BudgetControlCard
+                  channel="linkedin"
+                  control={budgetControlSummary.channels.linkedin}
+                  isLoading={loading}
+                />
+                <BudgetControlTotalCard
+                  summary={budgetControlSummary.total}
+                  diaAtual={getCurrentDayOfMonth()}
+                  totalDiasMes={calculateDaysInMonth(analyzeMonth!.year, analyzeMonth!.month)}
+                  isLoading={loading}
+                />
+              </div>
+            </div>
+          ) : null}
+
           {/* Monthly Detail Table */}
           <CollapsibleCard title="Detalhamento Mensal" className="mb-6">
             <div className="overflow-x-auto">
@@ -375,13 +443,15 @@ export function AdsBudgets() {
             </div>
           </CollapsibleCard>
 
-          {/* Monthly Budget Allocation Editor */}
+          {/* Monthly Budget Allocation Editor (Collapsible) */}
           {siteId && (
-            <MonthlyBudgetAllocationEditor
-              siteId={siteId}
-              year={new Date().getFullYear()}
-              onSave={() => fetchData()}
-            />
+            <CollapsibleCard title="Alocação Mensal de Verbas" className="mb-6" defaultOpen={false}>
+              <MonthlyBudgetAllocationEditor
+                siteId={siteId}
+                year={new Date().getFullYear()}
+                onSave={() => fetchData()}
+              />
+            </CollapsibleCard>
           )}
 
           {/* Budget Limits Card */}
