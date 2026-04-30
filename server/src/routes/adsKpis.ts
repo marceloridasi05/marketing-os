@@ -54,10 +54,11 @@ function classifyCampaign(name: string): CampaignMeta {
 // GET / - all ads kpis
 router.get('/', async (req, res) => {
   try {
-    const conditions = [];
-    if (req.query.siteId) conditions.push(eq(adsKpis.siteId, +req.query.siteId));
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows = await db.select().from(adsKpis).where(where).orderBy(adsKpis.weekStart);
+    let query = db.select().from(adsKpis);
+    if (req.query.siteId) {
+      query = query.where(eq(adsKpis.siteId, +req.query.siteId));
+    }
+    const rows = await query.orderBy(adsKpis.weekStart);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching ads KPIs:', err);
@@ -68,10 +69,11 @@ router.get('/', async (req, res) => {
 // GET /meta - all meta campaign kpis
 router.get('/meta', async (req, res) => {
   try {
-    const conditions = [];
-    if (req.query.siteId) conditions.push(eq(metaCampaignKpis.siteId, +req.query.siteId));
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows = await db.select().from(metaCampaignKpis).where(where).orderBy(metaCampaignKpis.weekStart);
+    let query = db.select().from(metaCampaignKpis);
+    if (req.query.siteId) {
+      query = query.where(eq(metaCampaignKpis.siteId, +req.query.siteId));
+    }
+    const rows = await query.orderBy(metaCampaignKpis.weekStart);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching Meta campaign KPIs:', err);
@@ -82,10 +84,11 @@ router.get('/meta', async (req, res) => {
 // GET /linkedin - all linkedin campaign kpis
 router.get('/linkedin', async (req, res) => {
   try {
-    const conditions = [];
-    if (req.query.siteId) conditions.push(eq(liCampaignKpis.siteId, +req.query.siteId));
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows = await db.select().from(liCampaignKpis).where(where).orderBy(liCampaignKpis.weekStart);
+    let query = db.select().from(liCampaignKpis);
+    if (req.query.siteId) {
+      query = query.where(eq(liCampaignKpis.siteId, +req.query.siteId));
+    }
+    const rows = await query.orderBy(liCampaignKpis.weekStart);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching LinkedIn campaign KPIs:', err);
