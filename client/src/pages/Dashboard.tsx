@@ -842,6 +842,68 @@ export function Dashboard() {
   const bottleneckIconBg = bottleneck.color === 'green'  ? 'bg-emerald-100'
     : bottleneck.color === 'orange' ? 'bg-amber-100' : 'bg-red-100';
 
+  // ── Funnel Flow Content (Top-level useMemo to comply with React Rules of Hooks) ────────────
+
+  const funnelFlowContent = useMemo(() => {
+    // Guard: if conditions not met, return null
+    if (!funnelConfig || funnelConfig.stages.length === 0 || siteData.length === 0) {
+      return null;
+    }
+
+    const currentMetricsData = fSite.map(row => ({
+      sessions: row.sessions,
+      totalUsers: row.totalUsers,
+      paidClicks: row.paidClicks,
+      newUsers: row.newUsers,
+      leadsGenerated: row.leadsGenerated,
+      weeklyGains: row.weeklyGains,
+    }));
+
+    const previousMetricsData = pSite.map(row => ({
+      sessions: row.sessions,
+      totalUsers: row.totalUsers,
+      paidClicks: row.paidClicks,
+      newUsers: row.newUsers,
+      leadsGenerated: row.leadsGenerated,
+      weeklyGains: row.weeklyGains,
+    }));
+
+    // Also include ads data
+    const currentAdsData = fAds.map(row => ({
+      gaImpressions: row.gaImpressions,
+      gaClicks: row.gaClicks,
+      gaConversions: row.gaConversions,
+      liImpressions: row.liImpressions,
+      liClicks: row.liClicks,
+    }));
+
+    const previousAdsData = pAds.map(row => ({
+      gaImpressions: row.gaImpressions,
+      gaClicks: row.gaClicks,
+      gaConversions: row.gaConversions,
+      liImpressions: row.liImpressions,
+      liClicks: row.liClicks,
+    }));
+
+    const allCurrent = [...currentMetricsData, ...currentAdsData];
+    const allPrevious = [...previousMetricsData, ...previousAdsData];
+
+    const stageMetrics = aggregateMetricsByStage(funnelConfig, allCurrent, allPrevious);
+    const bottleneckAnalysis = analyzeTransitionBottlenecks(funnelConfig, new Map(Array.from(stageMetrics.entries()).map(([id, metrics]) => [
+      id,
+      {
+        value: metrics.heroMetric?.value || null,
+        prev: metrics.heroMetric?.prev || null,
+        conversionRate: metrics.conversionToNextStage?.rate || null,
+        conversionDelta: metrics.conversionToNextStage?.delta || null,
+        label: metrics.stageMeta.label
+      }
+    ])), Array.from(stageMetrics.keys()));
+
+    // Return the computed data (not JSX)
+    return { stageMetrics, bottleneckAnalysis };
+  }, [funnelConfig, fSite, pSite, fAds, pAds, siteData.length]);
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -928,7 +990,7 @@ export function Dashboard() {
           )}
 
           {/* ── 2. Funnel View (Dynamic from Selected Funnel Model) ─────────────────────── */}
-          {funnelConfig && (
+          {funnelFlowContent && funnelConfig && (
             <div className="mb-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">
@@ -939,68 +1001,11 @@ export function Dashboard() {
                 </p>
               </div>
               <Card>
-                {funnelConfig && funnelConfig.stages.length > 0 && siteData.length > 0 ? (
-                  <>
-                    {/* Aggregate metrics by stage */}
-                    {useMemo(() => {
-                      const currentMetricsData = fSite.map(row => ({
-                        sessions: row.sessions,
-                        totalUsers: row.totalUsers,
-                        paidClicks: row.paidClicks,
-                        newUsers: row.newUsers,
-                        leadsGenerated: row.leadsGenerated,
-                        weeklyGains: row.weeklyGains,
-                      }));
-
-                      const previousMetricsData = pSite.map(row => ({
-                        sessions: row.sessions,
-                        totalUsers: row.totalUsers,
-                        paidClicks: row.paidClicks,
-                        newUsers: row.newUsers,
-                        leadsGenerated: row.leadsGenerated,
-                        weeklyGains: row.weeklyGains,
-                      }));
-
-                      // Also include ads data
-                      const currentAdsData = fAds.map(row => ({
-                        gaImpressions: row.gaImpressions,
-                        gaClicks: row.gaClicks,
-                        gaConversions: row.gaConversions,
-                        liImpressions: row.liImpressions,
-                        liClicks: row.liClicks,
-                      }));
-
-                      const previousAdsData = pAds.map(row => ({
-                        gaImpressions: row.gaImpressions,
-                        gaClicks: row.gaClicks,
-                        gaConversions: row.gaConversions,
-                        liImpressions: row.liImpressions,
-                        liClicks: row.liClicks,
-                      }));
-
-                      const allCurrent = [...currentMetricsData, ...currentAdsData];
-                      const allPrevious = [...previousMetricsData, ...previousAdsData];
-
-                      const stageMetrics = aggregateMetricsByStage(funnelConfig, allCurrent, allPrevious);
-                      const bottleneck = analyzeTransitionBottlenecks(funnelConfig, new Map(Array.from(stageMetrics.entries()).map(([id, metrics]) => [
-                        id,
-                        {
-                          value: metrics.heroMetric?.value || null,
-                          prev: metrics.heroMetric?.prev || null,
-                          conversionRate: metrics.conversionToNextStage?.rate || null,
-                          conversionDelta: metrics.conversionToNextStage?.delta || null,
-                          label: metrics.stageMeta.label
-                        }
-                      ])), Array.from(stageMetrics.keys()));
-
-                      return (
-                        <FunnelFlow
-                          stages={stageMetrics}
-                          bottleneckStageId={bottleneck?.fromStageId}
-                        />
-                      );
-                    }, [funnelConfig, fSite, pSite, fAds, pAds])}
-                  </>
+                {funnelFlowContent.stageMetrics ? (
+                  <FunnelFlow
+                    stages={funnelFlowContent.stageMetrics}
+                    bottleneckStageId={funnelFlowContent.bottleneckAnalysis?.fromStageId}
+                  />
                 ) : (
                   <div className="py-8 text-center text-gray-400">
                     No data available for this funnel model
