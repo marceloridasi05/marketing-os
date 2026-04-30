@@ -72,7 +72,7 @@ export function AdsBudgets() {
 
   // Get siteId from localStorage on mount
   useEffect(() => {
-    const siteIdStr = localStorage.getItem('selected_site');
+    const siteIdStr = localStorage.getItem('mkt_selected_site_id');
     if (siteIdStr) {
       setSiteId(Number(siteIdStr));
     }
