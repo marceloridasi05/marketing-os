@@ -129,6 +129,28 @@ export function AdsBudgets() {
     return allocated - consumed;
   };
 
+  // Get per-channel disponível
+  const getDisponiveisPerChannel = (row: AdsBudgetRow): { google: number | null; meta: number | null; linkedin: number | null } => {
+    const alloc = allocations.find(a => a.year === row.year && a.month === row.month);
+    if (!alloc) {
+      return { google: null, meta: null, linkedin: null };
+    }
+
+    const google = alloc.googleBudget !== null && alloc.googleBudget !== undefined
+      ? alloc.googleBudget - (row.monthlyGoogle ?? 0)
+      : null;
+
+    const meta = alloc.metaBudget !== null && alloc.metaBudget !== undefined
+      ? alloc.metaBudget - (row.monthlyMeta ?? 0)
+      : null;
+
+    const linkedin = alloc.linkedinBudget !== null && alloc.linkedinBudget !== undefined
+      ? alloc.linkedinBudget - (row.monthlyLinkedin ?? 0)
+      : null;
+
+    return { google, meta, linkedin };
+  };
+
   // Filter by period
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -383,7 +405,10 @@ export function AdsBudgets() {
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 text-xs">Total Diária</th>
                     <th className="text-center py-2.5 px-2 font-medium text-gray-500 text-xs">Total Mensal</th>
                     <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-xs">Δ%</th>
-                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 text-xs">Disponível</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-green-600 text-xs">Google Disponível</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-blue-400 text-xs">Meta Disponível</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-blue-600 text-xs">LinkedIn Disponível</th>
+                    <th className="text-center py-2.5 px-2 font-medium text-gray-500 text-xs">Total Disponível</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -407,7 +432,27 @@ export function AdsBudgets() {
                         <td className="py-2 px-2 text-center text-gray-600">{fmtMoney(r.dailyTotal)}</td>
                         <td className="py-2 px-2 text-center text-gray-900 font-medium" style={condStyle(r.monthlyTotalUsed, colMinMax.monthlyTotalUsed?.min ?? 0, colMinMax.monthlyTotalUsed?.max ?? 0)}>{fmtMoney(r.monthlyTotalUsed)}</td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.monthlyTotalUsed, prev?.monthlyTotalUsed ?? null)}`}>{delta(r.monthlyTotalUsed, prev?.monthlyTotalUsed ?? null)}</td>
-                        {/* Disponível: use per-month allocation if available, fallback to monthlyAvailable */}
+                        {/* Per-Channel Disponível columns */}
+                        {(() => {
+                          const disponiveisPorCanal = getDisponiveisPerChannel(r);
+                          return (
+                            <>
+                              {/* Google Disponível */}
+                              <td className={`py-2 px-2 text-center font-medium ${disponiveisPorCanal.google === null ? 'text-gray-400' : (disponiveisPorCanal.google < 0 ? 'text-red-600' : 'text-green-600')}`}>
+                                {disponiveisPorCanal.google === null ? '—' : fmtMoney(disponiveisPorCanal.google)}
+                              </td>
+                              {/* Meta Disponível */}
+                              <td className={`py-2 px-2 text-center font-medium ${disponiveisPorCanal.meta === null ? 'text-gray-400' : (disponiveisPorCanal.meta < 0 ? 'text-red-600' : 'text-green-600')}`}>
+                                {disponiveisPorCanal.meta === null ? '—' : fmtMoney(disponiveisPorCanal.meta)}
+                              </td>
+                              {/* LinkedIn Disponível */}
+                              <td className={`py-2 px-2 text-center font-medium ${disponiveisPorCanal.linkedin === null ? 'text-gray-400' : (disponiveisPorCanal.linkedin < 0 ? 'text-red-600' : 'text-green-600')}`}>
+                                {disponiveisPorCanal.linkedin === null ? '—' : fmtMoney(disponiveisPorCanal.linkedin)}
+                              </td>
+                            </>
+                          );
+                        })()}
+                        {/* Total Disponível: use per-month allocation if available, fallback to monthlyAvailable */}
                         {(() => {
                           const disponivel = getDisponivel(r);
                           return (
@@ -435,6 +480,28 @@ export function AdsBudgets() {
                       <td className="py-2.5 px-2 text-center text-gray-400">—</td>
                       <td className="py-2.5 px-2 text-center text-gray-900">{fmtMoney(totalUsed)}</td>
                       <td />
+                      {/* Per-channel totals - calculated from allocations for all visible months */}
+                      {(() => {
+                        const totalGoogleAvailable = filtered.reduce((sum, r) => {
+                          const { google } = getDisponiveisPerChannel(r);
+                          return sum + (google ?? 0);
+                        }, 0);
+                        const totalMetaAvailable = filtered.reduce((sum, r) => {
+                          const { meta } = getDisponiveisPerChannel(r);
+                          return sum + (meta ?? 0);
+                        }, 0);
+                        const totalLinkedinAvailable = filtered.reduce((sum, r) => {
+                          const { linkedin } = getDisponiveisPerChannel(r);
+                          return sum + (linkedin ?? 0);
+                        }, 0);
+                        return (
+                          <>
+                            <td className={`py-2.5 px-2 text-center font-medium ${totalGoogleAvailable < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totalGoogleAvailable)}</td>
+                            <td className={`py-2.5 px-2 text-center font-medium ${totalMetaAvailable < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totalMetaAvailable)}</td>
+                            <td className={`py-2.5 px-2 text-center font-medium ${totalLinkedinAvailable < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totalLinkedinAvailable)}</td>
+                          </>
+                        );
+                      })()}
                       <td className={`py-2.5 px-2 text-center font-medium ${totalAvailable < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(totalAvailable)}</td>
                     </tr>
                   )}
