@@ -3,6 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
+import { MonthlyBudgetAllocationEditor } from '../components/MonthlyBudgetAllocationEditor';
 import { api } from '../lib/api';
 import { RefreshCw } from 'lucide-react';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
@@ -23,6 +24,16 @@ interface AdsBudgetRow {
   dailyTotal: number | null;
   monthlyTotalUsed: number | null;
   monthlyAvailable: number | null;
+}
+
+interface MonthlyAllocationRow {
+  id: number;
+  siteId: number;
+  year: number;
+  month: number; // 1-12
+  googleBudget: number | null;
+  metaBudget: number | null;
+  linkedinBudget: number | null;
 }
 
 // --- Helpers ---
@@ -51,16 +62,38 @@ function condStyle(val: number | null, min: number, max: number): React.CSSPrope
 // --- Main ---
 export function AdsBudgets() {
   const [data, setData] = useState<AdsBudgetRow[]>([]);
+  const [allocations, setAllocations] = useState<MonthlyAllocationRow[]>([]);
   const [loading, setLoading] = useState(true);
   // hiddenBars now managed by AnnotatedChart internally
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const { dateRange, filterProps } = useTimeFilter('all');
+  const [siteId, setSiteId] = useState<number | null>(null);
+
+  // Get siteId from localStorage on mount
+  useEffect(() => {
+    const siteIdStr = localStorage.getItem('selected_site');
+    if (siteIdStr) {
+      setSiteId(Number(siteIdStr));
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     const rows = await api.get<AdsBudgetRow[]>('/ads-budgets');
     setData(rows);
+
+    // Load allocations for current year
+    const currentYear = new Date().getFullYear();
+    try {
+      const allocs = await api.get<MonthlyAllocationRow[]>(
+        `/ads-budgets/monthly-allocation?siteId=undefined&year=${currentYear}`
+      );
+      setAllocations(allocs || []);
+    } catch (err) {
+      console.error('Error loading allocations:', err);
+    }
+
     setLoading(false);
   }, []);
 
@@ -74,6 +107,18 @@ export function AdsBudgets() {
       await fetchData();
     } catch (err) { setLastSync(`Erro: ${err}`); }
     setSyncing(false);
+  };
+
+  // Get disponível (allocated - consumed) for a specific month
+  const getDisponivel = (row: AdsBudgetRow): number | null => {
+    const alloc = allocations.find(a => a.year === row.year && a.month === row.month);
+    if (!alloc || (!alloc.googleBudget && !alloc.metaBudget && !alloc.linkedinBudget)) {
+      return null; // No allocation for this month
+    }
+
+    const allocated = (alloc.googleBudget ?? 0) + (alloc.metaBudget ?? 0) + (alloc.linkedinBudget ?? 0);
+    const consumed = (row.monthlyGoogle ?? 0) + (row.monthlyLinkedin ?? 0) + (row.monthlyMeta ?? 0);
+    return allocated - consumed;
   };
 
   // Filter by period
@@ -294,7 +339,15 @@ export function AdsBudgets() {
                         <td className="py-2 px-2 text-center text-gray-600">{fmtMoney(r.dailyTotal)}</td>
                         <td className="py-2 px-2 text-center text-gray-900 font-medium" style={condStyle(r.monthlyTotalUsed, colMinMax.monthlyTotalUsed?.min ?? 0, colMinMax.monthlyTotalUsed?.max ?? 0)}>{fmtMoney(r.monthlyTotalUsed)}</td>
                         <td className={`py-2 px-1 text-center text-xs ${deltaColor(r.monthlyTotalUsed, prev?.monthlyTotalUsed ?? null)}`}>{delta(r.monthlyTotalUsed, prev?.monthlyTotalUsed ?? null)}</td>
-                        <td className={`py-2 px-2 text-center font-medium ${(r.monthlyAvailable ?? 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtMoney(r.monthlyAvailable)}</td>
+                        {/* Disponível: use per-month allocation if available, fallback to monthlyAvailable */}
+                        {(() => {
+                          const disponivel = getDisponivel(r);
+                          return (
+                            <td className={`py-2 px-2 text-center font-medium ${disponivel === null ? 'text-gray-400' : (disponivel < 0 ? 'text-red-600' : 'text-green-600')}`}>
+                              {disponivel === null ? '—' : fmtMoney(disponivel)}
+                            </td>
+                          );
+                        })()}
                       </tr>
                     );
                   })}
@@ -321,6 +374,15 @@ export function AdsBudgets() {
               </table>
             </div>
           </CollapsibleCard>
+
+          {/* Monthly Budget Allocation Editor */}
+          {siteId && (
+            <MonthlyBudgetAllocationEditor
+              siteId={siteId}
+              year={new Date().getFullYear()}
+              onSave={() => fetchData()}
+            />
+          )}
 
           {/* Budget Limits Card */}
           <CollapsibleCard title="Verbas Disponíveis por Ano" className="mb-6">

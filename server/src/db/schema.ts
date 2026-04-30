@@ -348,6 +348,24 @@ export const adsBudgets = sqliteTable('ads_budgets', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
+export const monthlyBudgetAllocation = sqliteTable('monthly_budget_allocation', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull(),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(), // 1-12 only
+  googleBudget: real('google_budget'), // Per-month allocation for Google
+  metaBudget: real('meta_budget'),     // Per-month allocation for Meta
+  linkedinBudget: real('linkedin_budget'), // Per-month allocation for LinkedIn
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+// Index for fast lookups by siteId, year, month
+export const monthlyBudgetAllocationIndex = {
+  name: 'idx_monthly_allocation_site_year_month',
+  on: ['site_id', 'year', 'month'],
+};
+
 export const initiativeMeta = sqliteTable('initiative_meta', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   siteId: integer('site_id'),

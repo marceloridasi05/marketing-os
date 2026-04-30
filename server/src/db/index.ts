@@ -233,17 +233,33 @@ sqlite.exec(`
   );
   CREATE TABLE IF NOT EXISTS ads_budgets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
     daily_google REAL,
     monthly_google REAL,
     daily_linkedin REAL,
     monthly_linkedin REAL,
+    daily_meta REAL,
+    monthly_meta REAL,
     daily_total REAL,
     monthly_total_used REAL,
     monthly_available REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS monthly_budget_allocation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    google_budget REAL,
+    meta_budget REAL,
+    linkedin_budget REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_monthly_allocation_site_year_month
+    ON monthly_budget_allocation(site_id, year, month);
   CREATE TABLE IF NOT EXISTS plan_schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     objective TEXT NOT NULL,
