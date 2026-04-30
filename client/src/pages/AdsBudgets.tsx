@@ -355,12 +355,12 @@ export function AdsBudgets() {
 
           {/* Budget Control Section (Controle de Verba do Mês) */}
           {budgetControlSummary ? (
-            <div className="mb-6">
-              <div className="mb-4">
+            <div className="mb-8">
+              <div className="mb-5">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">Controle de Verba do Mês</h2>
-                <p className="text-sm text-gray-600">Mês analisado: {monthDisplayName}</p>
+                <p className="text-sm text-gray-600">Mês analisado: <span className="font-medium">{monthDisplayName}</span></p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <BudgetControlCard
                   channel="google"
                   control={budgetControlSummary.channels.google}
@@ -383,6 +383,12 @@ export function AdsBudgets() {
                   isLoading={loading}
                 />
               </div>
+            </div>
+          ) : analyzeMonth ? (
+            <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Sem dados de alocação</span> para {monthDisplayName}. Configure a alocação mensal de verbas acima para visualizar o controle de verba por canal.
+              </p>
             </div>
           ) : null}
 
@@ -508,16 +514,34 @@ export function AdsBudgets() {
                 </tbody>
               </table>
             </div>
+            {/* Table footer note */}
+            {allocations.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500">
+                <p>
+                  <span className="font-medium">Colunas "Disponível":</span> Saldo = Verba Alocada - Consumo do Mês.
+                  Cores: <span className="text-green-600">Verde</span> = sobra positiva,
+                  <span className="text-red-600 ml-1">Vermelho</span> = ultrapasse,
+                  <span className="text-gray-400 ml-1">Cinza</span> = sem alocação.
+                </p>
+              </div>
+            )}
           </CollapsibleCard>
 
           {/* Monthly Budget Allocation Editor (Collapsible) */}
           {siteId && (
-            <CollapsibleCard title="Alocação Mensal de Verbas" className="mb-6" defaultOpen={false}>
-              <MonthlyBudgetAllocationEditor
-                siteId={siteId}
-                year={new Date().getFullYear()}
-                onSave={() => fetchData()}
-              />
+            <CollapsibleCard
+              title="Alocação Mensal de Verbas"
+              subtitle={`Configuração para ${new Date().getFullYear()}`}
+              className="mb-6"
+              defaultOpen={false}
+            >
+              <div className="mt-4 -mx-4 -mb-4">
+                <MonthlyBudgetAllocationEditor
+                  siteId={siteId}
+                  year={new Date().getFullYear()}
+                  onSave={() => fetchData()}
+                />
+              </div>
             </CollapsibleCard>
           )}
 
