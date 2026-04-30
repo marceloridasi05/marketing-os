@@ -155,6 +155,7 @@ sqlite.exec(`
   );
   CREATE TABLE IF NOT EXISTS ads_kpis (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
     week TEXT NOT NULL,
     week_start TEXT NOT NULL,
     ga_impressions INTEGER,
@@ -166,9 +167,45 @@ sqlite.exec(`
     ga_cvr TEXT,
     ga_conversions INTEGER,
     ga_cost_per_conversion TEXT,
+    meta_impressions INTEGER,
+    meta_clicks INTEGER,
+    meta_ctr TEXT,
+    meta_cpc_avg TEXT,
+    meta_cost REAL,
     li_impressions INTEGER,
     li_clicks INTEGER,
     li_cost REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS meta_campaign_kpis (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
+    week TEXT NOT NULL,
+    week_start TEXT NOT NULL,
+    campaign_name TEXT NOT NULL,
+    campaign_id TEXT,
+    impressions INTEGER,
+    clicks INTEGER,
+    ctr TEXT,
+    cpc_avg TEXT,
+    cost REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS li_campaign_kpis (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
+    week TEXT NOT NULL,
+    week_start TEXT NOT NULL,
+    campaign_name TEXT NOT NULL,
+    campaign_id TEXT,
+    account_type TEXT NOT NULL,
+    funnel_stage TEXT NOT NULL,
+    impressions INTEGER,
+    clicks INTEGER,
+    ctr TEXT,
+    frequency TEXT,
+    cpc_avg TEXT,
+    cost REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS site_monthly (
@@ -373,6 +410,55 @@ try {
 // Migration: add Meta Ads columns to ads_budgets (idempotent)
 try { sqlite.exec(`ALTER TABLE ads_budgets ADD COLUMN daily_meta REAL`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE ads_budgets ADD COLUMN monthly_meta REAL`); } catch { /* already exists */ }
+
+// Migration: add Meta Ads columns to ads_kpis (idempotent)
+try { sqlite.exec(`ALTER TABLE ads_kpis ADD COLUMN meta_impressions INTEGER`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE ads_kpis ADD COLUMN meta_clicks INTEGER`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE ads_kpis ADD COLUMN meta_ctr TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE ads_kpis ADD COLUMN meta_cpc_avg TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE ads_kpis ADD COLUMN meta_cost REAL`); } catch { /* already exists */ }
+
+// Migration: create meta_campaign_kpis and li_campaign_kpis tables if they don't exist
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS meta_campaign_kpis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      week TEXT NOT NULL,
+      week_start TEXT NOT NULL,
+      campaign_name TEXT NOT NULL,
+      campaign_id TEXT,
+      impressions INTEGER,
+      clicks INTEGER,
+      ctr TEXT,
+      cpc_avg TEXT,
+      cost REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+} catch { /* already exists */ }
+
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS li_campaign_kpis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      week TEXT NOT NULL,
+      week_start TEXT NOT NULL,
+      campaign_name TEXT NOT NULL,
+      campaign_id TEXT,
+      account_type TEXT NOT NULL,
+      funnel_stage TEXT NOT NULL,
+      impressions INTEGER,
+      clicks INTEGER,
+      ctr TEXT,
+      frequency TEXT,
+      cpc_avg TEXT,
+      cost REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+} catch { /* already exists */ }
 
 // Migration: update budgetItems GID from old value (261492502) to correct tab (1316516870)
 try {
