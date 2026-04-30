@@ -87,7 +87,7 @@ export function AdsBudgets() {
     const currentYear = new Date().getFullYear();
     try {
       const allocs = await api.get<MonthlyAllocationRow[]>(
-        `/ads-budgets/monthly-allocation?siteId=undefined&year=${currentYear}`
+        `/ads-budgets/monthly-allocation?year=${currentYear}`
       );
       setAllocations(allocs || []);
     } catch (err) {
