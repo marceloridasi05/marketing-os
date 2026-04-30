@@ -2,10 +2,13 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { api } from '../lib/api';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus } from 'lucide-react';
 import { CollapsibleCard } from '../components/CollapsibleCard';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
+import { DataStatusCard } from '../components/DataStatusCard';
+import { MetricsChecklist } from '../components/MetricsChecklist';
+import { ManualInputTable } from '../components/ManualInputTable';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -131,6 +134,8 @@ export function SiteData() {
   const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [manualMode, setManualMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { timePeriod, dateRange, filterProps } = useTimeFilter('all');
 
   const fetchData = useCallback(async () => {
@@ -157,6 +162,51 @@ export function SiteData() {
       await fetchData();
     } catch (err) { setLastSync(`Erro: ${err}`); }
     setSyncing(false);
+  };
+
+  const handleManualSubmit = async (rows: any[]) => {
+    setIsSubmitting(true);
+    try {
+      // Convert each row to the API format
+      for (const row of rows) {
+        const weekStartParts = row.weekStart.split('/');
+        const isoDate = `${weekStartParts[2]}-${weekStartParts[1]}-${weekStartParts[0]}`;
+
+        // Generate week identifier (Semana N)
+        const date = new Date(isoDate);
+        const startOfYear = new Date(date.getFullYear(), 0, 1);
+        const weekNum = Math.ceil(((date.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+        const week = `Semana ${weekNum}`;
+
+        const payload = {
+          week,
+          weekStart: isoDate,
+          sessions: row.sessions ? parseInt(row.sessions.replace(/\D/g, '')) : null,
+          totalUsers: row.totalUsers ? parseInt(row.totalUsers.replace(/\D/g, '')) : null,
+          paidClicks: row.paidClicks ? parseInt(row.paidClicks.replace(/\D/g, '')) : null,
+          unpaidSessions: row.unpaidSessions ? parseInt(row.unpaidSessions.replace(/\D/g, '')) : null,
+          newUsers: row.newUsers ? parseInt(row.newUsers.replace(/\D/g, '')) : null,
+          newUsersPct: row.newUsersPct || null,
+          leadsGenerated: row.leadsGenerated ? parseInt(row.leadsGenerated.replace(/\D/g, '')) : null,
+          weeklyGains: row.weeklyGains ? parseInt(row.weeklyGains.replace(/\D/g, '')) : null,
+          blogSessions: row.blogSessions ? parseInt(row.blogSessions.replace(/\D/g, '')) : null,
+          blogTotalUsers: row.blogTotalUsers ? parseInt(row.blogTotalUsers.replace(/\D/g, '')) : null,
+          blogNewUsers: row.blogNewUsers ? parseInt(row.blogNewUsers.replace(/\D/g, '')) : null,
+          blogNewUsersPct: row.blogNewUsersPct || null,
+          aiSessions: row.aiSessions ? parseInt(row.aiSessions.replace(/\D/g, '')) : null,
+          aiTotalUsers: row.aiTotalUsers ? parseInt(row.aiTotalUsers.replace(/\D/g, '')) : null,
+        };
+
+        await api.post('/site-data/manual', payload);
+      }
+
+      setLastSync(`${rows.length} semana(s) adicionada(s) manualmente`);
+      setManualMode(false);
+      await fetchData();
+    } catch (err) {
+      setLastSync(`Erro ao salvar dados: ${err}`);
+    }
+    setIsSubmitting(false);
   };
 
   const data = useMemo(() => {
@@ -299,17 +349,29 @@ export function SiteData() {
 
       {loading ? (
         <div className="py-12 text-center text-gray-400">Carregando...</div>
-      ) : data.length === 0 ? (
-        <Card>
-          <div className="py-12 text-center">
-            <p className="text-gray-500 mb-4">Nenhum dado importado ainda.</p>
-            <button onClick={handleSync} disabled={syncing}
-              className="px-4 py-2 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800 disabled:opacity-50">
-              <RefreshCw size={16} className={`inline mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              Importar da Planilha Google
-            </button>
-          </div>
-        </Card>
+      ) : data.length === 0 && !manualMode ? (
+        <>
+          <DataStatusCard
+            onImport={handleSync}
+            onManualEntry={() => setManualMode(true)}
+            syncing={syncing}
+          />
+
+          <MetricsChecklist
+            requiredCount={0}
+            totalRequired={5}
+            hasLeads={false}
+            hasPaidClicks={false}
+            hasBlogData={false}
+            hasAiData={false}
+          />
+        </>
+      ) : manualMode ? (
+        <ManualInputTable
+          onSubmit={handleManualSubmit}
+          onCancel={() => setManualMode(false)}
+          isSubmitting={isSubmitting}
+        />
       ) : (
         <>
           {/* KPI Cards */}
@@ -335,6 +397,17 @@ export function SiteData() {
               <p className="text-2xl font-semibold text-gray-900 mt-1">{latest?.week ?? '—'}</p>
               <p className="text-xs text-gray-400 mt-0.5">{latest ? fmtDate(latest.weekStart) : ''}</p>
             </Card>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={() => setManualMode(true)}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Adicionar Linha Manual
+            </button>
           </div>
 
           {/* Charts Row 1 - All traffic + Leads */}

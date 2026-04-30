@@ -159,4 +159,85 @@ router.get('/monthly', async (req, res) => {
   res.json(rows);
 });
 
+// POST /manual - insert/update manually entered site data
+router.post('/manual', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    const {
+      week,
+      weekStart,
+      sessions,
+      totalUsers,
+      paidClicks,
+      unpaidSessions,
+      newUsers,
+      newUsersPct,
+      leadsGenerated,
+      weeklyGains,
+      blogSessions,
+      blogTotalUsers,
+      blogNewUsers,
+      blogNewUsersPct,
+      aiSessions,
+      aiTotalUsers,
+    } = req.body;
+
+    // Validate required fields
+    if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+      return res.status(400).json({ error: 'Invalid weekStart format (must be YYYY-MM-DD)' });
+    }
+    if (sessions === null || sessions === undefined) {
+      return res.status(400).json({ error: 'sessions is required' });
+    }
+    if (totalUsers === null || totalUsers === undefined) {
+      return res.status(400).json({ error: 'totalUsers is required' });
+    }
+    if (newUsers === null || newUsers === undefined) {
+      return res.status(400).json({ error: 'newUsers is required' });
+    }
+    if (leadsGenerated === null || leadsGenerated === undefined) {
+      return res.status(400).json({ error: 'leadsGenerated is required' });
+    }
+
+    // Check if record already exists (by weekStart + siteId)
+    const existingWhere = siteId
+      ? and(eq(siteData.weekStart, weekStart), eq(siteData.siteId, siteId))
+      : eq(siteData.weekStart, weekStart);
+    const existing = await db.select().from(siteData).where(existingWhere).limit(1);
+
+    const record = {
+      siteId,
+      week: week || `Semana ${new Date(weekStart).getWeek()}`,
+      weekStart,
+      sessions,
+      totalUsers,
+      paidClicks: paidClicks || null,
+      unpaidSessions: unpaidSessions || null,
+      newUsers,
+      newUsersPct: newUsersPct || null,
+      leadsGenerated,
+      weeklyGains: weeklyGains || null,
+      blogSessions: blogSessions || null,
+      blogTotalUsers: blogTotalUsers || null,
+      blogNewUsers: blogNewUsers || null,
+      blogNewUsersPct: blogNewUsersPct || null,
+      aiSessions: aiSessions || null,
+      aiTotalUsers: aiTotalUsers || null,
+    };
+
+    if (existing.length > 0) {
+      // Update existing record
+      await db.update(siteData).set(record).where(eq(siteData.id, existing[0].id));
+      res.json({ success: true, id: existing[0].id, action: 'updated' });
+    } else {
+      // Insert new record
+      const result = await db.insert(siteData).values(record);
+      res.json({ success: true, id: result.lastID, action: 'inserted' });
+    }
+  } catch (err) {
+    console.error('Manual entry error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;
