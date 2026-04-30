@@ -194,10 +194,31 @@ export const adsKpis = sqliteTable('ads_kpis', {
   gaCvr: text('ga_cvr'),
   gaConversions: integer('ga_conversions'),
   gaCostPerConversion: text('ga_cost_per_conversion'),
+  // Meta Ads
+  metaImpressions: integer('meta_impressions'),
+  metaClicks: integer('meta_clicks'),
+  metaCtr: text('meta_ctr'),
+  metaCpcAvg: text('meta_cpc_avg'),
+  metaCost: real('meta_cost'),
   // LinkedIn Ads (aggregated)
   liImpressions: integer('li_impressions'),
   liClicks: integer('li_clicks'),
   liCost: real('li_cost'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+export const metaCampaignKpis = sqliteTable('meta_campaign_kpis', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id'),
+  week: text('week').notNull(),
+  weekStart: text('week_start').notNull(),
+  campaignName: text('campaign_name').notNull(),
+  campaignId: text('campaign_id'),
+  impressions: integer('impressions'),
+  clicks: integer('clicks'),
+  ctr: text('ctr'),
+  cpcAvg: text('cpc_avg'),
+  cost: real('cost'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
@@ -207,6 +228,7 @@ export const liCampaignKpis = sqliteTable('li_campaign_kpis', {
   week: text('week').notNull(),
   weekStart: text('week_start').notNull(),
   campaignName: text('campaign_name').notNull(),
+  campaignId: text('campaign_id'),
   accountType: text('account_type').notNull(),
   funnelStage: text('funnel_stage').notNull(),
   impressions: integer('impressions'),

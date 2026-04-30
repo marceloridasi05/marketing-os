@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { adsKpis, liCampaignKpis } from '../db/schema.js';
+import { adsKpis, metaCampaignKpis, liCampaignKpis } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { getSheetConfig } from '../lib/sheetConfig.js';
 
@@ -60,6 +60,15 @@ router.get('/', async (req, res) => {
   res.json(rows);
 });
 
+// GET /meta - all meta campaign kpis
+router.get('/meta', async (req, res) => {
+  const conditions = [];
+  if (req.query.siteId) conditions.push(eq(metaCampaignKpis.siteId, +req.query.siteId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const rows = await db.select().from(metaCampaignKpis).where(where).orderBy(metaCampaignKpis.weekStart);
+  res.json(rows);
+});
+
 // GET /linkedin - all linkedin campaign kpis
 router.get('/linkedin', async (req, res) => {
   const conditions = [];
@@ -80,33 +89,83 @@ router.post('/sync', async (req, res) => {
     const text = await response.text();
     const lines = text.split('\n').map(parseCsvLine);
 
-    const groupHeaders = lines[0];
-    const colHeaders = lines[1];
+    const groupHeaders = lines[0] || [];
+    const colHeaders = lines[1] || [];
 
-    // Identify LinkedIn campaign blocks from group headers
-    // Each campaign has a name in the group header row, spanning multiple columns
+    // Detect Meta Ads and LinkedIn campaign blocks
     interface CampaignBlock {
+      channel: 'meta' | 'linkedin';
       name: string;
-      meta: CampaignMeta;
+      meta?: CampaignMeta;
+      campaignId?: string;
+      idCol?: number | null;
       impCol: number | null;
       clickCol: number | null;
       ctrCol: number | null;
-      freqCol: number | null;
+      freqCol?: number | null;
       cpcCol: number | null;
       costCol: number | null;
     }
 
     const campaigns: CampaignBlock[] = [];
+    let currentMetaImpCol: number | null = null;
+    let currentMetaClickCol: number | null = null;
+    let currentMetaCtrCol: number | null = null;
+    let currentMetaCpcCol: number | null = null;
+    let currentMetaCostCol: number | null = null;
+
     let currentCampaign: CampaignBlock | null = null;
 
-    for (let i = 12; i < groupHeaders.length; i++) {
-      const gh = groupHeaders[i]?.trim();
-      if (gh && gh.toLowerCase().includes('linkedin')) {
-        if (currentCampaign) campaigns.push(currentCampaign);
-        currentCampaign = { name: gh, meta: classifyCampaign(gh), impCol: null, clickCol: null, ctrCol: null, freqCol: null, cpcCol: null, costCol: null };
+    // Parse headers to identify column positions
+    for (let i = 0; i < colHeaders.length; i++) {
+      const gh = groupHeaders[i]?.trim() || '';
+      const ch = colHeaders[i]?.trim() || '';
+
+      // Check if we're in a Meta Ads section
+      if (gh.toLowerCase().includes('meta')) {
+        if (ch === 'Impressões') currentMetaImpCol = i;
+        else if (ch === 'Cliques') currentMetaClickCol = i;
+        else if (ch === 'CTR') currentMetaCtrCol = i;
+        else if (ch?.includes('CPC')) currentMetaCpcCol = i;
+        else if (ch === 'Custo') currentMetaCostCol = i;
       }
+
+      // Check if we're in a campaign block (Meta or LinkedIn)
+      if (gh && (gh.toLowerCase().includes('meta') && ch === 'ID da Campanha')) {
+        // Meta campaign with ID
+        const metaCampId = '';
+        currentCampaign = {
+          channel: 'meta',
+          name: `Meta Campaign`,
+          campaignId: metaCampId,
+          idCol: i,
+          impCol: null,
+          clickCol: null,
+          ctrCol: null,
+          cpcCol: null,
+          costCol: null,
+        };
+      } else if (gh && (gh.toLowerCase().includes('linkedin') && !gh.toLowerCase().includes('page'))) {
+        // LinkedIn campaign
+        if (currentCampaign) campaigns.push(currentCampaign);
+        const liCampId = ch === 'ID da Campanha' ? '' : '';
+        currentCampaign = {
+          channel: 'linkedin',
+          name: gh,
+          meta: classifyCampaign(gh),
+          campaignId: liCampId,
+          idCol: ch === 'ID da Campanha' ? i : undefined,
+          impCol: null,
+          clickCol: null,
+          ctrCol: null,
+          freqCol: null,
+          cpcCol: null,
+          costCol: null,
+        };
+      }
+
+      // Fill in campaign-specific columns
       if (currentCampaign) {
-        const ch = colHeaders[i]?.trim();
         if (ch === 'Impressões' && currentCampaign.impCol === null) currentCampaign.impCol = i;
         else if (ch === 'Cliques' && currentCampaign.clickCol === null) currentCampaign.clickCol = i;
         else if (ch === 'CTR' && currentCampaign.ctrCol === null) currentCampaign.ctrCol = i;
@@ -117,17 +176,7 @@ router.post('/sync', async (req, res) => {
     }
     if (currentCampaign) campaigns.push(currentCampaign);
 
-    // Also find LinkedIn aggregate cols for the main adsKpis table
-    const liImpCols: number[] = [];
-    const liClickCols: number[] = [];
-    const liCostCols: number[] = [];
-    for (let i = 12; i < colHeaders.length; i++) {
-      const h = colHeaders[i]?.trim();
-      if (h === 'Impressões') liImpCols.push(i);
-      else if (h === 'Cliques') liClickCols.push(i);
-      else if (h === 'Custo') liCostCols.push(i);
-    }
-
+    // Filter to only data rows
     const dataRows = lines.slice(2).filter(row => {
       const week = row[0]?.trim();
       const date = row[1]?.trim();
@@ -139,16 +188,27 @@ router.post('/sync', async (req, res) => {
       const week = row[0].trim();
       const weekStart = parseDate(row[1]);
 
-      // LinkedIn aggregated
+      // Calculate aggregated values for Meta and LinkedIn
+      let metaImp = 0, metaClick = 0, metaCostTotal = 0;
       let liImp = 0, liClick = 0, liCostTotal = 0;
-      for (const c of liImpCols) liImp += parseNum(row[c] ?? '') ?? 0;
-      for (const c of liClickCols) liClick += parseNum(row[c] ?? '') ?? 0;
-      for (const c of liCostCols) liCostTotal += parseNum(row[c] ?? '') ?? 0;
 
-      // Upsert Google Ads + LinkedIn aggregated
-      const gaRecord = {
+      for (const camp of campaigns) {
+        if (camp.channel === 'meta') {
+          if (camp.impCol != null) metaImp += parseNum(row[camp.impCol] ?? '') ?? 0;
+          if (camp.clickCol != null) metaClick += parseNum(row[camp.clickCol] ?? '') ?? 0;
+          if (camp.costCol != null) metaCostTotal += parseNum(row[camp.costCol] ?? '') ?? 0;
+        } else if (camp.channel === 'linkedin') {
+          if (camp.impCol != null) liImp += parseNum(row[camp.impCol] ?? '') ?? 0;
+          if (camp.clickCol != null) liClick += parseNum(row[camp.clickCol] ?? '') ?? 0;
+          if (camp.costCol != null) liCostTotal += parseNum(row[camp.costCol] ?? '') ?? 0;
+        }
+      }
+
+      // Upsert main adsKpis record
+      const adsRecord = {
         siteId,
-        week, weekStart,
+        week,
+        weekStart,
         gaImpressions: parseNum(row[2] ?? ''),
         gaClicks: parseNum(row[3] ?? ''),
         gaCtr: row[4]?.trim() || null,
@@ -158,6 +218,11 @@ router.post('/sync', async (req, res) => {
         gaCvr: row[8]?.trim() || null,
         gaConversions: parseNum(row[9] ?? ''),
         gaCostPerConversion: row[10]?.trim() || null,
+        metaImpressions: metaImp,
+        metaClicks: metaClick,
+        metaCtr: metaClick > 0 && metaImp > 0 ? `${((metaClick / metaImp) * 100).toFixed(2)}%` : null,
+        metaCpcAvg: metaClick > 0 && metaCostTotal > 0 ? `R$ ${(metaCostTotal / metaClick).toFixed(2)}` : null,
+        metaCost: Math.round(metaCostTotal * 100) / 100,
         liImpressions: liImp,
         liClicks: liClick,
         liCost: Math.round(liCostTotal * 100) / 100,
@@ -168,46 +233,91 @@ router.post('/sync', async (req, res) => {
         : eq(adsKpis.week, week);
       const existing = await db.select().from(adsKpis).where(existingWhere).limit(1);
       if (existing.length > 0) {
-        await db.update(adsKpis).set(gaRecord).where(eq(adsKpis.id, existing[0].id));
+        await db.update(adsKpis).set(adsRecord).where(eq(adsKpis.id, existing[0].id));
       } else {
-        await db.insert(adsKpis).values(gaRecord);
+        await db.insert(adsKpis).values(adsRecord);
       }
 
-      // Upsert each LinkedIn campaign
+      // Upsert each campaign
       for (const camp of campaigns) {
-        const imp = parseNum(row[camp.impCol ?? -1] ?? '');
-        const clicks = parseNum(row[camp.clickCol ?? -1] ?? '');
-        const ctr = camp.ctrCol != null ? row[camp.ctrCol]?.trim() || null : null;
-        const freq = camp.freqCol != null ? row[camp.freqCol]?.trim() || null : null;
-        const cpc = camp.cpcCol != null ? row[camp.cpcCol]?.trim() || null : null;
-        const cost = parseNum(row[camp.costCol ?? -1] ?? '');
+        if (camp.channel === 'meta') {
+          const imp = parseNum(row[camp.impCol ?? -1] ?? '');
+          const clicks = parseNum(row[camp.clickCol ?? -1] ?? '');
+          const ctr = camp.ctrCol != null ? row[camp.ctrCol]?.trim() || null : null;
+          const cpc = camp.cpcCol != null ? row[camp.cpcCol]?.trim() || null : null;
+          const cost = parseNum(row[camp.costCol ?? -1] ?? '');
+          const campaignId = camp.idCol != null ? row[camp.idCol]?.trim() || '' : '';
 
-        const liRecord = {
-          siteId,
-          week, weekStart,
-          campaignName: camp.name,
-          accountType: camp.meta.accountType,
-          funnelStage: camp.meta.funnelStage,
-          impressions: imp, clicks, ctr, frequency: freq, cpcAvg: cpc, cost,
-        };
+          const metaRecord = {
+            siteId,
+            week,
+            weekStart,
+            campaignName: campaignId || `Meta Ads - Campanha ${campaigns.filter(c => c.channel === 'meta').indexOf(camp) + 1}`,
+            campaignId,
+            impressions: imp,
+            clicks,
+            ctr,
+            cpcAvg: cpc,
+            cost,
+          };
 
-        const existingLiWhere = siteId
-          ? and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name), eq(liCampaignKpis.siteId, siteId))
-          : and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignName, camp.name));
-        const existingLi = await db.select().from(liCampaignKpis)
-          .where(existingLiWhere)
-          .limit(1);
-        if (existingLi.length > 0) {
-          await db.update(liCampaignKpis).set(liRecord).where(eq(liCampaignKpis.id, existingLi[0].id));
-        } else {
-          await db.insert(liCampaignKpis).values(liRecord);
+          const existingMetaWhere = siteId
+            ? and(eq(metaCampaignKpis.week, week), eq(metaCampaignKpis.campaignId, campaignId), eq(metaCampaignKpis.siteId, siteId))
+            : and(eq(metaCampaignKpis.week, week), eq(metaCampaignKpis.campaignId, campaignId));
+          const existingMeta = await db.select().from(metaCampaignKpis).where(existingMetaWhere).limit(1);
+
+          if (existingMeta.length > 0) {
+            await db.update(metaCampaignKpis).set(metaRecord).where(eq(metaCampaignKpis.id, existingMeta[0].id));
+          } else {
+            await db.insert(metaCampaignKpis).values(metaRecord);
+          }
+        } else if (camp.channel === 'linkedin') {
+          const imp = parseNum(row[camp.impCol ?? -1] ?? '');
+          const clicks = parseNum(row[camp.clickCol ?? -1] ?? '');
+          const ctr = camp.ctrCol != null ? row[camp.ctrCol]?.trim() || null : null;
+          const freq = camp.freqCol != null ? row[camp.freqCol]?.trim() || null : null;
+          const cpc = camp.cpcCol != null ? row[camp.cpcCol]?.trim() || null : null;
+          const cost = parseNum(row[camp.costCol ?? -1] ?? '');
+          const campaignId = camp.idCol != null ? row[camp.idCol]?.trim() || '' : '';
+
+          const liRecord = {
+            siteId,
+            week,
+            weekStart,
+            campaignName: camp.name,
+            campaignId,
+            accountType: camp.meta?.accountType || 'Outros',
+            funnelStage: camp.meta?.funnelStage || 'other',
+            impressions: imp,
+            clicks,
+            ctr,
+            frequency: freq,
+            cpcAvg: cpc,
+            cost,
+          };
+
+          const existingLiWhere = siteId
+            ? and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignId, campaignId), eq(liCampaignKpis.siteId, siteId))
+            : and(eq(liCampaignKpis.week, week), eq(liCampaignKpis.campaignId, campaignId));
+          const existingLi = await db.select().from(liCampaignKpis).where(existingLiWhere).limit(1);
+
+          if (existingLi.length > 0) {
+            await db.update(liCampaignKpis).set(liRecord).where(eq(liCampaignKpis.id, existingLi[0].id));
+          } else {
+            await db.insert(liCampaignKpis).values(liRecord);
+          }
         }
       }
 
       imported++;
     }
 
-    res.json({ success: true, imported, campaigns: campaigns.map(c => c.name) });
+    res.json({
+      success: true,
+      imported,
+      meta: campaigns.filter(c => c.channel === 'meta').length,
+      linkedin: campaigns.filter(c => c.channel === 'linkedin').length,
+    });
   } catch (err) {
     console.error('Ads sync error:', err);
     res.status(500).json({ error: String(err) });

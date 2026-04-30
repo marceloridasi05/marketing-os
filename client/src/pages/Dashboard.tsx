@@ -39,10 +39,18 @@ interface AdsKpiRow {
   gaImpressions: number | null; gaClicks: number | null; gaCtr: string | null;
   gaCpcAvg: string | null; gaCpmAvg: string | null; gaCostAvg: string | null;
   gaCvr: string | null; gaConversions: number | null; gaCostPerConversion: string | null;
+  metaImpressions: number | null; metaClicks: number | null; metaCtr: string | null;
+  metaCpcAvg: string | null; metaCost: number | null;
   liImpressions: number | null; liClicks: number | null; liCost: number | null;
 }
+interface MetaCampaignRow {
+  id: number; week: string; weekStart: string; campaignName: string; campaignId?: string;
+  impressions: number | null; clicks: number | null; ctr: string | null;
+  cpcAvg: string | null; cost: number | null;
+}
+
 interface LiCampaignRow {
-  id: number; week: string; weekStart: string; campaignName: string;
+  id: number; week: string; weekStart: string; campaignName: string; campaignId?: string;
   accountType: string; funnelStage: string; impressions: number | null;
   clicks: number | null; ctr: string | null; frequency: string | null;
   cpcAvg: string | null; cost: number | null;
