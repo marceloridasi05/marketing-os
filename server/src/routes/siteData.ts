@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { siteData, siteMonthly } from '../db/schema.js';
+import { siteData, siteMonthly, gtmMetricStatus } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { getSheetConfig } from '../lib/sheetConfig.js';
+import { determineMetricDataStatus, calculateMetricConfidence } from '../lib/gtmDataQuality.js';
 
 const router = Router();
 
@@ -18,6 +19,56 @@ function parseDate(v: string): string {
   const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (match) return `${match[3]}-${match[2]}-${match[1]}`;
   return trimmed;
+}
+
+// Track metric status after manual entry or sync
+async function trackMetricStatus(siteId: number | undefined, isManual: boolean, lastUpdated: string) {
+  if (!siteId) return;
+
+  const metrics = [
+    { key: 'sessions', value: null },
+    { key: 'totalUsers', value: null },
+    { key: 'newUsers', value: null },
+    { key: 'leadsGenerated', value: null },
+    { key: 'paidClicks', value: null },
+    { key: 'weeklyGains', value: null },
+    { key: 'blogSessions', value: null },
+    { key: 'aiSessions', value: null },
+  ];
+
+  for (const metric of metrics) {
+    const dataStatus = determineMetricDataStatus(true, lastUpdated, isManual, true);
+    const confidence = calculateMetricConfidence(dataStatus, lastUpdated, isManual);
+
+    // Check if record exists
+    const existing = await db.select().from(gtmMetricStatus)
+      .where(and(eq(gtmMetricStatus.siteId, siteId), eq(gtmMetricStatus.metricKey, metric.key)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Update
+      await db.update(gtmMetricStatus)
+        .set({
+          dataStatus,
+          confidence,
+          lastUpdated,
+          isManual,
+          sourceOfTruth: isManual ? 'Google Sheets' : undefined,
+        })
+        .where(eq(gtmMetricStatus.id, existing[0].id));
+    } else {
+      // Insert
+      await db.insert(gtmMetricStatus).values({
+        siteId,
+        metricKey: metric.key,
+        dataStatus,
+        confidence,
+        lastUpdated,
+        isManual,
+        sourceOfTruth: isManual ? 'Google Sheets' : undefined,
+      });
+    }
+  }
 }
 
 // GET / — list all site data
@@ -143,6 +194,11 @@ router.post('/sync', async (req, res) => {
       monthlyImported++;
     }
 
+    // Track metric status for data quality (from Google Sheets = not manual)
+    if (siteId) {
+      await trackMetricStatus(siteId, false, new Date().toISOString());
+    }
+
     res.json({ success: true, imported, monthlyImported });
   } catch (err) {
     console.error('Sync error:', err);
@@ -228,14 +284,47 @@ router.post('/manual', async (req, res) => {
     if (existing.length > 0) {
       // Update existing record
       await db.update(siteData).set(record).where(eq(siteData.id, existing[0].id));
+      // Track metric status for data quality
+      await trackMetricStatus(siteId, true, new Date().toISOString());
       res.json({ success: true, id: existing[0].id, action: 'updated' });
     } else {
       // Insert new record
       const result = await db.insert(siteData).values(record);
+      // Track metric status for data quality
+      await trackMetricStatus(siteId, true, new Date().toISOString());
       res.json({ success: true, id: result.lastID, action: 'inserted' });
     }
   } catch (err) {
     console.error('Manual entry error:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /metric-status — get metric health status for a site
+router.get('/metric-status', async (req, res) => {
+  try {
+    const siteId = req.query.siteId ? +req.query.siteId : undefined;
+    if (!siteId) {
+      return res.status(400).json({ error: 'siteId is required' });
+    }
+
+    const statuses = await db.select().from(gtmMetricStatus)
+      .where(eq(gtmMetricStatus.siteId, siteId));
+
+    res.json({
+      siteId,
+      metrics: statuses,
+      summary: {
+        total: statuses.length,
+        automatic: statuses.filter(s => !s.isManual).length,
+        manual: statuses.filter(s => s.isManual).length,
+        highConfidence: statuses.filter(s => s.confidence === 'high').length,
+        mediumConfidence: statuses.filter(s => s.confidence === 'medium').length,
+        lowConfidence: statuses.filter(s => s.confidence === 'low').length,
+      },
+    });
+  } catch (err) {
+    console.error('Metric status fetch error:', err);
     res.status(500).json({ error: String(err) });
   }
 });

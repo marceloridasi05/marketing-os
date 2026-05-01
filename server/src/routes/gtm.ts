@@ -211,6 +211,115 @@ router.get('/:siteId/status', async (req, res) => {
 });
 
 /**
+ * GET /api/gtm/:siteId/insights
+ * Generate data quality insights and alerts for a site
+ */
+router.get('/:siteId/insights', async (req, res) => {
+  try {
+    const { siteId } = req.params;
+
+    const site = await db
+      .select()
+      .from(sites)
+      .where(eq(sites.id, parseInt(siteId)))
+      .limit(1);
+
+    if (!site || site.length === 0) {
+      return res.status(404).json({ error: 'Site not found' });
+    }
+
+    const modelId = site[0].gtmOperatingModelId || 'b2b_sales_led';
+    const model = GTM_OPERATING_MODELS[modelId as GTMOperatingModelId];
+
+    // Fetch metric statuses
+    const statuses = await db
+      .select()
+      .from(gtmMetricStatus)
+      .where(eq(gtmMetricStatus.siteId, parseInt(siteId)));
+
+    const insights: any[] = [];
+
+    // Check for missing required metrics
+    for (const stage of model.stages) {
+      const requiredMetrics = stage.requiredMetrics || [];
+      const missingMetrics: string[] = [];
+
+      for (const metricKey of requiredMetrics) {
+        const status = statuses.find(s => s.metricKey === metricKey);
+        if (!status || status.dataStatus === 'missing' || status.dataStatus === 'not_mapped') {
+          missingMetrics.push(metricKey);
+        }
+      }
+
+      if (missingMetrics.length > 0) {
+        insights.push({
+          type: 'missing_required_metrics',
+          severity: 'warning',
+          stageId: stage.id,
+          stageName: stage.label,
+          metrics: missingMetrics,
+          title: `${missingMetrics.length} required metric(s) missing in ${stage.label}`,
+          description: `The following metrics are required but missing: ${missingMetrics.join(', ')}`,
+          action: `Go to SiteData to enter missing metrics for ${stage.label}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Check for stale metrics
+    const staleDays = 30;
+    const staleDate = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+
+    for (const status of statuses) {
+      if (status.dataStatus === 'stale' || (status.lastUpdated && new Date(status.lastUpdated) < staleDate)) {
+        const daysSinceUpdate = status.lastUpdated
+          ? Math.floor((Date.now() - new Date(status.lastUpdated).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        insights.push({
+          type: 'stale_metric',
+          severity: daysSinceUpdate && daysSinceUpdate > 60 ? 'critical' : 'warning',
+          metricKey: status.metricKey,
+          title: `${status.metricKey} is stale (${daysSinceUpdate} days old)`,
+          description: `Last updated ${daysSinceUpdate} days ago. Consider syncing from data source.`,
+          action: `Sync from ${status.sourceOfTruth || 'data source'} or enter new data`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Check for low confidence metrics
+    const lowConfidenceMetrics = statuses.filter(s => s.confidence === 'low');
+    if (lowConfidenceMetrics.length > 0) {
+      insights.push({
+        type: 'low_confidence',
+        severity: 'info',
+        count: lowConfidenceMetrics.length,
+        metrics: lowConfidenceMetrics.map(m => m.metricKey),
+        title: `${lowConfidenceMetrics.length} metric(s) with low confidence`,
+        description: 'These metrics are missing, manual, or not recently updated. Consider verification.',
+        action: 'Review and update these metrics for better accuracy',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Sort by severity
+    const severityOrder = { critical: 0, warning: 1, info: 2 };
+    insights.sort((a, b) => severityOrder[a.severity as keyof typeof severityOrder] - severityOrder[b.severity as keyof typeof severityOrder]);
+
+    res.json({
+      siteId: parseInt(siteId),
+      gtmModelId: modelId,
+      insights,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Error generating GTM insights:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
  * POST /api/gtm/:siteId/metric-status
  * Record or update the status of a metric
  * Body: { metricKey, dataStatus, sourceOfTruth, confidence, isManual, value }

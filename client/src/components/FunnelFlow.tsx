@@ -7,6 +7,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Card } from './Card';
+import { MetricStatusBadge } from './MetricStatusBadge';
 import type { StageMetrics } from '../types/funnelTypes';
 
 const STATUS_CFG = {
@@ -106,6 +107,32 @@ function FunnelFlowStage({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Metric Status Badges (Data Quality Indicators) */}
+        {(stageMetrics as any).metricStatuses && (stageMetrics as any).metricStatuses.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
+            <p className="text-xs font-semibold text-gray-700 uppercase">Metric Status</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(stageMetrics as any).metricStatuses.slice(0, 4).map((metric: any) => (
+                <MetricStatusBadge
+                  key={metric.key}
+                  metricKey={metric.key}
+                  dataStatus={metric.dataStatus || 'not_mapped'}
+                  confidence={metric.confidence || 'low'}
+                  lastUpdated={metric.lastUpdated}
+                  isManual={metric.isManual}
+                  compact={true}
+                  tooltip={true}
+                />
+              ))}
+              {(stageMetrics as any).metricStatuses.length > 4 && (
+                <span className="text-xs text-gray-500 self-center">
+                  +{(stageMetrics as any).metricStatuses.length - 4} more
+                </span>
+              )}
+            </div>
           </div>
         )}
 

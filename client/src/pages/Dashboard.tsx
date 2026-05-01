@@ -273,6 +273,7 @@ export function Dashboard() {
   const [gtmModelId, setGtmModelId] = useState<string>('b2b_sales_led');
   const [gtmModel, setGtmModel] = useState<any>(null);
   const [gtmStatus, setGtmStatus] = useState<any>(null);
+  const [gtmInsights, setGtmInsights] = useState<any>(null);
   const [gtmLoading, setGtmLoading] = useState(false);
   const [gtmError, setGtmError] = useState<string | null>(null);
 
@@ -321,14 +322,16 @@ export function Dashboard() {
       api.get<any>(`/gtm/models`),
       api.get<{ gtmOperatingModelId: string; model: any }>(`/gtm/${selectedSite.id}/model`),
       api.get<any>(`/gtm/${selectedSite.id}/status`),
+      api.get<any>(`/gtm/${selectedSite.id}/insights`),
     ])
-      .then(([modelsRes, modelRes, statusRes]) => {
+      .then(([modelsRes, modelRes, statusRes, insightsRes]) => {
         const selectedModelId = modelRes.gtmOperatingModelId || 'b2b_sales_led';
         const selectedModelDef = modelsRes.models?.find((m: any) => m.id === selectedModelId);
 
         setGtmModelId(selectedModelId);
         setGtmModel(selectedModelDef || null);
         setGtmStatus(statusRes);
+        setGtmInsights(insightsRes);
       })
       .catch((err) => {
         console.warn('GTM status fetch failed, using defaults:', err);
@@ -348,15 +351,17 @@ export function Dashboard() {
       // Update local state
       setGtmModelId(newModelId);
 
-      // Fetch updated model definition and status
+      // Fetch updated model definition, status, and insights
       try {
-        const [modelsRes, statusRes] = await Promise.all([
+        const [modelsRes, statusRes, insightsRes] = await Promise.all([
           api.get<any>(`/gtm/models`),
           api.get<any>(`/gtm/${selectedSite.id}/status`),
+          api.get<any>(`/gtm/${selectedSite.id}/insights`),
         ]);
         const selectedModelDef = modelsRes.models?.find((m: any) => m.id === newModelId);
         setGtmModel(selectedModelDef || null);
         setGtmStatus(statusRes);
+        setGtmInsights(insightsRes);
         setGtmError(null);
       } catch (err) {
         console.warn('GTM status fetch failed after model switch:', err);
@@ -1001,12 +1006,14 @@ export function Dashboard() {
           prev: statusStage.readinessPct, // no trend for readiness
         } : null,
         // Supporting metrics: list required metrics with status
-        supportingMetrics: gtmStage.requiredMetrics?.map((metricKey: string) => ({
-          key: metricKey,
-          label: metricKey.replace(/_/g, ' '),
-          value: statusStage?.readinessPct || 0,
+        supportingMetrics: statusStage?.metrics?.map((metric: any) => ({
+          key: metric.key,
+          label: metric.key.replace(/_/g, ' '),
+          value: metric.dataStatus === 'automatic' || metric.dataStatus === 'manual' ? 100 : 0,
           fmt: 'pct',
         })) || [],
+        // Metric statuses for badge display
+        metricStatuses: statusStage?.metrics || [],
         // Conversion to next stage: not available in basic GTM status
         conversionToNextStage: null,
         status: statusStage?.isReady ? 'good' : statusStage?.readinessPct > 0 ? 'warning' : 'neutral',
@@ -1149,6 +1156,39 @@ export function Dashboard() {
                   </div>
                 )}
               </Card>
+
+              {/* Data Quality Alerts (Week 3 - Insights) */}
+              {gtmInsights?.insights && gtmInsights.insights.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-900">Data Quality Alerts</h3>
+                  {gtmInsights.insights.map((insight: any, idx: number) => {
+                    const bgColor = insight.severity === 'critical' ? 'bg-red-50 border-red-200'
+                      : insight.severity === 'warning' ? 'bg-amber-50 border-amber-200'
+                      : 'bg-blue-50 border-blue-200';
+                    const textColor = insight.severity === 'critical' ? 'text-red-700'
+                      : insight.severity === 'warning' ? 'text-amber-700'
+                      : 'text-blue-700';
+                    const icon = insight.severity === 'critical' ? '❌'
+                      : insight.severity === 'warning' ? '⚠️'
+                      : 'ℹ️';
+
+                    return (
+                      <div key={idx} className={`p-3 border rounded text-sm ${bgColor}`}>
+                        <div className="flex items-start gap-2">
+                          <span className="flex-shrink-0">{icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold ${textColor}`}>{insight.title}</p>
+                            <p className={`text-xs mt-1 ${textColor} opacity-75`}>{insight.description}</p>
+                            {insight.action && (
+                              <p className={`text-xs mt-2 font-medium ${textColor}`}>→ {insight.action}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
