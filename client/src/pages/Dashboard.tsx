@@ -1396,75 +1396,31 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── 3. Bottleneck + Alerts ─────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-
-            {/* Bottleneck — 2/3 */}
-            <div className={`md:col-span-2 rounded-xl border border-l-4 p-5 ${bottleneckBg}`}>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">
-                Gargalo Principal
-              </p>
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-xl ${bottleneckIconBg} flex items-center justify-center text-2xl shrink-0`}>
-                  {bottleneck.icon}
-                </div>
-                <div>
-                  <p className={`text-xl font-bold ${bottleneckText}`}>{bottleneck.type}</p>
-                  <p className="text-sm text-gray-600 mt-1 leading-relaxed max-w-md">{bottleneck.desc}</p>
-                  {/* Key evidence */}
-                  {bottleneck.type !== 'Saudável' && (
-                    <div className="flex gap-2 flex-wrap mt-3">
-                      {acqPct !== null && Math.abs(acqPct) > 3 && (
-                        <span className={`text-xs px-2 py-1 rounded-full font-semibold tabular-nums ${
-                          acqPct < 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          Sessões {acqPct > 0 ? '+' : ''}{acqPct.toFixed(0)}%
-                        </span>
-                      )}
-                      {leadsPct !== null && Math.abs(leadsPct) > 3 && (
-                        <span className={`text-xs px-2 py-1 rounded-full font-semibold tabular-nums ${
-                          leadsPct < 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          Leads {leadsPct > 0 ? '+' : ''}{leadsPct.toFixed(0)}%
-                        </span>
-                      )}
-                      {cpl != null && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-semibold tabular-nums">
-                          CPL {fmtMoney(cpl)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+          {/* ── 3. Alerts Only (Bottleneck now in OperationalHealthBanner + BottleneckAnalysis) */}
+          <Card className="mb-5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Alertas</p>
+            {alerts.length === 0 ? (
+              <div className="flex items-center gap-2 text-emerald-600 py-2">
+                <CheckCircle2 size={16} />
+                <span className="text-sm">Sem alertas ativos</span>
               </div>
-            </div>
-
-            {/* Alerts — 1/3 */}
-            <Card>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Alertas</p>
-              {alerts.length === 0 ? (
-                <div className="flex items-center gap-2 text-emerald-600 py-2">
-                  <CheckCircle2 size={16} />
-                  <span className="text-sm">Sem alertas ativos</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {alerts.slice(0, 6).map((a, i) => (
-                    <div key={i} className={`flex items-start gap-2 text-xs rounded-lg px-2.5 py-2 ${
-                      a.severity === 'critical' ? 'bg-red-50 text-red-700' :
-                      a.severity === 'warning'  ? 'bg-amber-50 text-amber-700' :
-                                                  'bg-emerald-50 text-emerald-700'
-                    }`}>
-                      {a.severity === 'critical' ? <XCircle size={12} className="mt-0.5 shrink-0" /> :
-                       a.severity === 'warning'  ? <AlertTriangle size={12} className="mt-0.5 shrink-0" /> :
-                                                   <CheckCircle2 size={12} className="mt-0.5 shrink-0" />}
-                      <span className="leading-tight">{a.msg}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
+            ) : (
+              <div className="space-y-2">
+                {alerts.slice(0, 8).map((a, i) => (
+                  <div key={i} className={`flex items-start gap-2 text-xs rounded-lg px-2.5 py-2 ${
+                    a.severity === 'critical' ? 'bg-red-50 text-red-700' :
+                    a.severity === 'warning'  ? 'bg-amber-50 text-amber-700' :
+                                                'bg-emerald-50 text-emerald-700'
+                  }`}>
+                    {a.severity === 'critical' ? <XCircle size={12} className="mt-0.5 shrink-0" /> :
+                     a.severity === 'warning'  ? <AlertTriangle size={12} className="mt-0.5 shrink-0" /> :
+                                                 <CheckCircle2 size={12} className="mt-0.5 shrink-0" />}
+                    <span className="leading-tight">{a.msg}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
 
           {/* ── 3.5. What to Do Next (Execution Priority) ───────────────────────────── */}
           {selectedSite && (

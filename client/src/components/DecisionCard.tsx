@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { getCardAreaLabel } from '../lib/decisionCardBuilder';
 
 // Inline types to avoid Vite bundler issues
 type HealthStatus = 'healthy' | 'attention' | 'critical';
@@ -116,7 +117,7 @@ export function DecisionCard({ card, compact = false }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-sm font-bold text-gray-900">{card.title}</h3>
-          <p className="text-xs text-gray-600 mt-1">{card.area}</p>
+          <p className="text-xs text-gray-600 mt-1">{getCardAreaLabel(card.area)}</p>
         </div>
         <div className={`text-xs font-semibold px-2.5 py-1 rounded-full ${status.bg} ${status.textColor}`}>
           {card.status === 'healthy' && '✓ No alvo'}

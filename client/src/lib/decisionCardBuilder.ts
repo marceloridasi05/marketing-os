@@ -5,6 +5,19 @@
 
 import { getMetricLabel, interpretMetricChange } from './metricLabels';
 
+// ── Card Area Labels (Portuguese) ──────────────────────────────────────────
+const CARD_AREA_LABELS: Record<string, string> = {
+  'demand': 'Demanda',
+  'efficiency': 'Eficiência',
+  'pipeline': 'Pipeline/Receita',
+  'channels': 'Canais',
+  'budget': 'Orçamento',
+};
+
+export function getCardAreaLabel(area: string): string {
+  return CARD_AREA_LABELS[area] || area;
+}
+
 // Inline types to avoid Vite bundler issues
 type HealthStatus = 'healthy' | 'attention' | 'critical';
 interface DecisionCardMetric {
@@ -278,6 +291,7 @@ function buildBudgetCard(
   let status: HealthStatus = 'healthy';
   let budgetInsight = '';
   let budgetAction = '';
+  const supportingMetrics: DecisionCardMetric[] = [];
 
   // Case 1: Both planned and actual available
   if (plannedMetric.value && actualMetric.value) {
@@ -291,18 +305,28 @@ function buildBudgetCard(
       budgetInsight = `Orçamento em pacing normal. ${usageRate.toFixed(0)}% utilizado do planejado.`;
       budgetAction = `Continuar monitorando. Validar se o saldo será utilizado.`;
     }
+    // Show supporting metrics only if actual is connected
+    if (actualMetric.isConnected) {
+      supportingMetrics.push(plannedMetric);
+      if (balanceMetric.value !== null) {
+        supportingMetrics.push(balanceMetric);
+      }
+    }
   }
   // Case 2: Only planned available
   else if (plannedMetric.value && !actualMetric.isConnected) {
     status = 'attention';
-    budgetInsight = `Orçamento planejado disponível, mas gasto realizado não conectado.`;
+    budgetInsight = `Gasto realizado não conectado.`;
     budgetAction = `Conectar gasto real de mídia ou mapear campo de spend na planilha.`;
+    // Show only planned metric
+    supportingMetrics.push(plannedMetric);
   }
   // Case 3: No data
   else {
     status = 'critical';
     budgetInsight = `Dados de orçamento não conectados.`;
     budgetAction = `Preencher orçamento planejado e realizado para melhor controle.`;
+    // Show no supporting metrics
   }
 
   return {
@@ -310,7 +334,7 @@ function buildBudgetCard(
     title: 'Orçamento',
     status,
     primaryMetric: actualMetric,
-    supportingMetrics: [plannedMetric, balanceMetric],
+    supportingMetrics,
     insight: insight || budgetInsight,
     recommendedAction: budgetAction,
   };

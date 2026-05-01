@@ -278,6 +278,7 @@ export function calculateDataReadiness(metrics: Record<string, MetricValue>): Da
 /**
  * Calculate operational health considering ONLY available metrics
  * Ignores missing data - doesn't penalize for absence, only evaluates what's there
+ * Uses refined thresholds: efficiency metrics (CPL, CAC) are watched more closely
  */
 export function calculateOperationalHealth(metrics: Record<string, MetricValue>): OperationalHealth {
   // Only consider metrics that have actual data
@@ -290,6 +291,7 @@ export function calculateOperationalHealth(metrics: Record<string, MetricValue>)
         ? ((metric.current || 0) - metric.previous) / metric.previous
         : 0,
       current: metric.current,
+      isEfficiencyMetric: key.includes('cpl') || key.includes('cac') || key.includes('cost'),
     }))
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
 
@@ -306,23 +308,59 @@ export function calculateOperationalHealth(metrics: Record<string, MetricValue>)
     status = 'healthy';
     mainReason = 'Dados insuficientes para avaliar operação.';
     recommendedAction = 'Adicione dados básicos (sessões, leads) para análise.';
-  } else if (topNegative && topNegative.change < -0.20) {
-    // Major decline in available metrics
-    status = 'critical';
-    mainReason = `${topNegative.label} caiu ${Math.abs(Math.round(topNegative.change * 100))}% com os dados disponíveis.`;
-    recommendedAction = `Investigar causa da queda em ${topNegative.label.toLowerCase()}.`;
-  } else if (topNegative && topNegative.change < -0.10) {
-    // Moderate decline
-    status = 'attention';
-    mainReason = `${topNegative.label} em queda moderada (${Math.abs(Math.round(topNegative.change * 100))}%).`;
-    recommendedAction = `Revisar ${topNegative.label.toLowerCase()}.`;
+  } else if (topNegative) {
+    // Analyze based on metric type and severity
+    const severity = Math.abs(topNegative.change);
+
+    // Efficiency metrics (CPL, CAC): stricter thresholds
+    if (topNegative.isEfficiencyMetric) {
+      if (severity > 0.50) {
+        // >50% increase in cost = critical
+        status = 'critical';
+        mainReason = `${topNegative.label} subiu ${Math.round(severity * 100)}% - eficiência em queda crítica.`;
+        recommendedAction = `Investigar urgentemente causa do aumento em ${topNegative.label.toLowerCase()}.`;
+      } else if (severity > 0.10) {
+        // 10-50% increase = attention
+        status = 'attention';
+        mainReason = `${topNegative.label} subiu ${Math.round(severity * 100)}% - eficiência em queda.`;
+        recommendedAction = `Revisar campanhas e otimizar ${topNegative.label.toLowerCase()}.`;
+      } else {
+        // <10% change = healthy (minor fluctuation)
+        status = 'healthy';
+        mainReason = `${topNegative.label} com variação menor - operação estável.`;
+        recommendedAction = 'Continuar monitorando.';
+      }
+    } else {
+      // Volume metrics (sessions, leads, conversions): looser thresholds
+      if (severity > 0.50) {
+        // >50% decline = critical
+        status = 'critical';
+        mainReason = `${topNegative.label} caiu ${Math.round(severity * 100)}% - queda crítica.`;
+        recommendedAction = `Investigar causa urgente da queda em ${topNegative.label.toLowerCase()}.`;
+      } else if (severity > 0.20) {
+        // 20-50% decline = attention
+        status = 'attention';
+        mainReason = `${topNegative.label} caiu ${Math.round(severity * 100)}% - queda significativa.`;
+        recommendedAction = `Investigar causa da queda em ${topNegative.label.toLowerCase()}.`;
+      } else if (severity > 0.08) {
+        // 8-20% decline = attention (moderate)
+        status = 'attention';
+        mainReason = `${topNegative.label} em queda moderada (${Math.round(severity * 100)}%).`;
+        recommendedAction = `Revisar ${topNegative.label.toLowerCase()}.`;
+      } else {
+        // <8% change = healthy
+        status = 'healthy';
+        mainReason = `${topNegative.label} com variação menor - operação estável.`;
+        recommendedAction = 'Continuar monitorando.';
+      }
+    }
   } else if (topPositive && topPositive.change > 0.15) {
-    // Strong growth
+    // Strong growth (no declines detected)
     status = 'healthy';
     mainReason = `${topPositive.label} crescendo ${Math.round(topPositive.change * 100)}% - performance positiva.`;
     recommendedAction = `Manter momentum em ${topPositive.label.toLowerCase()}. Validar sustentabilidade.`;
   } else {
-    // Stable
+    // Stable (minor fluctuations only)
     status = 'healthy';
     mainReason = 'Operação estável com dados disponíveis.';
     recommendedAction = 'Continuar monitorando. Completar modelo para análise mais abrangente.';
