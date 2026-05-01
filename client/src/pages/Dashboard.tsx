@@ -315,6 +315,7 @@ export function Dashboard() {
   useEffect(() => {
     if (!selectedSite?.id) return;
 
+    console.log('🔍 Fetching GTM data for site:', selectedSite.id);
     setGtmLoading(true);
     setGtmError(null);
 
@@ -327,6 +328,13 @@ export function Dashboard() {
       .then(([modelsRes, modelRes, statusRes, insightsRes]) => {
         const selectedModelId = modelRes.gtmOperatingModelId || 'b2b_sales_led';
         const selectedModelDef = modelsRes.models?.find((m: any) => m.id === selectedModelId);
+
+        console.log('✅ GTM data loaded:', {
+          selectedModelId,
+          modelName: selectedModelDef?.name,
+          stageCount: selectedModelDef?.stages?.length,
+          overallReadiness: statusRes?.overallReadinessPct,
+        });
 
         setGtmModelId(selectedModelId);
         setGtmModel(selectedModelDef || null);
@@ -344,9 +352,12 @@ export function Dashboard() {
   const handleGtmModelChange = useCallback(async (newModelId: string) => {
     if (!selectedSite?.id) return;
 
+    console.log('🔄 GTM Model Change Requested:', { oldModel: gtmModelId, newModel: newModelId });
+
     try {
       // Switch model on server
       await api.put(`/gtm/${selectedSite.id}/model`, { gtmOperatingModelId: newModelId });
+      console.log('✅ Model switched on server:', newModelId);
 
       // Update local state
       setGtmModelId(newModelId);
@@ -359,6 +370,11 @@ export function Dashboard() {
           api.get<any>(`/gtm/${selectedSite.id}/insights`),
         ]);
         const selectedModelDef = modelsRes.models?.find((m: any) => m.id === newModelId);
+        console.log('✅ Model definition loaded:', {
+          modelId: newModelId,
+          stages: selectedModelDef?.stages?.length,
+          readiness: statusRes?.overallReadinessPct
+        });
         setGtmModel(selectedModelDef || null);
         setGtmStatus(statusRes);
         setGtmInsights(insightsRes);
@@ -371,7 +387,7 @@ export function Dashboard() {
       console.error('Failed to switch GTM model:', err);
       setGtmError('Failed to switch model');
     }
-  }, [selectedSite?.id]);
+  }, [selectedSite?.id, gtmModelId]);
 
   const handleSyncAll = useCallback(async () => {
     setSyncing(true); setSyncStatus(null);
@@ -975,53 +991,79 @@ export function Dashboard() {
     return { stageMetrics, bottleneckAnalysis };
   }, [funnelConfig, fSite, pSite, fAds, pAds, siteData.length]);
 
-  // ── GTM Funnel Flow Content (converts gtmStatus to FunnelFlow-compatible format) ────────────
+  // ── GTM Funnel Flow Content (uses GTM model with actual data aggregation) ────────────
 
   const gtmFlowContent = useMemo(() => {
     // Guard: if GTM data not available, return null
-    if (!gtmModel || !gtmStatus || gtmModel.stages.length === 0) {
+    if (!gtmModel || !gtmStatus || gtmModel.stages.length === 0 || siteData.length === 0) {
+      console.log('📊 GTM Flow Guard - skipping render:', {
+        hasModel: !!gtmModel,
+        hasStatus: !!gtmStatus,
+        stageCount: gtmModel?.stages.length,
+        hasData: siteData.length > 0
+      });
       return null;
     }
 
-    // Build a Map<stageId, StageMetrics> from GTM data
-    // This mimics the format expected by FunnelFlow
-    const stageMetricsMap = new Map();
+    console.log('📊 GTM Flow Rendering:', {
+      modelId: gtmModel.id,
+      modelName: gtmModel.name,
+      stageCount: gtmModel.stages.length,
+      stages: gtmModel.stages.map((s: any) => s.id),
+      overallReadiness: gtmStatus.overallReadinessPct,
+    });
 
-    for (const gtmStage of gtmModel.stages) {
-      const statusStage = gtmStatus.stages?.find((s: any) => s.stageId === gtmStage.id);
+    // Aggregate actual metrics by GTM stage using the same logic as legacy flow
+    const currentMetricsData = fSite.map(row => ({
+      sessions: row.sessions,
+      totalUsers: row.totalUsers,
+      paidClicks: row.paidClicks,
+      newUsers: row.newUsers,
+      leadsGenerated: row.leadsGenerated,
+      weeklyGains: row.weeklyGains,
+      blogSessions: row.blogSessions,
+      aiSessions: row.aiSessions,
+    }));
 
-      stageMetricsMap.set(gtmStage.id, {
-        stageId: gtmStage.id,
-        stageMeta: {
-          label: gtmStage.label,
-          description: gtmStage.description || '',
-          borderColor: gtmStage.color || 'border-blue-500',
-          order: gtmModel.stages.indexOf(gtmStage),
-        },
-        // Hero metric: readiness percentage
-        heroMetric: statusStage ? {
-          label: 'Ready',
-          value: statusStage.readinessPct,
-          fmt: 'pct',
-          prev: statusStage.readinessPct, // no trend for readiness
-        } : null,
-        // Supporting metrics: list required metrics with status
-        supportingMetrics: statusStage?.metrics?.map((metric: any) => ({
-          key: metric.key,
-          label: metric.key.replace(/_/g, ' '),
-          value: metric.dataStatus === 'automatic' || metric.dataStatus === 'manual' ? 100 : 0,
-          fmt: 'pct',
-        })) || [],
-        // Metric statuses for badge display
-        metricStatuses: statusStage?.metrics || [],
-        // Conversion to next stage: not available in basic GTM status
-        conversionToNextStage: null,
-        status: statusStage?.isReady ? 'good' : statusStage?.readinessPct > 0 ? 'warning' : 'neutral',
-      });
-    }
+    const previousMetricsData = pSite.map(row => ({
+      sessions: row.sessions,
+      totalUsers: row.totalUsers,
+      paidClicks: row.paidClicks,
+      newUsers: row.newUsers,
+      leadsGenerated: row.leadsGenerated,
+      weeklyGains: row.weeklyGains,
+      blogSessions: row.blogSessions,
+      aiSessions: row.aiSessions,
+    }));
 
-    return { stageMetrics: stageMetricsMap, gtmModel };
-  }, [gtmModel, gtmStatus]);
+    const currentAdsData = fAds.map(row => ({
+      gaImpressions: row.gaImpressions,
+      gaClicks: row.gaClicks,
+      gaConversions: row.gaConversions,
+      liImpressions: row.liImpressions,
+      liClicks: row.liClicks,
+    }));
+
+    const previousAdsData = pAds.map(row => ({
+      gaImpressions: row.gaImpressions,
+      gaClicks: row.gaClicks,
+      gaConversions: row.gaConversions,
+      liImpressions: row.liImpressions,
+      liClicks: row.liClicks,
+    }));
+
+    const allCurrent = [...currentMetricsData, ...currentAdsData];
+    const allPrevious = [...previousMetricsData, ...previousAdsData];
+
+    // Use the same aggregation function as legacy flow, but with GTM model
+    const stageMetrics = aggregateMetricsByStage(gtmModel, allCurrent, allPrevious);
+
+    console.log('✅ GTM Flow Content Built:', {
+      stageCount: stageMetrics.size,
+      stages: Array.from(stageMetrics.keys())
+    });
+    return { stageMetrics, gtmModel };
+  }, [gtmModel, gtmStatus, fSite, pSite, fAds, pAds, siteData.length]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -1056,7 +1098,7 @@ export function Dashboard() {
           )}
           <GTMOperatingModelSelector
             selectedModelId={gtmModelId}
-            onModelChange={setGtmModelId}
+            onModelChange={handleGtmModelChange}
             siteId={selectedSite?.id || 0}
             status={gtmStatus}
             isLoading={gtmLoading}
