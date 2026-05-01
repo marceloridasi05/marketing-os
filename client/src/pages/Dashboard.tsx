@@ -546,13 +546,13 @@ export function Dashboard() {
       prevSessions,
       prevLeads,
       prevNewUsers: pNewUsers,
-      prevGaClicks,
+      prevGaClicks: pGaClicks,
       prevCpl,
       prevCvr,
       prevGaConversions: prevGaConv,
       prevAdsSpend,
     });
-  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, pNewUsers, prevGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
+  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, pNewUsers, pGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
 
   const commandCenterCards = useMemo(() => {
     if (!gtmModelId) return null;
@@ -575,13 +575,13 @@ export function Dashboard() {
       prevSessions,
       prevLeads,
       prevNewUsers: pNewUsers,
-      prevGaClicks,
+      prevGaClicks: pGaClicks,
       prevCpl,
       prevCvr,
       prevGaConversions: prevGaConv,
       prevAdsSpend,
     });
-  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, pNewUsers, prevGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
+  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, pNewUsers, pGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
 
   // ── Objective statuses ───────────────────────────────────────────────────────
 
