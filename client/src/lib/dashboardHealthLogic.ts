@@ -3,6 +3,7 @@
  */
 
 import { getModelKPIConfig } from './modelKPIConfig';
+import { getMetricLabel, interpretMetricChange } from './metricLabels';
 
 // ── Inline Type Definitions (avoid dashboardTypes.ts import) ────────────────────
 
@@ -90,13 +91,13 @@ export function calculateHealthStatus(input: HealthInput): MarketingHealthSummar
   } else if (topNegative && topNegative.change < -0.20) {
     // Major decline
     status = 'critical';
-    mainReason = `${topNegative.label} caiu ${Math.abs(topNegative.change * 100).toFixed(0)}%.`;
-    recommendedAction = `Investigar causa da queda em ${topNegative.label}.`;
+    mainReason = interpretMetricChange(topNegative.key, topNegative.change, topNegative.label);
+    recommendedAction = `Investigar causa da queda em ${topNegative.label.toLowerCase()}.`;
   } else if (topNegative && topNegative.change < -0.10) {
     // Moderate decline
     status = 'attention';
-    mainReason = `${topNegative.label} caiu ${Math.abs(topNegative.change * 100).toFixed(0)}%.`;
-    recommendedAction = `Revisar ${topNegative.label} e próximos passos do funil.`;
+    mainReason = interpretMetricChange(topNegative.key, topNegative.change, topNegative.label);
+    recommendedAction = `Revisar ${topNegative.label.toLowerCase()} e próximos passos do funil.`;
   } else if (
     topPositive &&
     topNegative &&
@@ -105,13 +106,13 @@ export function calculateHealthStatus(input: HealthInput): MarketingHealthSummar
   ) {
     // Mixed signals (conflicting metrics)
     status = 'attention';
-    mainReason = `${topPositive.label} cresceu, mas ${topNegative.label} caiu.`;
-    recommendedAction = `Correlacionar crescimento com queda para entender o padrão.`;
+    mainReason = `${topPositive.label} cresceu, mas ${topNegative.label.toLowerCase()} caiu. Revisar se o aumento de demanda está gerando conversões de qualidade.`;
+    recommendedAction = `Analisar correlação entre crescimento de ${topPositive.label.toLowerCase()} e eficiência.`;
   } else if (topPositive && topPositive.change > 0.15) {
     // Strong growth
     status = 'healthy';
-    mainReason = `${topPositive.label} cresceu ${(topPositive.change * 100).toFixed(0)}%.`;
-    recommendedAction = `Manter momentum. Avaliar sustentabilidade.`;
+    mainReason = interpretMetricChange(topPositive.key, topPositive.change, topPositive.label);
+    recommendedAction = `Manter momentum em ${topPositive.label.toLowerCase()}. Validar sustentabilidade.`;
   } else if (metricTrends.length === 0 || input.dataCompleteness < 60) {
     // Insufficient trend data
     status = 'attention';

@@ -3,6 +3,8 @@
  * Generates decision cards based on model and available metrics
  */
 
+import { getMetricLabel, interpretMetricChange } from './metricLabels';
+
 // Inline types to avoid Vite bundler issues
 type HealthStatus = 'healthy' | 'attention' | 'critical';
 interface DecisionCardMetric {
@@ -143,27 +145,50 @@ function buildPipelineCard(
   const primaryKPI = config.pipelineKPIs[0];
   const primaryMetric = createMetricValue(
     primaryKPI.key,
-    primaryKPI.label,
+    getMetricLabel(primaryKPI.key) || primaryKPI.label,
     primaryKPI.format,
     metrics
   );
 
   const supportingMetrics = config.pipelineKPIs.slice(1).map((kpi: any) =>
-    createMetricValue(kpi.key, kpi.label, kpi.format, metrics)
+    createMetricValue(
+      kpi.key,
+      getMetricLabel(kpi.key) || kpi.label,
+      kpi.format,
+      metrics
+    )
   );
+
+  // Check if any pipeline metrics are connected
+  const anyMetricConnected = [primaryMetric, ...supportingMetrics].some(m => m.isConnected);
+
+  // Determine status based on data availability
+  let status: HealthStatus = determineMetricStatus(primaryMetric);
+  if (!anyMetricConnected) {
+    status = 'critical';
+  }
+
+  let pipelineInsight = '';
+  let pipelineAction = '';
+
+  if (!anyMetricConnected) {
+    pipelineInsight = `Dados comerciais não conectados. Sem MQLs, SQLs, oportunidades, pipeline ou receita, não é possível validar o impacto dos leads gerados.`;
+    pipelineAction = `Preencher dados comerciais manualmente ou conectar CRM (HubSpot, Salesforce, Pipedrive).`;
+  } else {
+    pipelineInsight =
+      insight ||
+      determineDefaultInsight('pipeline', primaryMetric);
+    pipelineAction = determineAction('pipeline', metrics);
+  }
 
   return {
     area: 'pipeline',
     title: 'Pipeline/Receita',
-    status: determineMetricStatus(primaryMetric),
+    status,
     primaryMetric,
     supportingMetrics,
-    insight:
-      insight ||
-      (!primaryMetric.isConnected
-        ? 'Dados comerciais não conectados — Fonte sugerida: CRM, HubSpot ou input manual'
-        : determineDefaultInsight('pipeline', primaryMetric)),
-    recommendedAction: determineAction('pipeline', metrics),
+    insight: pipelineInsight,
+    recommendedAction: pipelineAction,
   };
 }
 
@@ -177,40 +202,64 @@ function buildChannelsCard(
 ): DecisionCard {
   // Find best and worst channels
   const channelMetrics = config.channelMetrics.map((ch: string) =>
-    createMetricValue(ch, ch, 'num', metrics)
+    createMetricValue(ch, getMetricLabel(ch), 'num', metrics)
   );
 
-  const bestChannel = channelMetrics.reduce(
+  // Filter channels with data
+  const channelsWithData = channelMetrics.filter(ch => ch.value !== null && ch.value > 0);
+
+  if (channelsWithData.length === 0) {
+    return {
+      area: 'channels',
+      title: 'Canais',
+      status: 'critical',
+      primaryMetric: {
+        label: 'Dados de canais',
+        value: null,
+        previous: null,
+        format: 'num' as const,
+        isConnected: false,
+      },
+      supportingMetrics: [],
+      insight: 'Dados de canais não disponíveis',
+      recommendedAction: 'Configurar rastreamento de canais em Google Analytics ou UTM parameters',
+    };
+  }
+
+  const bestChannel = channelsWithData.reduce(
     (best: any, current: any) =>
       (current.value || 0) > (best.value || 0) ? current : best,
-    channelMetrics[0]
+    channelsWithData[0]
   );
 
-  const worstChannel = channelMetrics.reduce(
+  const worstChannel = channelsWithData.reduce(
     (worst: any, current: any) =>
       (current.value || 0) < (worst.value || 0) ? current : worst,
-    channelMetrics[0]
+    channelsWithData[0]
   );
 
   const primaryMetric = bestChannel;
   const supportingMetrics = [worstChannel];
 
+  // Generate contextual insights
+  let channelInsight = '';
+  if (channelsWithData.length === 1) {
+    channelInsight = `Canal com mais dados: ${bestChannel.label}. Ampliar análise para outros canais.`;
+  } else {
+    const volumeRatio = bestChannel.value && worstChannel.value
+      ? ((bestChannel.value / worstChannel.value) * 100).toFixed(0)
+      : 'N/A';
+    channelInsight = `${bestChannel.label} concentra ${volumeRatio}% mais volume que ${worstChannel.label}. Revisar mix de investimento.`;
+  }
+
   return {
     area: 'channels',
     title: 'Canais',
     status: 'healthy',
-    primaryMetric: {
-      ...primaryMetric,
-      label: `${primaryMetric.label} (Melhor)`,
-    },
-    supportingMetrics: supportingMetrics.map((m) => ({
-      ...m,
-      label: `${m.label} (Pior)`,
-    })),
-    insight:
-      insight ||
-      `${bestChannel.label} é o melhor canal. ${worstChannel.label} precisa de otimização.`,
-    recommendedAction: `Aumentar investimento em ${bestChannel.label}. Revisar ${worstChannel.label}.`,
+    primaryMetric,
+    supportingMetrics,
+    insight: insight || channelInsight,
+    recommendedAction: `Analisar eficiência por ${bestChannel.label.toLowerCase()}. Otimizar ${worstChannel.label.toLowerCase()}.`,
   };
 }
 
@@ -222,16 +271,39 @@ function buildBudgetCard(
   metrics: MetricsData,
   insight?: string
 ): DecisionCard {
-  const plannedMetric = createMetricValue('budgetPlanned', 'Planejado', 'money', metrics);
-  const actualMetric = createMetricValue('budgetActual', 'Realizado', 'money', metrics);
-  const balanceMetric = createMetricValue('budgetBalance', 'Saldo', 'money', metrics);
+  const plannedMetric = createMetricValue('budgetPlanned', getMetricLabel('budgetPlanned'), 'money', metrics);
+  const actualMetric = createMetricValue('budgetActual', getMetricLabel('budgetActual'), 'money', metrics);
+  const balanceMetric = createMetricValue('budgetBalance', getMetricLabel('budgetBalance'), 'money', metrics);
 
-  const status =
-    actualMetric.value && plannedMetric.value
-      ? actualMetric.value > plannedMetric.value
-        ? 'attention'
-        : 'healthy'
-      : 'critical';
+  let status: HealthStatus = 'healthy';
+  let budgetInsight = '';
+  let budgetAction = '';
+
+  // Case 1: Both planned and actual available
+  if (plannedMetric.value && actualMetric.value) {
+    const usageRate = (actualMetric.value / plannedMetric.value) * 100;
+    status = actualMetric.value > plannedMetric.value ? 'attention' : 'healthy';
+
+    if (actualMetric.value > plannedMetric.value) {
+      budgetInsight = `Orçamento ${actualMetric.value > plannedMetric.value ? 'excedido' : 'dentro'} do planejado. Gasto ${((actualMetric.value / plannedMetric.value - 1) * 100).toFixed(0)}% acima.`;
+      budgetAction = `Revisar pacing. Se necessário, realocar budget para canais de melhor ROI.`;
+    } else {
+      budgetInsight = `Orçamento em pacing normal. ${usageRate.toFixed(0)}% utilizado do planejado.`;
+      budgetAction = `Continuar monitorando. Validar se o saldo será utilizado.`;
+    }
+  }
+  // Case 2: Only planned available
+  else if (plannedMetric.value && !actualMetric.isConnected) {
+    status = 'attention';
+    budgetInsight = `Orçamento planejado disponível, mas gasto realizado não conectado.`;
+    budgetAction = `Conectar gasto real de mídia ou mapear campo de spend na planilha.`;
+  }
+  // Case 3: No data
+  else {
+    status = 'critical';
+    budgetInsight = `Dados de orçamento não conectados.`;
+    budgetAction = `Preencher orçamento planejado e realizado para melhor controle.`;
+  }
 
   return {
     area: 'budget',
@@ -239,12 +311,8 @@ function buildBudgetCard(
     status,
     primaryMetric: actualMetric,
     supportingMetrics: [plannedMetric, balanceMetric],
-    insight:
-      insight ||
-      (actualMetric.value && plannedMetric.value
-        ? `Gasto ${actualMetric.value > plannedMetric.value ? 'acima' : 'dentro'} do planejado.`
-        : 'Dados de orçamento não disponíveis.'),
-    recommendedAction: `Revisar pacing do orçamento.`,
+    insight: insight || budgetInsight,
+    recommendedAction: budgetAction,
   };
 }
 
@@ -298,39 +366,86 @@ function determineDefaultInsight(
   metric: DecisionCardMetric
 ): string {
   if (!metric.isConnected) {
-    return 'Métrica não conectada. Verifique configurações.';
+    return 'Métrica não conectada. Verifique configurações de integração.';
   }
   if (metric.value === null) {
     return 'Sem dados neste período.';
   }
   if (metric.previous === null) {
-    return 'Comparação com período anterior não disponível.';
+    return 'Sem comparação com período anterior. Dados do período anterior não disponíveis.';
   }
 
   const change = (metric.value - metric.previous) / metric.previous;
+  const displayLabel = metric.label.toLowerCase();
 
   if (area === 'demand') {
-    return change > 0.1
-      ? `${metric.label} em crescimento (+${(change * 100).toFixed(0)}%).`
-      : change < -0.1
-        ? `${metric.label} em queda (${(change * 100).toFixed(0)}%).`
-        : `${metric.label} estável.`;
+    if (change > 0.15) {
+      return `${displayLabel} em crescimento forte (+${(change * 100).toFixed(0)}%). Validar sustentabilidade.`;
+    } else if (change > 0.05) {
+      return `${displayLabel} em crescimento moderado (+${(change * 100).toFixed(0)}%).`;
+    } else if (change < -0.15) {
+      return `${displayLabel} em queda acentuada (${(change * 100).toFixed(0)}%). Investigar causa raiz.`;
+    } else if (change < -0.05) {
+      return `${displayLabel} em queda moderada (${(change * 100).toFixed(0)}%).`;
+    } else {
+      return `${displayLabel} estável vs período anterior.`;
+    }
   }
 
-  return `${metric.label}: ${(change * 100).toFixed(1)}% vs período anterior.`;
+  if (area === 'efficiency') {
+    // For efficiency metrics, down is good (costs)
+    if (metric.label.includes('Custo') || metric.label.includes('Taxa')) {
+      if (change > 0.1) {
+        return `${displayLabel} aumentou ${(change * 100).toFixed(0)}%. Revisar campanhas e targeting.`;
+      } else if (change < -0.1) {
+        return `${displayLabel} diminuiu ${Math.abs(change * 100).toFixed(0)}%. Manter estratégia.`;
+      } else {
+        return `${displayLabel} estável.`;
+      }
+    }
+  }
+
+  return `${displayLabel} variou ${(change * 100).toFixed(0)}% vs período anterior.`;
 }
 
 /**
- * Determine recommended action based on metrics
+ * Determine recommended action based on metrics and current scenario
  */
 function determineAction(area: string, metrics: MetricsData): string {
+  const cpl = metrics.cpl?.current;
+  const cplPrev = metrics.cpl?.previous;
+  const sessions = metrics.sessions?.current;
+  const sessionsPrev = metrics.sessions?.previous;
+  const leads = metrics.leadsGenerated?.current;
+  const leadsPrev = metrics.leadsGenerated?.previous;
+
+  // Calculate trends
+  const cplTrend = cpl && cplPrev && cplPrev > 0 ? (cpl - cplPrev) / cplPrev : null;
+  const sessionsTrend = sessions && sessionsPrev && sessionsPrev > 0 ? (sessions - sessionsPrev) / sessionsPrev : null;
+  const leadsTrend = leads && leadsPrev && leadsPrev > 0 ? (leads - leadsPrev) / leadsPrev : null;
+
+  // Context: Demand growing but CPL rising (efficiency problem)
+  if (sessionsTrend && sessionsTrend > 0.1 && cplTrend && cplTrend > 0.1) {
+    return 'Demanda crescendo com eficiência caindo. Revisar campanhas com pior CPL. Validar qualidade de leads antes de aumentar budget.';
+  }
+
   const recommendations: Record<string, string> = {
-    demand: 'Analisar origem do tráfego. Otimizar canais com melhor ROI.',
-    efficiency: 'Revisar campanhas com menor eficiência. Testar novos públicos.',
-    pipeline: 'Conectar dados de CRM. Validar qualidade de leads.',
-    channels: 'Aumentar investimento no melhor canal. Otimizar pior canal.',
-    budget: 'Revisar alinhamento de gastos com planejamento.',
+    demand: sessions && sessions > 0
+      ? 'Validar origem do tráfego. Concentrar investimento em canais com melhor ROI comprovado.'
+      : 'Aumentar visibilidade em canais top-of-funnel. Analisar mix de canais.',
+
+    efficiency: cpl && cpl > 0
+      ? 'Revisar campanhas e targeting. Testar novos públicos. Validar qualidade de leads.'
+      : 'Configurar rastreamento de CPL. Sem métrica de custo por lead, difícil otimizar ROAS.',
+
+    pipeline: 'Preencher dados de MQL, SQL, oportunidades e receita via CRM ou input manual. Crítico para validar impacto comercial.',
+
+    channels: sessions && sessions > 0
+      ? 'Aumentar investimento no melhor canal. Otimizar ou pausar canais com baixo volume.'
+      : 'Implementar rastreamento de canais. Sem dados de canal, não há como otimizar mix.',
+
+    budget: 'Revisar alinhamento de gastos reais vs planejado. Validar se o saldo será utilizado até fim do período.',
   };
 
-  return recommendations[area] || 'Revisar e otimizar.';
+  return recommendations[area] || 'Revisar dados e métricas relevantes da área.';
 }
