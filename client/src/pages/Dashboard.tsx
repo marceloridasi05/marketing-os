@@ -24,6 +24,12 @@ import GrowthLoopWidget from '../components/GrowthLoopWidget';
 import { useSite } from '../context/SiteContext';
 import { aggregateMetricsByStage, getTopMetricDelta } from '../lib/funnelLogic';
 import { analyzeTransitionBottlenecks, generateFunnelAdaptiveExecSummary } from '../lib/funnelStatusLogic';
+// import {
+//   calculateDashboardHealth,
+//   buildDashboardDecisionCards,
+//   calculateDataCompleteness,
+//   getModelDisplayName,
+// } from '../lib/dashboardIntegration';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -509,6 +515,69 @@ export function Dashboard() {
   const prevCvr = pGaClicks> 0 ? prevGaConv / pGaClicks  : null;
   const cpl     = totalLeads > 0 && totalAdsSpend > 0 ? totalAdsSpend / totalLeads : null;
   const prevCpl = prevLeads  > 0 && prevAdsSpend  > 0 ? prevAdsSpend  / prevLeads  : null;
+
+  // ── Marketing Health Summary & Decision Cards (NEW - Phase 3) ────────────────
+  // TEMPORARILY DISABLED - Vite module resolution issue with dashboardTypes.ts
+  // TODO: Fix Vite module resolution and re-enable these useMemo blocks
+  /*
+  const commandCenterHealth = useMemo(() => {
+    if (!gtmModelId) return null;
+
+    return calculateDashboardHealth(gtmModelId, {
+      totalSessions,
+      totalLeads,
+      newUsers,
+      gaClicks,
+      gaImpressions: gaImp,
+      cpl,
+      cvr,
+      totalGaConversions,
+      totalAdsSpend,
+      budgetPlanned,
+      budgetActual: totalMktgSpend,
+      googleAdsSpend: fAds[0]?.gaCost ?? null,
+      metaSpend: fAds[0]?.metaCost ?? null,
+      linkedinSpend: fAds[0]?.liCost ?? null,
+      prevSessions,
+      prevLeads,
+      prevNewUsers,
+      prevGaClicks,
+      prevCpl,
+      prevCvr,
+      prevGaConversions: prevGaConv,
+      prevAdsSpend,
+    });
+  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, prevNewUsers, prevGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
+
+  const commandCenterCards = useMemo(() => {
+    if (!gtmModelId) return null;
+
+    return buildDashboardDecisionCards(gtmModelId, {
+      totalSessions,
+      totalLeads,
+      newUsers,
+      gaClicks,
+      gaImpressions: gaImp,
+      cpl,
+      cvr,
+      totalGaConversions,
+      totalAdsSpend,
+      budgetPlanned,
+      budgetActual: totalMktgSpend,
+      googleAdsSpend: fAds[0]?.gaCost ?? null,
+      metaSpend: fAds[0]?.metaCost ?? null,
+      linkedinSpend: fAds[0]?.liCost ?? null,
+      prevSessions,
+      prevLeads,
+      prevNewUsers,
+      prevGaClicks,
+      prevCpl,
+      prevCvr,
+      prevGaConversions: prevGaConv,
+      prevAdsSpend,
+    });
+  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, prevNewUsers, prevGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
+  */
 
   // ── Objective statuses ───────────────────────────────────────────────────────
 

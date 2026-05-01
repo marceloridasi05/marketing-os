@@ -2,7 +2,7 @@
  * Dashboard Types - Model-aware data structures
  */
 
-// ── Health Status ──────────────────────────────────────────────────────────────
+// Health Status
 
 export type HealthStatus = 'healthy' | 'attention' | 'critical';
 export type DataConfidence = 'high' | 'medium' | 'low';
@@ -18,7 +18,7 @@ export interface MarketingHealthSummary {
   };
 }
 
-// ── Decision Cards ─────────────────────────────────────────────────────────────
+// Decision Cards
 
 export type DecisionCardArea = 'demand' | 'efficiency' | 'pipeline' | 'channels' | 'budget';
 
@@ -42,7 +42,7 @@ export interface DecisionCard {
   recommendedAction?: string;
 }
 
-// ── KPI Definition ─────────────────────────────────────────────────────────────
+// KPI Definition
 
 export interface KPIDefinition {
   key: string;
@@ -52,7 +52,7 @@ export interface KPIDefinition {
   defaultSource: string; // "GA", "CRM", "Manual", etc.
 }
 
-// ── Model-Specific Configuration ───────────────────────────────────────────────
+// Model-Specific Configuration
 
 export interface ModelKPIConfig {
   modelId: string;
@@ -65,7 +65,7 @@ export interface ModelKPIConfig {
   criticalAlerts: string[];
 }
 
-// ── Recommendation ─────────────────────────────────────────────────────────────
+// Recommendation
 
 export interface ModelAwareRecommendation {
   priority: 'high' | 'medium' | 'low';
@@ -76,7 +76,7 @@ export interface ModelAwareRecommendation {
   estimatedImpact?: string;
 }
 
-// ── Missing Data ───────────────────────────────────────────────────────────────
+// Missing Data
 
 export type DataAbsenceReason =
   | 'not_connected'      // Data source not connected
