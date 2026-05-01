@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { Card } from '../components/Card';
 import { FunnelSelector } from '../components/FunnelSelector';
+import { GTMOperatingModelSelector } from '../components/GTMOperatingModelSelector';
 import { ModeToggle, useDashboardMode } from '../components/ModeToggle';
 import { FunnelFlow } from '../components/FunnelFlow';
 import { api } from '../lib/api';
@@ -268,6 +269,13 @@ export function Dashboard() {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [selectedUtmCampaignId, setSelectedUtmCampaignId] = useState<number | null>(null);
 
+  // GTM Operating Models
+  const [gtmModelId, setGtmModelId] = useState<string>('b2b_sales_led');
+  const [gtmModel, setGtmModel] = useState<any>(null);
+  const [gtmStatus, setGtmStatus] = useState<any>(null);
+  const [gtmLoading, setGtmLoading] = useState(false);
+  const [gtmError, setGtmError] = useState<string | null>(null);
+
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   const fetchAll = useCallback(async () => {
@@ -301,6 +309,64 @@ export function Dashboard() {
       .catch(() => setAbmData(null))
       .finally(() => setAbmLoading(false));
   }, []);
+
+  // Fetch GTM Operating Model status and definition
+  useEffect(() => {
+    if (!selectedSite?.id) return;
+
+    setGtmLoading(true);
+    setGtmError(null);
+
+    Promise.all([
+      api.get<any>(`/gtm/models`),
+      api.get<{ gtmOperatingModelId: string; model: any }>(`/gtm/${selectedSite.id}/model`),
+      api.get<any>(`/gtm/${selectedSite.id}/status`),
+    ])
+      .then(([modelsRes, modelRes, statusRes]) => {
+        const selectedModelId = modelRes.gtmOperatingModelId || 'b2b_sales_led';
+        const selectedModelDef = modelsRes.models?.find((m: any) => m.id === selectedModelId);
+
+        setGtmModelId(selectedModelId);
+        setGtmModel(selectedModelDef || null);
+        setGtmStatus(statusRes);
+      })
+      .catch((err) => {
+        console.warn('GTM status fetch failed, using defaults:', err);
+        setGtmError('GTM data unavailable, using defaults');
+        // Keep defaults: gtmModelId stays 'b2b_sales_led', gtmStatus stays null
+      })
+      .finally(() => setGtmLoading(false));
+  }, [selectedSite?.id]);
+
+  const handleGtmModelChange = useCallback(async (newModelId: string) => {
+    if (!selectedSite?.id) return;
+
+    try {
+      // Switch model on server
+      await api.put(`/gtm/${selectedSite.id}/model`, { gtmOperatingModelId: newModelId });
+
+      // Update local state
+      setGtmModelId(newModelId);
+
+      // Fetch updated model definition and status
+      try {
+        const [modelsRes, statusRes] = await Promise.all([
+          api.get<any>(`/gtm/models`),
+          api.get<any>(`/gtm/${selectedSite.id}/status`),
+        ]);
+        const selectedModelDef = modelsRes.models?.find((m: any) => m.id === newModelId);
+        setGtmModel(selectedModelDef || null);
+        setGtmStatus(statusRes);
+        setGtmError(null);
+      } catch (err) {
+        console.warn('GTM status fetch failed after model switch:', err);
+        setGtmError('GTM data unavailable');
+      }
+    } catch (err) {
+      console.error('Failed to switch GTM model:', err);
+      setGtmError('Failed to switch model');
+    }
+  }, [selectedSite?.id]);
 
   const handleSyncAll = useCallback(async () => {
     setSyncing(true); setSyncStatus(null);
@@ -904,6 +970,52 @@ export function Dashboard() {
     return { stageMetrics, bottleneckAnalysis };
   }, [funnelConfig, fSite, pSite, fAds, pAds, siteData.length]);
 
+  // ── GTM Funnel Flow Content (converts gtmStatus to FunnelFlow-compatible format) ────────────
+
+  const gtmFlowContent = useMemo(() => {
+    // Guard: if GTM data not available, return null
+    if (!gtmModel || !gtmStatus || gtmModel.stages.length === 0) {
+      return null;
+    }
+
+    // Build a Map<stageId, StageMetrics> from GTM data
+    // This mimics the format expected by FunnelFlow
+    const stageMetricsMap = new Map();
+
+    for (const gtmStage of gtmModel.stages) {
+      const statusStage = gtmStatus.stages?.find((s: any) => s.stageId === gtmStage.id);
+
+      stageMetricsMap.set(gtmStage.id, {
+        stageId: gtmStage.id,
+        stageMeta: {
+          label: gtmStage.label,
+          description: gtmStage.description || '',
+          borderColor: gtmStage.color || 'border-blue-500',
+          order: gtmModel.stages.indexOf(gtmStage),
+        },
+        // Hero metric: readiness percentage
+        heroMetric: statusStage ? {
+          label: 'Ready',
+          value: statusStage.readinessPct,
+          fmt: 'pct',
+          prev: statusStage.readinessPct, // no trend for readiness
+        } : null,
+        // Supporting metrics: list required metrics with status
+        supportingMetrics: gtmStage.requiredMetrics?.map((metricKey: string) => ({
+          key: metricKey,
+          label: metricKey.replace(/_/g, ' '),
+          value: statusStage?.readinessPct || 0,
+          fmt: 'pct',
+        })) || [],
+        // Conversion to next stage: not available in basic GTM status
+        conversionToNextStage: null,
+        status: statusStage?.isReady ? 'good' : statusStage?.readinessPct > 0 ? 'warning' : 'neutral',
+      });
+    }
+
+    return { stageMetrics: stageMetricsMap, gtmModel };
+  }, [gtmModel, gtmStatus]);
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -931,8 +1043,17 @@ export function Dashboard() {
       {/* Controls: Period, Funnel Model, UTM Campaign, etc. */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <TimeFilter {...filterProps} />
-        <div className="border-l border-gray-200 pl-4">
-          <FunnelSelector />
+        <div className="border-l border-gray-200 pl-4 flex-1 min-w-[350px]">
+          {gtmError && (
+            <div className="text-xs text-amber-600 mb-1 px-2">⚠ {gtmError}</div>
+          )}
+          <GTMOperatingModelSelector
+            selectedModelId={gtmModelId}
+            onModelChange={setGtmModelId}
+            siteId={selectedSite?.id || 0}
+            status={gtmStatus}
+            isLoading={gtmLoading}
+          />
         </div>
         <div className="border-l border-gray-200 pl-4">
           <UtmCampaignFilter
@@ -986,6 +1107,48 @@ export function Dashboard() {
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={overallStatus} />
               </div>
+            </div>
+          )}
+
+          {/* ── 2. GTM Operating Model Funnel Flow (NEW) ────────────────────────────── */}
+          {gtmFlowContent && gtmModel && (
+            <div className="mb-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  {gtmModel.name} - Stage Readiness
+                </h2>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 transition-all"
+                      style={{ width: `${gtmStatus.overallReadinessPct || 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {gtmStatus.overallReadinessPct || 0}% Complete
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Each stage shows readiness percentage. Move to SiteData to enter missing metrics.
+                </p>
+              </div>
+              {gtmError && (
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
+                  ⚠️ {gtmError}
+                </div>
+              )}
+              <Card>
+                {gtmFlowContent.stageMetrics && gtmFlowContent.stageMetrics.size > 0 ? (
+                  <FunnelFlow
+                    stages={gtmFlowContent.stageMetrics}
+                    bottleneckStageId={undefined}
+                  />
+                ) : (
+                  <div className="py-8 text-center text-gray-400">
+                    No GTM data available
+                  </div>
+                )}
+              </Card>
             </div>
           )}
 

@@ -34,6 +34,7 @@ import utmsRouter from './routes/utms.js';
 import gscRouter from './routes/gsc.js';
 import unitEconomicsRouter from './routes/unitEconomics.js';
 import growthLoopsRouter from './routes/growthLoops.js';
+import gtmRouter from './routes/gtm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -72,6 +73,7 @@ app.use('/api/utms', utmsRouter);
 app.use('/api/gsc', gscRouter);
 app.use('/api/unit-economics', unitEconomicsRouter);
 app.use('/api/growth-loops', growthLoopsRouter);
+app.use('/api/gtm', gtmRouter);
 app.use('/api/seed/alphatech', seedAlphatechRouter);
 
 app.get('/api/health', (_req, res) => {

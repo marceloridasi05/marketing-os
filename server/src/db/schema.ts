@@ -9,10 +9,13 @@ export const sites = sqliteTable('sites', {
   sheetConfig: text('sheet_config'),
   // JSON: { clientName, businessType, growthModel, mainObjectives }
   clientConfig: text('client_config'),
-  // Funnel model: 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led' | custom ID
+  // Funnel model: 'aida' | 'aarrr' | 'tofu_mofu_bofu' | 'sales_led' | custom ID (LEGACY - for backward compat)
   funnelModelId: text('funnel_model_id').default('sales_led').notNull(),
   // JSON: metric key → stage override (for custom mappings on preset models)
   funnelStageMapping: text('funnel_stage_mapping'),
+  // GTM Operating Model: 'b2b_sales_led' | 'b2b_abm' | 'plg' | 'smb_inbound'
+  // Defaults to 'b2b_sales_led' for new sites
+  gtmOperatingModelId: text('gtm_operating_model_id').default('b2b_sales_led'),
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
 });
 
@@ -1017,6 +1020,56 @@ export const growthLoopAttributions = sqliteTable('growth_loop_attributions', {
   attributionModel: text('attribution_model').default('last_touch'), // 'first_touch' | 'last_touch' | 'linear'
   // Weight/portion (for splitting when loop uses multiple sources)
   attributionWeight: real('attribution_weight').default(1.0), // 0-1, sum across channels = 1.0
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// GTM OPERATING MODELS - Data Quality & Metric Configuration
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * GTM Metric Configuration
+ * Tracks which metrics are configured for each GTM model + stage per site
+ * Allows per-site overrides of default metric mappings
+ */
+export const gtmMetricConfig = sqliteTable('gtm_metric_config', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').references(() => sites.id),
+  gtmModelId: text('gtm_model_id').notNull(), // 'b2b_sales_led' | 'b2b_abm' | 'plg' | 'smb_inbound'
+  stageId: text('stage_id').notNull(), // e.g., 'awareness', 'leads', 'revenue'
+  metricKey: text('metric_key').notNull(), // e.g., 'impressions', 'leads_generated'
+  isRequired: integer('is_required', { mode: 'boolean' }).default(false), // Is this a required metric for the stage?
+  dataSourceType: text('data_source_type').default('auto_sync'), // 'auto_sync' | 'manual_entry' | 'calculated' | 'crm_integrated'
+  lastUsed: text('last_used'), // Last time this metric was referenced/used
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+/**
+ * GTM Metric Status
+ * Tracks the health and data availability of each metric per site
+ * Supports data quality visibility: auto/manual/missing/incomplete/stale/not_mapped
+ */
+export const gtmMetricStatus = sqliteTable('gtm_metric_status', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').references(() => sites.id),
+  metricKey: text('metric_key').notNull(), // e.g., 'impressions', 'leads_generated'
+
+  // Data Status
+  dataStatus: text('data_status').default('missing'), // 'automatic' | 'manual' | 'missing' | 'incomplete' | 'stale' | 'not_mapped'
+
+  // Data Source & Trust
+  sourceOfTruth: text('source_of_truth'), // 'GA4' | 'Google Ads' | 'Meta' | 'LinkedIn' | 'Search Console' | 'Google Sheets' | 'CRM'
+  lastUpdated: text('last_updated'), // Timestamp of last sync or manual entry
+
+  // Confidence Level
+  confidence: text('confidence').default('low'), // 'high' | 'medium' | 'low'
+  isManual: integer('is_manual', { mode: 'boolean' }).default(false), // Is this manually entered?
+
+  // Current Value
+  value: real('value'), // Last known value
+
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
