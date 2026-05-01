@@ -362,14 +362,14 @@ export function Dashboard() {
       // Update local state
       setGtmModelId(newModelId);
 
-      // Fetch updated model definition, status, and insights
+      // Fetch updated model definition (MUST fetch from /models/:modelId to get full details), status, and insights
       try {
-        const [modelsRes, statusRes, insightsRes] = await Promise.all([
-          api.get<any>(`/gtm/models`),
+        const [modelRes, statusRes, insightsRes] = await Promise.all([
+          api.get<any>(`/gtm/models/${newModelId}`),  // Get FULL model definition with stages
           api.get<any>(`/gtm/${selectedSite.id}/status`),
           api.get<any>(`/gtm/${selectedSite.id}/insights`),
         ]);
-        const selectedModelDef = modelsRes.models?.find((m: any) => m.id === newModelId);
+        const selectedModelDef = modelRes.model;
         console.log('✅ Model definition loaded:', {
           modelId: newModelId,
           stages: selectedModelDef?.stages?.length,
@@ -933,7 +933,7 @@ export function Dashboard() {
 
   const funnelFlowContent = useMemo(() => {
     // Guard: if conditions not met, return null
-    if (!funnelConfig || funnelConfig.stages.length === 0 || siteData.length === 0) {
+    if (!funnelConfig || !funnelConfig.stages || funnelConfig.stages.length === 0 || siteData.length === 0) {
       return null;
     }
 
@@ -995,11 +995,11 @@ export function Dashboard() {
 
   const gtmFlowContent = useMemo(() => {
     // Guard: if GTM data not available, return null
-    if (!gtmModel || !gtmStatus || gtmModel.stages.length === 0 || siteData.length === 0) {
+    if (!gtmModel || !gtmStatus || !gtmModel.stages || gtmModel.stages.length === 0 || siteData.length === 0) {
       console.log('📊 GTM Flow Guard - skipping render:', {
         hasModel: !!gtmModel,
         hasStatus: !!gtmStatus,
-        stageCount: gtmModel?.stages.length,
+        stageCount: gtmModel?.stages?.length,
         hasData: siteData.length > 0
       });
       return null;

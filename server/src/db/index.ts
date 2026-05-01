@@ -492,6 +492,28 @@ try {
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN funnel_model_id TEXT NOT NULL DEFAULT 'sales_led'`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE sites ADD COLUMN funnel_stage_mapping TEXT`); } catch { /* already exists */ }
 
+// Migration: add GTM operating model columns to sites (idempotent)
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN gtm_operating_model_id TEXT NOT NULL DEFAULT 'b2b_sales_led'`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN gtm_model_status TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE sites ADD COLUMN gtm_last_synced_at TEXT`); } catch { /* already exists */ }
+
+// Migration: create GTM metric status table (idempotent)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS gtm_metric_status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    metric_key TEXT NOT NULL,
+    data_status TEXT NOT NULL DEFAULT 'missing',
+    source_of_truth TEXT,
+    last_updated TEXT,
+    confidence TEXT DEFAULT 'low',
+    is_manual INTEGER NOT NULL DEFAULT 0,
+    value REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Migration: create custom_funnels table if not exists
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS custom_funnels (
