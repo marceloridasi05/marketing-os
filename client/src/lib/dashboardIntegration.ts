@@ -35,8 +35,9 @@ interface DecisionCard {
   recommendedAction?: string;
 }
 
-import { calculateHealthStatus } from './dashboardHealthLogic';
+import { calculateHealthStatus, generateDualHealthSummary } from './dashboardHealthLogic';
 import { buildDecisionCards } from './decisionCardBuilder';
+import { getMetricLabel } from './metricLabels';
 
 interface DashboardMetricsInput {
   // Current period
@@ -197,4 +198,86 @@ export function getModelDisplayName(modelId: string): string {
     smb_inbound: 'SMB / Inbound',
   };
   return names[modelId] || 'Unknown Model';
+}
+
+/**
+ * Calculate Dual Health (Operational + Data Readiness)
+ * Separates performance health from data completeness for clarity
+ */
+export function calculateDualDashboardHealth(
+  modelId: string,
+  metrics: DashboardMetricsInput
+) {
+  // Map dashboard metrics to health calculation format with labels
+  const healthMetrics: Record<string, { label: string; current: number | null; previous: number | null; format: 'num' | 'money' | 'pct' }> = {
+    sessions: {
+      label: getMetricLabel('sessions'),
+      current: metrics.totalSessions,
+      previous: metrics.prevSessions,
+      format: 'num',
+    },
+    leadsGenerated: {
+      label: getMetricLabel('leadsGenerated'),
+      current: metrics.totalLeads,
+      previous: metrics.prevLeads,
+      format: 'num',
+    },
+    newUsers: {
+      label: getMetricLabel('newUsers'),
+      current: metrics.newUsers,
+      previous: metrics.prevNewUsers,
+      format: 'num',
+    },
+    gaClicks: {
+      label: getMetricLabel('gaClicks'),
+      current: metrics.gaClicks,
+      previous: metrics.prevGaClicks,
+      format: 'num',
+    },
+    cpl: {
+      label: getMetricLabel('cpl'),
+      current: metrics.cpl,
+      previous: metrics.prevCpl,
+      format: 'money',
+    },
+    cvr: {
+      label: getMetricLabel('conversionRate'),
+      current: metrics.cvr ? metrics.cvr * 100 : null,
+      previous: metrics.prevCvr ? metrics.prevCvr * 100 : null,
+      format: 'pct',
+    },
+    mql: {
+      label: getMetricLabel('mql'),
+      current: metrics.mql || null,
+      previous: metrics.prevMql || null,
+      format: 'num',
+    },
+    sql: {
+      label: getMetricLabel('sql'),
+      current: metrics.sql || null,
+      previous: metrics.prevSql || null,
+      format: 'num',
+    },
+    opportunities: {
+      label: getMetricLabel('opportunities'),
+      current: metrics.opportunities || null,
+      previous: metrics.prevOpportunities || null,
+      format: 'num',
+    },
+    revenue: {
+      label: getMetricLabel('revenue'),
+      current: metrics.revenue || null,
+      previous: metrics.prevRevenue || null,
+      format: 'money',
+    },
+    budgetActual: {
+      label: getMetricLabel('budgetActual'),
+      current: metrics.budgetActual,
+      previous: null,
+      format: 'money',
+    },
+  };
+
+  // Generate dual health summary (operational + data readiness)
+  return generateDualHealthSummary(modelId, healthMetrics);
 }

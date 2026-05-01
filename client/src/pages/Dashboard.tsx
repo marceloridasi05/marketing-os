@@ -14,10 +14,13 @@ import {
 } from 'lucide-react';
 import { MarketingHealthSummary } from '../components/MarketingHealthSummary';
 import { DecisionCard } from '../components/DecisionCard';
+import { OperationalHealthBanner } from '../components/OperationalHealthBanner';
+import { BottleneckAnalysis } from '../components/BottleneckAnalysis';
 import {
   calculateDashboardHealth,
   buildDashboardDecisionCards,
   getModelDisplayName,
+  calculateDualDashboardHealth,
 } from '../lib/dashboardIntegration';
 import { STAGE_META } from '../lib/metricClassification';
 import { AnnotatedChart } from '../components/AnnotatedChart';
@@ -529,6 +532,35 @@ export function Dashboard() {
     if (!gtmModelId) return null;
 
     return calculateDashboardHealth(gtmModelId, {
+      totalSessions,
+      totalLeads,
+      newUsers,
+      gaClicks,
+      gaImpressions: gaImp,
+      cpl,
+      cvr,
+      totalGaConversions,
+      totalAdsSpend,
+      budgetPlanned,
+      budgetActual: totalMktgSpend,
+      googleAdsSpend: fAds[0]?.gaCost ?? null,
+      metaSpend: fAds[0]?.metaCost ?? null,
+      linkedinSpend: fAds[0]?.liCost ?? null,
+      prevSessions,
+      prevLeads,
+      prevNewUsers: pNewUsers,
+      prevGaClicks: pGaClicks,
+      prevCpl,
+      prevCvr,
+      prevGaConversions: prevGaConv,
+      prevAdsSpend,
+    });
+  }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, pNewUsers, pGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
+
+  const dualHealth = useMemo(() => {
+    if (!gtmModelId) return null;
+
+    return calculateDualDashboardHealth(gtmModelId, {
       totalSessions,
       totalLeads,
       newUsers,
@@ -1232,12 +1264,17 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── 1.5. Marketing Health Summary (Command Center) ────────────────────── */}
-          {commandCenterHealth && dashboardMode === 'normal' && (
+          {/* ── 1.5. Dual Health Summary: Operational + Data Readiness ────────────── */}
+          {dualHealth && dashboardMode === 'normal' && (
             <div className="mb-5">
-              <MarketingHealthSummary
-                health={commandCenterHealth}
-                modelName={getModelDisplayName(gtmModelId || 'b2b_sales_led')}
+              <OperationalHealthBanner
+                operational={dualHealth.operational}
+                data={dualHealth.data}
+                executiveSummary={dualHealth.executiveSummary}
+              />
+              <BottleneckAnalysis
+                performance={dualHealth.bottlenecks.performance}
+                data={dualHealth.bottlenecks.data}
               />
             </div>
           )}
