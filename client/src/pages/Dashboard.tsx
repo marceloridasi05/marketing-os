@@ -1328,31 +1328,7 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* ── 2. Funnel View (Dynamic from Selected Funnel Model) ─────────────────────── */}
-          {funnelFlowContent && funnelConfig && (
-            <div className="mb-6">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                  {funnelConfig.name} Funnel Flow
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Progression through {funnelConfig.stages.length} stages with conversion rates and bottleneck analysis
-                </p>
-              </div>
-              <Card>
-                {funnelFlowContent.stageMetrics ? (
-                  <FunnelFlow
-                    stages={funnelFlowContent.stageMetrics}
-                    bottleneckStageId={funnelFlowContent.bottleneckAnalysis?.fromStageId}
-                  />
-                ) : (
-                  <div className="py-8 text-center text-gray-400">
-                    No data available for this funnel model
-                  </div>
-                )}
-              </Card>
-            </div>
-          )}
+          {/* ── REMOVED: Legacy Funnel View - now using GTM Operating Models above ── */}
 
           {/* ── 2.1. Legacy Objective Cards (Kept for backward compatibility) ───────── */}
           {!funnelConfig && (

@@ -90,27 +90,27 @@ export function MarketingHealthSummary({ health, modelName }: Props) {
 
           {/* Top Metrics (2 columns) */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            {/* Top Positive */}
+            {/* Melhor Variação */}
             <div className="bg-white rounded px-3 py-2 text-xs">
-              <div className="text-gray-600 mb-1">Melhor Métrica</div>
-              <div className="font-bold text-gray-900 flex items-center gap-1.5">
+              <div className="text-gray-600 mb-1 font-medium">Melhor Variação</div>
+              <div className="font-bold text-gray-900">
                 {health.metrics.topPositive.label}
-                {health.metrics.topPositive.change > 0 && (
-                  <span className="flex items-center gap-0.5 text-emerald-600">
+                {health.metrics.topPositive.change !== 0 && (
+                  <span className="flex items-center gap-0.5 text-emerald-600 mt-1">
                     <TrendingUp size={14} />
-                    {(health.metrics.topPositive.change).toFixed(0)}%
+                    +{(health.metrics.topPositive.change).toFixed(0)}%
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Top Negative */}
+            {/* Principal Alerta */}
             <div className="bg-white rounded px-3 py-2 text-xs">
-              <div className="text-gray-600 mb-1">Maior Queda</div>
-              <div className="font-bold text-gray-900 flex items-center gap-1.5">
+              <div className="text-gray-600 mb-1 font-medium">Principal Alerta</div>
+              <div className="font-bold text-gray-900">
                 {health.metrics.topNegative.label}
-                {health.metrics.topNegative.change < 0 && (
-                  <span className="flex items-center gap-0.5 text-red-600">
+                {health.metrics.topNegative.change !== 0 && (
+                  <span className="flex items-center gap-0.5 text-red-600 mt-1">
                     <TrendingDown size={14} />
                     {Math.abs(health.metrics.topNegative.change).toFixed(0)}%
                   </span>

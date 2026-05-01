@@ -63,14 +63,14 @@ export function calculateHealthStatus(input: HealthInput): MarketingHealthSummar
   const metricTrends = Object.entries(input.metrics)
     .map(([key, metric]) => ({
       key,
-      label: metric.label,
+      label: metric.label || `Métrica ${key}`, // Fallback if label is missing
       change: metric.previous && metric.previous !== 0
         ? ((metric.current || 0) - metric.previous) / metric.previous
         : 0,
       current: metric.current,
       isCritical: metric.threshold?.critical !== undefined,
     }))
-    .filter(m => m.current !== null)
+    .filter(m => m.current !== null && m.label && m.label !== 'undefined') // Filter out undefined labels
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
 
   // Find top positive and negative changes

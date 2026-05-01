@@ -166,8 +166,15 @@ export function DecisionCard({ card, compact = false }: Props) {
 
       {/* Insight / Alert */}
       {card.insight && (
-        <div className="bg-white rounded p-3 border-l-2 border-blue-500 text-xs text-gray-800">
-          <div className="font-semibold text-gray-900 mb-1">💡 Insight</div>
+        <div className={`rounded p-3 border-l-2 text-xs ${
+          card.insight.includes('não conectado') || card.insight.includes('não disponível')
+            ? 'bg-amber-50 border-amber-400 text-amber-900'
+            : 'bg-blue-50 border-blue-400 text-blue-900'
+        }`}>
+          <div className="font-semibold mb-1">
+            {card.insight.includes('não conectado') || card.insight.includes('não disponível') ? '⚠️' : '💡'}
+            {card.insight.includes('não conectado') ? ' Dados ausentes' : ' Insight'}
+          </div>
           <div>{card.insight}</div>
         </div>
       )}

@@ -161,7 +161,7 @@ function buildPipelineCard(
     insight:
       insight ||
       (!primaryMetric.isConnected
-        ? 'Dados comerciais não conectados. Integre com CRM.'
+        ? 'Dados comerciais não conectados — Fonte sugerida: CRM, HubSpot ou input manual'
         : determineDefaultInsight('pipeline', primaryMetric)),
     recommendedAction: determineAction('pipeline', metrics),
   };
