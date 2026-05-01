@@ -2,15 +2,41 @@
  * Dashboard Health Logic - Calculate health status and recommendations based on model
  */
 
-import {
-  MarketingHealthSummary,
-  HealthStatus,
-  DataConfidence,
-  ModelAwareRecommendation,
-} from '../types/dashboardTypes';
 import { getModelKPIConfig } from './modelKPIConfig';
 
-// ── Health Status Calculation ──────────────────────────────────────────────────
+// ── Inline Type Definitions (avoid dashboardTypes.ts import) ────────────────────
+
+type HealthStatus = 'healthy' | 'attention' | 'critical';
+type DataConfidence = 'high' | 'medium' | 'low';
+
+interface DecisionCardMetric {
+  label: string;
+  value: number | null;
+  previous: number | null;
+  format: 'num' | 'money' | 'pct';
+  status?: HealthStatus;
+  isConnected: boolean;
+  source?: string;
+}
+
+interface MarketingHealthSummary {
+  status: HealthStatus;
+  mainReason: string;
+  recommendedAction: string;
+  dataConfidence: DataConfidence;
+  metrics: {
+    topPositive: { label: string; value: string; change: number };
+    topNegative: { label: string; value: string; change: number };
+  };
+}
+
+interface ModelAwareRecommendation {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  actionItems: string[];
+  relatedMetrics: string[];
+}
 
 interface MetricValue {
   label: string;

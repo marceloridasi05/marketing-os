@@ -5,7 +5,20 @@
 
 import React from 'react';
 import { AlertCircle, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
-import { MarketingHealthSummary as HealthSummaryType, HealthStatus, DataConfidence } from '../types/dashboardTypes';
+
+// Inline types to avoid Vite bundler issues
+type HealthStatus = 'healthy' | 'attention' | 'critical';
+type DataConfidence = 'high' | 'medium' | 'low';
+interface HealthSummaryType {
+  status: HealthStatus;
+  mainReason: string;
+  recommendedAction: string;
+  dataConfidence: DataConfidence;
+  metrics: {
+    topPositive: { label: string; value: string; change: number };
+    topNegative: { label: string; value: string; change: number };
+  };
+}
 
 interface Props {
   health: HealthSummaryType;

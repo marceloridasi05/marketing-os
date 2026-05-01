@@ -3,7 +3,27 @@
  * Generates decision cards based on model and available metrics
  */
 
-import { DecisionCard, DecisionCardMetric } from '../types/dashboardTypes';
+// Inline types to avoid Vite bundler issues
+type HealthStatus = 'healthy' | 'attention' | 'critical';
+interface DecisionCardMetric {
+  label: string;
+  value: number | null;
+  previous: number | null;
+  format: 'num' | 'money' | 'pct';
+  status?: HealthStatus;
+  isConnected: boolean;
+  source?: string;
+}
+interface DecisionCard {
+  area: 'demand' | 'efficiency' | 'pipeline' | 'channels' | 'budget';
+  title: string;
+  status: HealthStatus;
+  primaryMetric: DecisionCardMetric;
+  supportingMetrics: DecisionCardMetric[];
+  insight?: string;
+  recommendedAction?: string;
+}
+
 import { getModelKPIConfig } from './modelKPIConfig';
 
 interface MetricsData {

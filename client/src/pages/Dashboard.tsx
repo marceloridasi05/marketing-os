@@ -12,6 +12,13 @@ import {
   TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink,
   AlertTriangle, CheckCircle2, XCircle, Eye, EyeOff, RefreshCw, Target, ArrowRight,
 } from 'lucide-react';
+import { MarketingHealthSummary } from '../components/MarketingHealthSummary';
+import { DecisionCard } from '../components/DecisionCard';
+import {
+  calculateDashboardHealth,
+  buildDashboardDecisionCards,
+  getModelDisplayName,
+} from '../lib/dashboardIntegration';
 import { STAGE_META } from '../lib/metricClassification';
 import { AnnotatedChart } from '../components/AnnotatedChart';
 import { CollapsibleCard } from '../components/CollapsibleCard';
@@ -517,9 +524,7 @@ export function Dashboard() {
   const prevCpl = prevLeads  > 0 && prevAdsSpend  > 0 ? prevAdsSpend  / prevLeads  : null;
 
   // ── Marketing Health Summary & Decision Cards (NEW - Phase 3) ────────────────
-  // TEMPORARILY DISABLED - Vite module resolution issue with dashboardTypes.ts
-  // TODO: Fix Vite module resolution and re-enable these useMemo blocks
-  /*
+
   const commandCenterHealth = useMemo(() => {
     if (!gtmModelId) return null;
 
@@ -577,7 +582,6 @@ export function Dashboard() {
       prevAdsSpend,
     });
   }, [gtmModelId, totalSessions, totalLeads, newUsers, gaClicks, gaImp, cpl, cvr, totalGaConversions, totalAdsSpend, budgetPlanned, totalMktgSpend, prevSessions, prevLeads, prevNewUsers, prevGaClicks, prevCpl, prevCvr, prevGaConv, prevAdsSpend, fAds]);
-  */
 
   // ── Objective statuses ───────────────────────────────────────────────────────
 
@@ -1224,6 +1228,27 @@ export function Dashboard() {
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={overallStatus} />
+              </div>
+            </div>
+          )}
+
+          {/* ── 1.5. Marketing Health Summary (Command Center) ────────────────────── */}
+          {commandCenterHealth && dashboardMode === 'normal' && (
+            <div className="mb-5">
+              <MarketingHealthSummary
+                health={commandCenterHealth}
+                modelName={getModelDisplayName(gtmModelId || 'b2b_sales_led')}
+              />
+            </div>
+          )}
+
+          {/* ── 1.6. Decision Cards Grid (Command Center) ────────────────────────────── */}
+          {commandCenterCards && dashboardMode === 'normal' && (
+            <div className="mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {commandCenterCards.map((card, idx) => (
+                  <DecisionCard key={idx} card={card} />
+                ))}
               </div>
             </div>
           )}

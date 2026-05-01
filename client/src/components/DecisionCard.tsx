@@ -6,7 +6,27 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { DecisionCard as DecisionCardType, DecisionCardMetric, HealthStatus } from '../types/dashboardTypes';
+
+// Inline types to avoid Vite bundler issues
+type HealthStatus = 'healthy' | 'attention' | 'critical';
+interface DecisionCardMetric {
+  label: string;
+  value: number | null;
+  previous: number | null;
+  format: 'num' | 'money' | 'pct';
+  status?: HealthStatus;
+  isConnected: boolean;
+  source?: string;
+}
+interface DecisionCardType {
+  area: 'demand' | 'efficiency' | 'pipeline' | 'channels' | 'budget';
+  title: string;
+  status: HealthStatus;
+  primaryMetric: DecisionCardMetric;
+  supportingMetrics: DecisionCardMetric[];
+  insight?: string;
+  recommendedAction?: string;
+}
 
 interface Props {
   card: DecisionCardType;

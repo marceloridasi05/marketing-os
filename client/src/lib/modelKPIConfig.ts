@@ -3,7 +3,28 @@
  * Maps each GTM Operating Model to its priority KPIs, stages, and interpretations
  */
 
-import { ModelKPIConfig, KPIDefinition, DecisionCardArea } from '../types/dashboardTypes';
+// ── Inline Type Definitions (avoid dashboardTypes.ts import) ────────────────────
+
+type DecisionCardArea = 'demand' | 'efficiency' | 'pipeline' | 'channels' | 'budget';
+
+interface KPIDefinition {
+  key: string;
+  label: string;
+  format: 'num' | 'money' | 'pct';
+  isRequired: boolean;
+  defaultSource: string;
+}
+
+interface ModelKPIConfig {
+  modelId: string;
+  priorityAreas: DecisionCardArea[];
+  demandKPIs: KPIDefinition[];
+  efficiencyKPIs: KPIDefinition[];
+  pipelineKPIs: KPIDefinition[];
+  channelMetrics: string[];
+  funnelStages: string[];
+  criticalAlerts: string[];
+}
 
 // ── B2B Sales-Led ──────────────────────────────────────────────────────────────
 

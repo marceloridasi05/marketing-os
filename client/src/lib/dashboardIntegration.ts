@@ -3,7 +3,38 @@
  * Bridges Dashboard data to new Marketing Command Center components
  */
 
-import { MarketingHealthSummary as HealthSummaryType } from '../types/dashboardTypes';
+// Inline types to avoid circular dependencies
+interface MarketingHealthSummary {
+  status: 'healthy' | 'attention' | 'critical';
+  mainReason: string;
+  recommendedAction: string;
+  dataConfidence: 'high' | 'medium' | 'low';
+  metrics: {
+    topPositive: { label: string; value: string; change: number };
+    topNegative: { label: string; value: string; change: number };
+  };
+}
+
+interface DecisionCardMetric {
+  label: string;
+  value: number | null;
+  previous: number | null;
+  format: 'num' | 'money' | 'pct';
+  status?: 'healthy' | 'attention' | 'critical';
+  isConnected: boolean;
+  source?: string;
+}
+
+interface DecisionCard {
+  area: 'demand' | 'efficiency' | 'pipeline' | 'channels' | 'budget';
+  title: string;
+  status: 'healthy' | 'attention' | 'critical';
+  primaryMetric: DecisionCardMetric;
+  supportingMetrics: DecisionCardMetric[];
+  insight?: string;
+  recommendedAction?: string;
+}
+
 import { calculateHealthStatus } from './dashboardHealthLogic';
 import { buildDecisionCards } from './decisionCardBuilder';
 
