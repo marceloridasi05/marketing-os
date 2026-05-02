@@ -1099,3 +1099,29 @@ export const commercialMetrics = sqliteTable('commercial_metrics', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+/**
+ * Monthly Spend Tracking
+ * Consolidated monthly spend by channel for reliable budget tracking
+ * Source: Google Sheets "Monthly Spend" tab or manual input
+ */
+export const monthlySpend = sqliteTable('monthly_spend', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+
+  // Period in YYYY-MM format (e.g., "2026-05")
+  month: text('month').notNull(),
+
+  // Spend by channel (R$ - all nullable for flexible data entry)
+  googleAdsSpend: real('google_ads_spend'), // Google Ads actual spend
+  metaAdsSpend: real('meta_ads_spend'), // Meta/Facebook Ads actual spend
+  linkedinAdsSpend: real('linkedin_ads_spend'), // LinkedIn Ads actual spend
+  otherPaidSpend: real('other_paid_spend'), // Other paid channels (Twitter, TikTok, etc.)
+  totalSpend: real('total_spend'), // Auto-calculated: sum of all channels (can also be manually entered if consolidated)
+
+  // Data source tracking
+  sourceNote: text('source_note'), // "Google Sheets", "Manual", "Integrated", etc.
+
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});

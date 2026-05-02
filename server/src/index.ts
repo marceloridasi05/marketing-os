@@ -36,6 +36,7 @@ import unitEconomicsRouter from './routes/unitEconomics.js';
 import growthLoopsRouter from './routes/growthLoops.js';
 import gtmRouter from './routes/gtm.js';
 import commercialMetricsRouter from './routes/commercialMetrics.js';
+import monthlySpendRouter from './routes/monthlySpend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -76,6 +77,7 @@ app.use('/api/unit-economics', unitEconomicsRouter);
 app.use('/api/growth-loops', growthLoopsRouter);
 app.use('/api/gtm', gtmRouter);
 app.use('/api/commercial-metrics', commercialMetricsRouter);
+app.use('/api/monthly-spend', monthlySpendRouter);
 app.use('/api/seed/alphatech', seedAlphatechRouter);
 
 app.get('/api/health', (_req, res) => {

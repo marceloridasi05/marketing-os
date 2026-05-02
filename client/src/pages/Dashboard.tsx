@@ -35,6 +35,7 @@ import { useSite } from '../context/SiteContext';
 import { aggregateMetricsByStage, getTopMetricDelta } from '../lib/funnelLogic';
 import { analyzeTransitionBottlenecks, generateFunnelAdaptiveExecSummary } from '../lib/funnelStatusLogic';
 import { CommercialMetricsModal } from '../components/CommercialMetricsModal';
+import { MonthlySpendModal } from '../components/MonthlySpendModal';
 // import {
 //   calculateDashboardHealth,
 //   buildDashboardDecisionCards,
@@ -81,6 +82,17 @@ interface CommercialMetricsData {
   opportunities: number | null;
   pipelineValue: number | null; // currency
   revenue: number | null; // currency
+  sourceNote?: string;
+  updatedAt?: string;
+}
+
+interface MonthlySpendData {
+  month: string; // YYYY-MM format
+  googleAdsSpend: number | null;
+  metaAdsSpend: number | null;
+  linkedinAdsSpend: number | null;
+  otherPaidSpend: number | null;
+  totalSpend: number | null; // auto-calculated
   sourceNote?: string;
   updatedAt?: string;
 }
@@ -308,6 +320,10 @@ export function Dashboard() {
   // Commercial Metrics
   const [commercialMetricsOpen, setCommercialMetricsOpen] = useState(false);
   const [commercialMetricsData, setCommercialMetricsData] = useState<CommercialMetricsData[] | null>(null);
+
+  // Monthly Spend
+  const [monthlySpendOpen, setMonthlySpendOpen] = useState(false);
+  const [monthlySpendData, setMonthlySpendData] = useState<MonthlySpendData[] | null>(null);
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -1211,6 +1227,11 @@ export function Dashboard() {
               <Plus size={16} />
               Dados Comerciais
             </button>
+            <button onClick={() => setMonthlySpendOpen(true)} disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+              <Plus size={16} />
+              Gasto Mensal
+            </button>
           </div>
         }
       />
@@ -1902,6 +1923,34 @@ export function Dashboard() {
           } catch (error) {
             console.error('Error saving commercial metrics:', error);
             alert('Erro ao salvar dados comerciais');
+          }
+        }}
+      />
+
+      {/* Monthly Spend Modal */}
+      <MonthlySpendModal
+        isOpen={monthlySpendOpen}
+        onClose={() => setMonthlySpendOpen(false)}
+        onSave={async (data) => {
+          try {
+            if (!selectedSite?.id) return;
+            const response = await api.post(`/monthly-spend/${selectedSite.id}`, data);
+            setMonthlySpendData(prev => {
+              if (!prev) return [response];
+              const existing = prev.findIndex(m => m.month === data.month);
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = response;
+                return updated;
+              }
+              return [...prev, response];
+            });
+            setMonthlySpendOpen(false);
+            // Refresh dashboard to show updated budget info
+            await fetchAll();
+          } catch (error) {
+            console.error('Error saving monthly spend:', error);
+            alert('Erro ao salvar gasto mensal');
           }
         }}
       />
