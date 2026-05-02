@@ -261,6 +261,7 @@ export function Dashboard() {
   const [linkedinPage,setLinkedinPage]= useState<LinkedinPageRow[]>([]);
   const [budgetItems, setBudgetItems] = useState<BudgetItemRow[]>([]);
   const [adsBudgets,  setAdsBudgets]  = useState<AdsBudgetRow[]>([]);
+  const [commercialFunnelData, setCommercialFunnelData] = useState<any>(null);
 
   // ABM
   const [abmData, setAbmData] = useState<{
@@ -301,24 +302,40 @@ export function Dashboard() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [site, ads, liCamp, liPage, budget, adsB] = await Promise.allSettled([
+      const requests: any[] = [
         api.get<SiteRow[]>('/site-data'),
         api.get<AdsKpiRow[]>('/ads-kpis'),
         api.get<LiCampaignRow[]>('/ads-kpis/linkedin'),
         api.get<LinkedinPageRow[]>('/linkedin-page'),
         api.get<BudgetItemRow[]>('/budget-items'),
         api.get<AdsBudgetRow[]>('/ads-budgets'),
-      ]);
+      ];
+
+      // Add commercial funnel data fetch if site is selected
+      if (selectedSite?.id) {
+        requests.push(
+          api.get<any>(`/commercial-funnel-daily/aggregated?siteId=${selectedSite.id}&period=monthly`)
+        );
+      }
+
+      const results = await Promise.allSettled(requests);
+      const [site, ads, liCamp, liPage, budget, adsB, ...rest] = results;
+
       if (site.status   === 'fulfilled') setSiteData(site.value);
       if (ads.status    === 'fulfilled') setAdsKpis(ads.value);
       if (liCamp.status === 'fulfilled') setLiCampaigns(liCamp.value);
       if (liPage.status === 'fulfilled') setLinkedinPage(liPage.value);
       if (budget.status === 'fulfilled') setBudgetItems(budget.value);
       if (adsB.status   === 'fulfilled') setAdsBudgets(adsB.value);
+
+      // Handle commercial funnel data if fetch was included
+      if (rest.length > 0 && rest[0].status === 'fulfilled') {
+        setCommercialFunnelData(rest[0].value);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSite?.id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -1436,6 +1453,101 @@ export function Dashboard() {
           <div className="mb-5">
             <UnitEconomicsWidget />
           </div>
+
+          {/* ── 3.6b. Commercial Funnel Summary ────────────────────────────────────────── */}
+          {commercialFunnelData && commercialFunnelData.records && commercialFunnelData.records.length > 0 && (
+            <div className="mb-5">
+              <Card>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+                      Funil Comercial (Mensal)
+                    </p>
+                  </div>
+
+                  {/* Grid of metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Leads */}
+                    {commercialFunnelData.records[0]?.leads !== null && (
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">Leads</p>
+                        <p className="text-lg font-semibold text-white">
+                          {commercialFunnelData.records[0]?.leads || '—'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* MQLs */}
+                    {commercialFunnelData.records[0]?.mql !== null && (
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">MQLs</p>
+                        <p className="text-lg font-semibold text-white">
+                          {commercialFunnelData.records[0]?.mql || '—'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* SQLs */}
+                    {commercialFunnelData.records[0]?.sql !== null && (
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">SQLs</p>
+                        <p className="text-lg font-semibold text-white">
+                          {commercialFunnelData.records[0]?.sql || '—'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Opportunities */}
+                    {commercialFunnelData.records[0]?.opportunities !== null && (
+                      <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">Oportunidades</p>
+                        <p className="text-lg font-semibold text-white">
+                          {commercialFunnelData.records[0]?.opportunities || '—'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Conversion rates */}
+                  <div className="border-t border-gray-700 pt-3">
+                    <p className="text-xs text-gray-400 mb-2">Taxas de Conversão</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                      {commercialFunnelData.records[0]?.leadToMqlRate !== null && (
+                        <div className="text-gray-300">
+                          <span className="text-gray-500">L→MQL:</span> {commercialFunnelData.records[0]?.leadToMqlRate?.toFixed(1)}%
+                        </div>
+                      )}
+                      {commercialFunnelData.records[0]?.mqlToSqlRate !== null && (
+                        <div className="text-gray-300">
+                          <span className="text-gray-500">MQL→SQL:</span> {commercialFunnelData.records[0]?.mqlToSqlRate?.toFixed(1)}%
+                        </div>
+                      )}
+                      {commercialFunnelData.records[0]?.sqlToMeetingRate !== null && (
+                        <div className="text-gray-300">
+                          <span className="text-gray-500">SQL→Reunião:</span> {commercialFunnelData.records[0]?.sqlToMeetingRate?.toFixed(1)}%
+                        </div>
+                      )}
+                      {commercialFunnelData.records[0]?.meetingToOppRate !== null && (
+                        <div className="text-gray-300">
+                          <span className="text-gray-500">Reunião→Opp:</span> {commercialFunnelData.records[0]?.meetingToOppRate?.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Link to full view */}
+                  <div className="border-t border-gray-700 pt-3">
+                    <a
+                      href="/commercial-funnel"
+                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      Ver detalhes completos <ExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* ── 3.7. Growth Loops Summary ──────────────────────────────────────── */}
           {selectedSite && (
