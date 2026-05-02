@@ -1073,3 +1073,29 @@ export const gtmMetricStatus = sqliteTable('gtm_metric_status', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+/**
+ * Commercial Metrics
+ * B2B Sales-Led funnel: MQL → SQL → Opportunities → Pipeline → Revenue
+ * Allows manual input or Google Sheets integration
+ */
+export const commercialMetrics = sqliteTable('commercial_metrics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+
+  // Period in YYYY-MM format (e.g., "2026-05")
+  month: text('month').notNull(),
+
+  // Funnel metrics (nullable - user enters what's available)
+  mql: integer('mql'), // Marketing Qualified Leads
+  sql: integer('sql'), // Sales Qualified Leads
+  opportunities: integer('opportunities'), // Active opportunities
+  pipelineValue: real('pipeline_value'), // R$ - total pipeline value
+  revenue: real('revenue'), // R$ - monthly revenue
+
+  // Data source tracking
+  sourceNote: text('source_note'), // "CRM", "HubSpot", "Manual", "Google Sheets", etc.
+
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});

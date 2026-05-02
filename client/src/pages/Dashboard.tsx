@@ -34,6 +34,7 @@ import GrowthLoopWidget from '../components/GrowthLoopWidget';
 import { useSite } from '../context/SiteContext';
 import { aggregateMetricsByStage, getTopMetricDelta } from '../lib/funnelLogic';
 import { analyzeTransitionBottlenecks, generateFunnelAdaptiveExecSummary } from '../lib/funnelStatusLogic';
+import { CommercialMetricsModal } from '../components/CommercialMetricsModal';
 // import {
 //   calculateDashboardHealth,
 //   buildDashboardDecisionCards,
@@ -71,6 +72,17 @@ interface LiCampaignRow {
   accountType: string; funnelStage: string; impressions: number | null;
   clicks: number | null; ctr: string | null; frequency: string | null;
   cpcAvg: string | null; cost: number | null;
+}
+
+interface CommercialMetricsData {
+  month: string; // YYYY-MM format
+  mql: number | null;
+  sql: number | null;
+  opportunities: number | null;
+  pipelineValue: number | null; // currency
+  revenue: number | null; // currency
+  sourceNote?: string;
+  updatedAt?: string;
 }
 interface LinkedinPageRow {
   id: number; weekStart: string; followers: number | null;
@@ -292,6 +304,10 @@ export function Dashboard() {
   const [gtmInsights, setGtmInsights] = useState<any>(null);
   const [gtmLoading, setGtmLoading] = useState(false);
   const [gtmError, setGtmError] = useState<string | null>(null);
+
+  // Commercial Metrics
+  const [commercialMetricsOpen, setCommercialMetricsOpen] = useState(false);
+  const [commercialMetricsData, setCommercialMetricsData] = useState<CommercialMetricsData[] | null>(null);
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -1190,6 +1206,11 @@ export function Dashboard() {
               {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Brain size={16} />}
               Análise IA
             </button>
+            <button onClick={() => setCommercialMetricsOpen(true)} disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              <Plus size={16} />
+              Dados Comerciais
+            </button>
           </div>
         }
       />
@@ -1858,6 +1879,32 @@ export function Dashboard() {
           </div>
         </>
       )}
+
+      {/* Commercial Metrics Modal */}
+      <CommercialMetricsModal
+        isOpen={commercialMetricsOpen}
+        onClose={() => setCommercialMetricsOpen(false)}
+        onSave={async (data) => {
+          try {
+            if (!selectedSite?.id) return;
+            const response = await api.post(`/commercial-metrics/${selectedSite.id}`, data);
+            setCommercialMetricsData(prev => {
+              if (!prev) return [response];
+              const existing = prev.findIndex(m => m.month === data.month);
+              if (existing >= 0) {
+                const updated = [...prev];
+                updated[existing] = response;
+                return updated;
+              }
+              return [...prev, response];
+            });
+            setCommercialMetricsOpen(false);
+          } catch (error) {
+            console.error('Error saving commercial metrics:', error);
+            alert('Erro ao salvar dados comerciais');
+          }
+        }}
+      />
     </div>
   );
 }
