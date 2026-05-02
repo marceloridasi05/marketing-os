@@ -36,6 +36,7 @@ import unitEconomicsRouter from './routes/unitEconomics.js';
 import growthLoopsRouter from './routes/growthLoops.js';
 import gtmRouter from './routes/gtm.js';
 import commercialMetricsRouter from './routes/commercialMetrics.js';
+import commercialFunnelDailyRouter from './routes/commercialFunnelDaily.js';
 import monthlySpendRouter from './routes/monthlySpend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,6 +78,7 @@ app.use('/api/unit-economics', unitEconomicsRouter);
 app.use('/api/growth-loops', growthLoopsRouter);
 app.use('/api/gtm', gtmRouter);
 app.use('/api/commercial-metrics', commercialMetricsRouter);
+app.use('/api/commercial-funnel-daily', commercialFunnelDailyRouter);
 app.use('/api/monthly-spend', monthlySpendRouter);
 app.use('/api/seed/alphatech', seedAlphatechRouter);
 

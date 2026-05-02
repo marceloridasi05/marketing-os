@@ -1101,6 +1101,35 @@ export const commercialMetrics = sqliteTable('commercial_metrics', {
 });
 
 /**
+ * Commercial Funnel Daily Tracking
+ * Daily operational data for tracking commercial metrics progression
+ * Source: Google Sheets "Commercial Funnel Daily" tab or manual daily input
+ * Follows same pattern as siteData (daily granularity with automatic aggregations)
+ */
+export const commercialFunnelDaily = sqliteTable('commercial_funnel_daily', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+
+  // Date in YYYY-MM-DD format (stored as text for SQLite compatibility)
+  date: text('date').notNull(),
+
+  // Funnel metrics - daily tracking (nullable - user enters what's available)
+  leads: integer('leads'), // Total leads generated that day
+  mql: integer('mql'), // Marketing Qualified Leads
+  sql: integer('sql'), // Sales Qualified Leads
+  meetings: integer('meetings'), // Sales meetings scheduled
+  opportunities: integer('opportunities'), // Active opportunities created
+  pipelineCreated: real('pipeline_created'), // R$ - pipeline value created
+  revenueClosed: real('revenue_closed'), // R$ - revenue closed that day
+
+  // Notes/source tracking
+  notes: text('notes'), // "CRM sync", "Manual entry", "HubSpot", etc.
+
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+/**
  * Monthly Spend Tracking
  * Consolidated monthly spend by channel for reliable budget tracking
  * Source: Google Sheets "Monthly Spend" tab or manual input

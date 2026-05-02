@@ -217,6 +217,34 @@ sqlite.exec(`
     active_users INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS commercial_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    month TEXT NOT NULL,
+    mql INTEGER,
+    sql INTEGER,
+    opportunities INTEGER,
+    pipeline_value REAL,
+    revenue REAL,
+    source_note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS commercial_funnel_daily (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES sites(id),
+    date TEXT NOT NULL,
+    leads INTEGER,
+    mql INTEGER,
+    sql INTEGER,
+    meetings INTEGER,
+    opportunities INTEGER,
+    pipeline_created REAL,
+    revenue_closed REAL,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   CREATE TABLE IF NOT EXISTS linkedin_page (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     week_start TEXT NOT NULL,
@@ -1062,5 +1090,9 @@ try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_stages_site_loop_perio
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_insights_site_loop_idx ON growth_loop_insights(site_id, loop_id)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_insights_type_severity_idx ON growth_loop_insights(site_id, insight_type, severity)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE INDEX IF NOT EXISTS growth_loop_attributions_loop_idx ON growth_loop_attributions(site_id, loop_id)`); } catch { /* already exists */ }
+
+// Indexes for Commercial Funnel Daily tables
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS commercial_funnel_daily_site_date_idx ON commercial_funnel_daily(site_id, date)`); } catch { /* already exists */ }
+try { sqlite.exec(`CREATE INDEX IF NOT EXISTS commercial_metrics_site_month_idx ON commercial_metrics(site_id, month)`); } catch { /* already exists */ }
 
 export const db = drizzle(sqlite, { schema });
