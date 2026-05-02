@@ -1154,3 +1154,70 @@ export const monthlySpend = sqliteTable('monthly_spend', {
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+/**
+ * Daily Spend Tracking
+ * Operational data for daily ad spend, clicks, impressions by channel and campaign
+ * Separate from commercialFunnelDaily to maintain clean data domains (conversion vs spend)
+ * Source: Google Sheets "Daily Spend" tab or manual daily input
+ * Aggregated to weekly/monthly for analysis
+ */
+export const dailySpend = sqliteTable('daily_spend', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+
+  // Date in YYYY-MM-DD format
+  date: text('date').notNull(),
+
+  // Channel and campaign information (nullable for flexible data entry)
+  channel: text('channel'), // 'google_ads', 'linkedin', 'meta', 'tiktok', 'other'
+  campaign: text('campaign'), // Campaign name or ID
+  source: text('source'), // UTM source or platform identifier
+  medium: text('medium'), // UTM medium or ad type (cpc, cpm, email, etc.)
+
+  // Spend metrics (nullable - user enters what's available)
+  spend: real('spend'), // Cost in local currency (R$)
+  clicks: integer('clicks'), // Clicks from ads
+  impressions: integer('impressions'), // Impressions delivered
+  conversions: integer('conversions'), // Conversions from ad platform (if available)
+
+  // Notes/source tracking
+  notes: text('notes'), // "Google Ads API", "Manual entry", "Meta Ads Manager", etc.
+
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+/**
+ * Commercial Funnel Insights
+ * Pre-calculated anomalies, bottlenecks, and recommendations from commercial funnel analysis
+ * Insights include: bottleneck detection, velocity drops, win rate changes, pipeline health, cost efficiency
+ * Source: Automatic generation from commercialFunnelDaily + dailySpend data
+ */
+export const commercialFunnelInsights = sqliteTable('commercial_funnel_insights', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+
+  // Time period for the insight (YYYY-MM format)
+  month: text('month').notNull(),
+
+  // Insight classification
+  insightType: text('insight_type').notNull(), // 'bottleneck', 'velocity_drop', 'win_rate_decline', 'pipeline_health', 'cost_efficiency'
+  severity: text('severity').notNull(), // 'critical', 'warning', 'info'
+
+  // Content
+  title: text('title').notNull(), // e.g., "MQL→SQL conversion declining"
+  description: text('description').notNull(), // Detailed explanation
+
+  // Metrics as JSON: { fromStage, toStage, currentRate, previousRate, delta, ... }
+  metrics: text('metrics'), // JSON string
+
+  // Recommended actions as JSON array
+  recommendedActions: text('recommended_actions'), // JSON array of action strings
+
+  // Dismissal tracking
+  dismissedAt: text('dismissed_at'), // NULL = active insight, timestamp = dismissed
+
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});

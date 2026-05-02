@@ -1068,6 +1068,52 @@ sqlite.exec(`
   )
 `);
 
+// Daily Spend Tracking table (Phase 6)
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS daily_spend (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER NOT NULL REFERENCES sites(id),
+      date TEXT NOT NULL,
+      channel TEXT,
+      campaign TEXT,
+      source TEXT,
+      medium TEXT,
+      spend REAL,
+      clicks INTEGER,
+      impressions INTEGER,
+      conversions INTEGER,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS daily_spend_site_date_idx ON daily_spend(site_id, date);
+    CREATE INDEX IF NOT EXISTS daily_spend_channel_idx ON daily_spend(site_id, channel);
+  `);
+} catch { /* already exists */ }
+
+// Commercial Funnel Insights table (Phase 6)
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS commercial_funnel_insights (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER NOT NULL REFERENCES sites(id),
+      month TEXT NOT NULL,
+      insight_type TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      metrics TEXT,
+      recommended_actions TEXT,
+      dismissed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(site_id, month, insight_type)
+    );
+    CREATE INDEX IF NOT EXISTS commercial_funnel_insights_site_month_idx ON commercial_funnel_insights(site_id, month);
+  `);
+} catch { /* already exists */ }
+
 // Indexes for UTM Preset Enforcement tables
 try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_source_enum_site_source_idx ON utm_source_enum(site_id, source)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_medium_enum_site_medium_idx ON utm_medium_enum(site_id, medium)`); } catch { /* already exists */ }
