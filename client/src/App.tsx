@@ -25,6 +25,8 @@ import UnitEconomicsPage from './pages/UnitEconomics';
 import UnitEconomicsConfig from './pages/UnitEconomicsConfig';
 import GrowthLoopsPage from './pages/GrowthLoops';
 import GrowthLoopsConfig from './pages/GrowthLoopsConfig';
+import CommercialFunnel from './pages/CommercialFunnel';
+import MarketingSystem from './pages/MarketingSystem';
 
 function App() {
   return (
@@ -34,26 +36,39 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
+          {/* Strategic Layer */}
+          <Route path="/marketing-system" element={<MarketingSystem />} />
+
+          {/* Operational Data Layer */}
+          <Route path="/commercial-funnel" element={<CommercialFunnel />} />
+
+          {/* Analytical Layer */}
           <Route path="/" element={<Dashboard />} />
-          <Route path="/performance" element={<Performance />} />
-          <Route path="/ads-budgets" element={<AdsBudgets />} />
-          <Route path="/budget" element={<Budget />} />
-          <Route path="/plan" element={<Plan />} />
-          <Route path="/site-data" element={<SiteData />} />
-          <Route path="/linkedin-page" element={<LinkedinPage />} />
-          <Route path="/experiments" element={<Experiments />} />
-          <Route path="/ideas" element={<Ideas />} />
-          <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/insights" element={<InsightsPage />} />
-          <Route path="/utm-builder" element={<UtmBuilder />} />
-          <Route path="/utm-library" element={<UtmLibrary />} />
-          <Route path="/utm-attribution" element={<UtmAttribution />} />
-          <Route path="/search-console" element={<SearchConsolePage />} />
-          <Route path="/gsc-callback" element={<GscOAuthCallback />} />
+          <Route path="/performance" element={<Performance />} />
+          <Route path="/linkedin-page" element={<LinkedinPage />} />
           <Route path="/unit-economics" element={<UnitEconomicsPage />} />
           <Route path="/unit-economics-config" element={<UnitEconomicsConfig />} />
           <Route path="/growth-loops" element={<GrowthLoopsPage />} />
           <Route path="/growth-loops-config" element={<GrowthLoopsConfig />} />
+
+          {/* Execution Layer */}
+          <Route path="/plan" element={<Plan />} />
+          <Route path="/experiments" element={<Experiments />} />
+          <Route path="/ideas" element={<Ideas />} />
+          <Route path="/search-console" element={<SearchConsolePage />} />
+          <Route path="/gsc-callback" element={<GscOAuthCallback />} />
+          <Route path="/utm-builder" element={<UtmBuilder />} />
+          <Route path="/utm-library" element={<UtmLibrary />} />
+          <Route path="/utm-attribution" element={<UtmAttribution />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+
+          {/* Operational Data (continued) */}
+          <Route path="/site-data" element={<SiteData />} />
+          <Route path="/ads-budgets" element={<AdsBudgets />} />
+          <Route path="/budget" element={<Budget />} />
+
+          {/* Settings */}
           <Route path="/data-mapping" element={<DataMappingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

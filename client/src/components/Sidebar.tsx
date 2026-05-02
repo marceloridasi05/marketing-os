@@ -26,6 +26,8 @@ import {
   Rocket,
   Search,
   TrendingUp,
+  Map,
+  Funnel,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import type { Site } from '../context/SiteContext';
@@ -48,11 +50,22 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    id: 'diagnostics',
-    label: 'Diagnóstico',
-    icon: AlertTriangle,
+    id: 'strategy',
+    label: 'Estratégia',
+    icon: Map,
     items: [
-      { to: '/insights', label: 'Insights & Alertas', icon: Zap },
+      { to: '/marketing-system', label: 'Sistema de Marketing', icon: Map },
+    ],
+  },
+  {
+    id: 'operational',
+    label: 'Dados Operacionais',
+    icon: Funnel,
+    items: [
+      { to: '/commercial-funnel', label: 'Funil Comercial', icon: Funnel },
+      { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
+      { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
+      { to: '/budget', label: 'Orçamento', icon: DollarSign },
     ],
   },
   {
@@ -60,11 +73,10 @@ const navSections: NavSection[] = [
     label: 'Análise',
     icon: BarChart3,
     items: [
-      { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/insights', label: 'Insights & Alertas', icon: Zap },
       { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
-      { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
       { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
-      { to: '/budget', label: 'Orçamento', icon: DollarSign },
       { to: '/unit-economics', label: 'Unit Economics', icon: TrendingUp },
       { to: '/growth-loops', label: 'Growth Loops', icon: Zap },
     ],
@@ -75,12 +87,12 @@ const navSections: NavSection[] = [
     icon: Rocket,
     items: [
       { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
+      { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
+      { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
       { to: '/search-console', label: 'Search Console', icon: Search },
       { to: '/utm-builder', label: 'UTM Builder', icon: Zap },
       { to: '/utm-library', label: 'UTM Library', icon: Layers },
       { to: '/utm-attribution', label: 'UTM Attribution', icon: BarChart3 },
-      { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
-      { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
       { to: '/suppliers', label: 'Fornecedores & Tools', icon: Briefcase },
     ],
   },
@@ -522,25 +534,7 @@ export function Sidebar() {
         <SiteSelector />
       </div>
 
-      {/* Dashboard — standalone top-level link */}
-      <div className="px-3 pt-2 pb-1">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${
-              isActive
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-            }`
-          }
-        >
-          <LayoutDashboard size={16} className="shrink-0" />
-          Dashboard
-        </NavLink>
-      </div>
-
-      {/* Main nav sections */}
+      {/* Main nav sections — organized by 4 layers: Strategy, Operational Data, Analysis, Execution */}
       <nav className="flex-1 py-1 px-3 space-y-1 overflow-y-auto">
         {navSections.map(section => (
           <NavSection
