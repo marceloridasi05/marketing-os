@@ -9,7 +9,7 @@ import { api } from '../lib/api';
 import { useFunnel } from '../context/FunnelContext';
 import { groupByStageInModel, getStageMetaInModel } from '../lib/metricClassification';
 import {
-  TrendingUp, TrendingDown, Minus, Brain, Loader2, Clock, Radar, ExternalLink,
+  TrendingUp, TrendingDown, Minus, Plus, Brain, Loader2, Clock, Radar, ExternalLink,
   AlertTriangle, CheckCircle2, XCircle, Eye, EyeOff, RefreshCw, Target, ArrowRight,
 } from 'lucide-react';
 import { MarketingHealthSummary } from '../components/MarketingHealthSummary';
