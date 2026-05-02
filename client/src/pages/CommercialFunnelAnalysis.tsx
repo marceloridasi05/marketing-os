@@ -62,18 +62,22 @@ export default function CommercialFunnelAnalysis() {
         const effData = await api.get<EfficiencySummary>(
           `/commercial-funnel/analysis/efficiency-summary?siteId=${siteId}&month=${month}`
         );
-        setEfficiency(effData);
+        setEfficiency(effData || null);
 
         // Fetch cost metrics by channel
         if (effData?.current?.dateFrom && effData?.current?.dateTo) {
           const costData = await api.get<CostMetricResult[]>(
             `/commercial-funnel/analysis/cost-metrics-by-channel?siteId=${siteId}&dateFrom=${effData.current.dateFrom}&dateTo=${effData.current.dateTo}`
           );
-          setCostMetrics(costData);
+          setCostMetrics(Array.isArray(costData) ? costData : []);
+        } else {
+          setCostMetrics([]);
         }
       } catch (err) {
         console.error('Error fetching commercial funnel analysis:', err);
         setError('Failed to load commercial funnel analysis data');
+        setEfficiency(null);
+        setCostMetrics([]);
       } finally {
         setLoading(false);
       }
@@ -149,7 +153,7 @@ export default function CommercialFunnelAnalysis() {
       />
 
       {/* Summary Cards */}
-      {efficiency?.current && (
+      {efficiency && efficiency.current ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <div className="p-4">
@@ -193,8 +197,8 @@ export default function CommercialFunnelAnalysis() {
             <div className="p-4">
               <div className="text-sm text-gray-600">Receita Por Gasto</div>
               <div className="text-2xl font-bold text-gray-900 mt-2">
-                {efficiency.current.revenue_per_spend
-                  ? `${efficiency.current.revenue_per_spend.toFixed(2)}x`
+                {efficiency.current.revenue_per_spend !== null && efficiency.current.revenue_per_spend !== undefined
+                  ? `${(efficiency.current.revenue_per_spend as number).toFixed(2)}x`
                   : '—'}
               </div>
               <div
@@ -232,14 +236,14 @@ export default function CommercialFunnelAnalysis() {
             </div>
           </Card>
         </div>
-      )}
+      ) : null}
 
       {/* Cost Efficiency Tab */}
-      <Card>
-        <div className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Eficiência de Custo</h2>
+      {efficiency && efficiency.current ? (
+        <Card>
+          <div className="p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Eficiência de Custo</h2>
 
-          {efficiency?.current && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="border rounded p-4">
@@ -299,16 +303,15 @@ export default function CommercialFunnelAnalysis() {
                 </div>
               )}
             </>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      ) : null}
 
       {/* Funnel Progression Tab */}
-      <Card>
-        <div className="p-6 space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Progressão do Funil com Custos</h2>
-
-          {efficiency?.current && (
+      {efficiency && efficiency.current ? (
+        <Card>
+          <div className="p-6 space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Progressão do Funil com Custos</h2>
             <>
               <div className="flex items-center justify-between border rounded p-4 bg-blue-50">
                 <div>
@@ -381,9 +384,9 @@ export default function CommercialFunnelAnalysis() {
                 </div>
               </div>
             </>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      ) : null}
 
       {/* Channel Comparison Tab */}
       <Card>
@@ -419,7 +422,9 @@ export default function CommercialFunnelAnalysis() {
                         {formatCurrency(metric.cac)}
                       </td>
                       <td className="py-3 px-4 text-right text-gray-900">
-                        {metric.revenue_per_spend ? `${metric.revenue_per_spend.toFixed(2)}x` : '—'}
+                        {metric.revenue_per_spend !== null && metric.revenue_per_spend !== undefined
+                          ? `${(metric.revenue_per_spend as number).toFixed(2)}x`
+                          : '—'}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span

@@ -68,8 +68,10 @@ export function FunnelCostAnalysisWidget({ siteId }: { siteId: number | null }) 
           `/commercial-funnel/analysis/efficiency-summary?siteId=${siteId}&month=${month}`
         );
 
-        setData(response);
+        setData(response || null);
       } catch (err) {
+        console.error('Error fetching cost metrics:', err);
+        setData(null);
         setError(err instanceof Error ? err.message : 'Failed to load cost metrics');
       } finally {
         setLoading(false);
