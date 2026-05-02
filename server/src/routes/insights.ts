@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { performanceEntries, budgets, goals, sites, customFunnels } from '../db/schema.js';
+import { performanceEntries, budgets, goals, sites, customFunnels, commercialFunnelInsights } from '../db/schema.js';
 import { sql, and, eq } from 'drizzle-orm';
 import { PRESET_MODELS } from '../lib/funnelModels.js';
 import {
@@ -465,6 +465,52 @@ router.get('/', async (req, res) => {
         });
       }
     }
+  }
+
+  // ── 2. Commercial Funnel Insights (from Phase 6) ────────────────────────────────
+
+  // Get current month for commercial funnel insights
+  const currentMonth = `${cy}-${String(cm).padStart(2, '0')}`;
+
+  try {
+    const cfInsights = await db
+      .select()
+      .from(commercialFunnelInsights)
+      .where(and(
+        eq(commercialFunnelInsights.siteId, siteId),
+        eq(commercialFunnelInsights.month, currentMonth)
+      ));
+
+    // Convert commercial funnel insights to standard Insight format
+    for (const cfInsight of cfInsights) {
+      // Skip dismissed insights
+      if (cfInsight.dismissedAt) continue;
+
+      // Parse JSON fields
+      const metrics = cfInsight.metrics ? JSON.parse(cfInsight.metrics) : {};
+      const recommendedActions = cfInsight.recommendedActions ? JSON.parse(cfInsight.recommendedActions) : [];
+
+      // Convert to Insight format
+      const insight: Insight = {
+        id: nextId(),
+        type: 'commercial_funnel' as any, // Extend type to include this
+        severity: cfInsight.severity as Severity,
+        title: cfInsight.title,
+        body: cfInsight.description,
+        metric: `cf_${cfInsight.insightType}`,
+        stage: 'conversion', // Commercial funnel insights are conversion-focused
+        period: currentMonth,
+        suggestedActions: recommendedActions.map((action: string) => ({
+          description: action,
+          priority: cfInsight.severity === 'critical' ? 'high' : 'medium',
+        })),
+      };
+
+      insights.push(insight);
+    }
+  } catch (err) {
+    console.error('Error fetching commercial funnel insights:', err);
+    // Continue without CF insights if there's an error
   }
 
   // Sort: critical → warning → info

@@ -30,6 +30,7 @@ import { UtmCampaignFilter } from '../components/UtmCampaignFilter';
 import { CacWidget } from '../components/CacWidget';
 import { ExecutionPriority } from '../components/ExecutionPriority';
 import { UnitEconomicsWidget } from '../components/UnitEconomicsWidget';
+import { FunnelCostAnalysisWidget } from '../components/FunnelCostAnalysisWidget';
 import GrowthLoopWidget from '../components/GrowthLoopWidget';
 import { useSite } from '../context/SiteContext';
 import { aggregateMetricsByStage, getTopMetricDelta } from '../lib/funnelLogic';
@@ -1453,6 +1454,13 @@ export function Dashboard() {
           <div className="mb-5">
             <UnitEconomicsWidget />
           </div>
+
+          {/* ── 3.6a. Funnel Cost Analysis Summary ────────────────────────────────────────── */}
+          {selectedSite && (
+            <div className="mb-5">
+              <FunnelCostAnalysisWidget siteId={selectedSite.id} />
+            </div>
+          )}
 
           {/* ── 3.6b. Commercial Funnel Summary ────────────────────────────────────────── */}
           {commercialFunnelData && commercialFunnelData.records && commercialFunnelData.records.length > 0 && (

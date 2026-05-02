@@ -27,6 +27,7 @@ import GrowthLoopsPage from './pages/GrowthLoops';
 import GrowthLoopsConfig from './pages/GrowthLoopsConfig';
 import CommercialFunnel from './pages/CommercialFunnel';
 import MarketingSystem from './pages/MarketingSystem';
+import CommercialFunnelAnalysis from './pages/CommercialFunnelAnalysis';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
           <Route path="/unit-economics-config" element={<UnitEconomicsConfig />} />
           <Route path="/growth-loops" element={<GrowthLoopsPage />} />
           <Route path="/growth-loops-config" element={<GrowthLoopsConfig />} />
+          <Route path="/commercial-funnel-analysis" element={<CommercialFunnelAnalysis />} />
 
           {/* Execution Layer */}
           <Route path="/plan" element={<Plan />} />

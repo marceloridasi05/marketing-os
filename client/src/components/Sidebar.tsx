@@ -79,6 +79,7 @@ const navSections: NavSection[] = [
       { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
       { to: '/unit-economics', label: 'Unit Economics', icon: TrendingUp },
       { to: '/growth-loops', label: 'Growth Loops', icon: Zap },
+      { to: '/commercial-funnel-analysis', label: 'Análise de Custo', icon: BarChart3 },
     ],
   },
   {
