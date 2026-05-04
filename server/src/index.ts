@@ -41,6 +41,9 @@ import monthlySpendRouter from './routes/monthlySpend.js';
 import dailySpendRouter from './routes/dailySpend.js';
 import commercialFunnelInsightsRouter from './routes/commercialFunnelInsights.js';
 import commercialFunnelAnalysisRouter from './routes/commercialFunnelAnalysis.js';
+import fieldConfigRouter from './routes/fieldConfig.js';
+import consolidationsRouter from './routes/consolidations.js';
+import analysisRouter from './routes/analysis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -84,8 +87,11 @@ app.use('/api/commercial-metrics', commercialMetricsRouter);
 app.use('/api/commercial-funnel-daily', commercialFunnelDailyRouter);
 app.use('/api/monthly-spend', monthlySpendRouter);
 app.use('/api/daily-spend', dailySpendRouter);
+app.use('/api/field-config', fieldConfigRouter);
 app.use('/api/commercial-funnel/insights', commercialFunnelInsightsRouter);
 app.use('/api/commercial-funnel/analysis', commercialFunnelAnalysisRouter);
+app.use('/api/consolidations', consolidationsRouter);
+app.use('/api/analysis', analysisRouter);
 app.use('/api/seed/alphatech', seedAlphatechRouter);
 
 app.get('/api/health', (_req, res) => {

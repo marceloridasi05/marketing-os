@@ -49,52 +49,98 @@ interface NavSection {
 }
 
 const navSections: NavSection[] = [
+  // ═════════════════════════════════════════════════════════════════════════════
+  // DASHBOARD — Executive summary (read-only, no data entry)
+  // ═════════════════════════════════════════════════════════════════════════════
   {
-    id: 'strategy',
-    label: 'Estratégia',
-    icon: Map,
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
     items: [
-      { to: '/marketing-system', label: 'Sistema de Marketing', icon: Map },
+      { to: '/', label: 'Executive View', icon: LayoutDashboard },
     ],
   },
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // DADOS OPERACIONAIS — 9 operational data modules (data entry points)
+  // ═════════════════════════════════════════════════════════════════════════════
   {
-    id: 'operational',
+    id: 'operational-data',
     label: 'Dados Operacionais',
     icon: Funnel,
     items: [
+      { to: '/site-data', label: 'Tráfego & Site', icon: Globe },
+      { to: '/daily-spend', label: 'Ads & Spend', icon: Wallet },
+      { to: '/acquisition-conversions', label: 'Aquisição & Conversões', icon: TrendingUp },
       { to: '/commercial-funnel', label: 'Funil Comercial', icon: Funnel },
-      { to: '/site-data', label: 'Desempenho do Site', icon: Globe },
-      { to: '/ads-budgets', label: 'Verbas Ads', icon: Wallet },
-      { to: '/budget', label: 'Orçamento', icon: DollarSign },
+      { to: '/budgets', label: 'Verbas & Orçamento', icon: DollarSign },
+      { to: '/linkedin-page', label: 'LinkedIn / Social', icon: Linkedin },
+      { to: '/search-console', label: 'Search Console', icon: Search },
+      { to: '/unit-economics', label: 'Unit Economics', icon: TrendingUp },
+      { to: '/business-metrics-monthly', label: 'Business Metrics', icon: BarChart3 },
     ],
   },
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // CONSOLIDAÇÕES — Auto-aggregated weekly/monthly views (read-only)
+  // ═════════════════════════════════════════════════════════════════════════════
   {
-    id: 'analysis',
-    label: 'Análise',
+    id: 'consolidations',
+    label: 'Consolidações',
     icon: BarChart3,
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/performance-semanal', label: 'Performance Semanal', icon: BarChart3 },
+      { to: '/performance-mensal', label: 'Performance Mensal', icon: BarChart3 },
+      { to: '/pacing-mensal', label: 'Pacing Mensal', icon: CalendarRange },
+    ],
+  },
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // ANÁLISES — Cross-check tables and insights
+  // ═════════════════════════════════════════════════════════════════════════════
+  {
+    id: 'analysis',
+    label: 'Análises',
+    icon: BarChart3,
+    items: [
+      { to: '/analyze', label: 'Cruzamentos', icon: BarChart3 },
       { to: '/insights', label: 'Insights & Alertas', icon: Zap },
-      { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
-      { to: '/linkedin-page', label: 'LinkedIn Page', icon: Linkedin },
-      { to: '/unit-economics', label: 'Unit Economics', icon: TrendingUp },
+      { to: '/charts', label: 'Gráficos', icon: BarChart3 },
       { to: '/growth-loops', label: 'Growth Loops', icon: Zap },
+      { to: '/performance', label: 'KPIs Ads', icon: BarChart3 },
       { to: '/commercial-funnel-analysis', label: 'Análise de Custo', icon: BarChart3 },
     ],
   },
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // OPERAÇÃO — Project tracking, experiments, and initiatives
+  // ═════════════════════════════════════════════════════════════════════════════
   {
-    id: 'execution',
-    label: 'Execução',
+    id: 'operation',
+    label: 'Operação',
     icon: Rocket,
     items: [
+      { to: '/projects', label: 'Projetos', icon: Briefcase },
       { to: '/plan', label: 'Plano de Marketing', icon: CalendarRange },
       { to: '/experiments', label: 'Experimentos', icon: FlaskConical },
       { to: '/ideas', label: 'Log de Ideias', icon: Lightbulb },
-      { to: '/search-console', label: 'Search Console', icon: Search },
-      { to: '/utm-builder', label: 'UTM Builder', icon: Zap },
-      { to: '/utm-library', label: 'UTM Library', icon: Layers },
-      { to: '/utm-attribution', label: 'UTM Attribution', icon: BarChart3 },
-      { to: '/suppliers', label: 'Fornecedores & Tools', icon: Briefcase },
+      { to: '/utm-tools', label: 'UTM Tools', icon: Zap },
+    ],
+  },
+
+  // ═════════════════════════════════════════════════════════════════════════════
+  // REPOSITÓRIO — Strategic documentation and learnings
+  // ═════════════════════════════════════════════════════════════════════════════
+  {
+    id: 'repository',
+    label: 'Repositório',
+    icon: Map,
+    items: [
+      { to: '/marketing-system', label: 'Estratégia', icon: Map },
+      { to: '/icp-positioning', label: 'ICP & Posicionamento', icon: Briefcase },
+      { to: '/messaging', label: 'Mensagens', icon: Lightbulb },
+      { to: '/learnings', label: 'Aprendizados', icon: Zap },
+      { to: '/decisions', label: 'Decisões', icon: AlertTriangle },
     ],
   },
 ];
@@ -104,8 +150,10 @@ const settingsSection: NavSection = {
   label: 'Configurações',
   icon: Settings,
   items: [
-    { to: '/data-mapping', label: 'Mapeamento de Dados', icon: Layers },
-    { to: '/settings', label: 'Configurações', icon: Settings },
+    { to: '/data-sources', label: 'Fontes de Dados', icon: Layers },
+    { to: '/field-configuration', label: 'Campos Ativos', icon: Settings },
+    { to: '/integrations', label: 'Integrações', icon: Zap },
+    { to: '/settings', label: 'Configurações Gerais', icon: Settings },
   ],
 };
 
@@ -492,7 +540,7 @@ export function Sidebar() {
   // Collapsed state per section, persisted in localStorage
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     const stored = loadCollapsed();
-    // Default: all sections open, except settings which is collapsed
+    // Default: Dashboard always open, Consolidações/Análises/Operação/Repositório start open, Settings collapsed
     const defaults: Record<string, boolean> = {};
     [...navSections, settingsSection].forEach(s => {
       // Settings section starts collapsed (true), others start open (false)
@@ -535,7 +583,7 @@ export function Sidebar() {
         <SiteSelector />
       </div>
 
-      {/* Main nav sections — organized by 4 layers: Strategy, Operational Data, Analysis, Execution */}
+      {/* Main nav sections — organized by 7 sections: Dashboard, Dados, Consolidações, Análises, Operação, Repositório */}
       <nav className="flex-1 py-1 px-3 space-y-1 overflow-y-auto">
         {navSections.map(section => (
           <NavSection

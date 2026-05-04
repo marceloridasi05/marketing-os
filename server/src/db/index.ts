@@ -1114,6 +1114,50 @@ try {
   `);
 } catch { /* already exists */ }
 
+// Field Configuration Tables (Phase 2 - Field Management Infrastructure)
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS field_configuration (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER NOT NULL REFERENCES sites(id),
+      module_id TEXT NOT NULL,
+      field_key TEXT NOT NULL,
+      field_status TEXT NOT NULL DEFAULT 'optional',
+      display_name TEXT NOT NULL,
+      field_type TEXT NOT NULL DEFAULT 'string',
+      field_order INTEGER NOT NULL DEFAULT 0,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(site_id, module_id, field_key)
+    );
+    CREATE INDEX IF NOT EXISTS field_configuration_site_module_idx ON field_configuration(site_id, module_id);
+    CREATE INDEX IF NOT EXISTS field_configuration_site_status_idx ON field_configuration(site_id, field_status);
+  `);
+} catch { /* already exists */ }
+
+// Data Field Status Table (Phase 2 - Data Completeness Tracking)
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS data_field_status (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER NOT NULL REFERENCES sites(id),
+      module_id TEXT NOT NULL,
+      field_key TEXT NOT NULL,
+      data_status TEXT NOT NULL DEFAULT 'missing',
+      source_of_truth TEXT,
+      last_updated TEXT,
+      confidence TEXT NOT NULL DEFAULT 'low',
+      has_passed_30_days INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(site_id, module_id, field_key)
+    );
+    CREATE INDEX IF NOT EXISTS data_field_status_site_module_idx ON data_field_status(site_id, module_id);
+    CREATE INDEX IF NOT EXISTS data_field_status_site_status_idx ON data_field_status(site_id, data_status);
+  `);
+} catch { /* already exists */ }
+
 // Indexes for UTM Preset Enforcement tables
 try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_source_enum_site_source_idx ON utm_source_enum(site_id, source)`); } catch { /* already exists */ }
 try { sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS utm_medium_enum_site_medium_idx ON utm_medium_enum(site_id, medium)`); } catch { /* already exists */ }

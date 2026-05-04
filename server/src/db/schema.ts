@@ -1221,3 +1221,38 @@ export const commercialFunnelInsights = sqliteTable('commercial_funnel_insights'
   createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
 });
+
+// ─── FIELD CONFIGURATION ───────────────────────────────────────────────────────
+// Flexible field management for DADOS modules
+// Allows marking fields as required, optional, or disabled (not applicable)
+// Example: Site A uses "Blog Sessions" field, Site B doesn't (marked as disabled)
+export const fieldConfiguration = sqliteTable('field_configuration', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  moduleId: text('module_id').notNull(), // e.g., 'site_data', 'daily_spend', 'commercial_funnel', etc.
+  fieldKey: text('field_key').notNull(), // Internal field name (snake_case)
+  fieldStatus: text('field_status').notNull().default('optional'), // 'required', 'optional', 'disabled'
+  displayName: text('display_name').notNull(), // User-facing label
+  fieldType: text('field_type').notNull().default('string'), // 'string', 'number', 'date', 'percentage', 'currency', etc.
+  order: integer('order').default(0).notNull(), // Display order in forms
+  description: text('description'), // Help text for the field
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});
+
+// ─── DATA STATUS TRACKING ──────────────────────────────────────────────────────
+// Track data completeness and source of truth for each field per site
+// Purpose: Dashboard can show "data readiness" % and identify missing critical fields
+export const dataFieldStatus = sqliteTable('data_field_status', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  siteId: integer('site_id').notNull().references(() => sites.id),
+  moduleId: text('module_id').notNull(), // e.g., 'site_data', 'daily_spend'
+  fieldKey: text('field_key').notNull(), // The field being tracked
+  dataStatus: text('data_status').notNull(), // 'automatic', 'manual', 'missing', 'incomplete', 'stale', 'not_mapped'
+  sourceOfTruth: text('source_of_truth'), // e.g., 'GA4', 'Google Sheets', 'CRM', 'manual'
+  lastUpdated: text('last_updated'), // ISO timestamp of last data entry
+  confidence: text('confidence').default('medium'), // 'high' (auto+recent), 'medium' (manual+recent), 'low' (missing/stale)
+  hasPassed30Days: integer('has_passed_30_days', { mode: 'boolean' }).default(false), // Stale flag
+  createdAt: text('created_at').default(sql`(datetime('now'))`).notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`).notNull(),
+});

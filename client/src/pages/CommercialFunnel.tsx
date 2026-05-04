@@ -9,6 +9,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, TrendingUp, TrendingDown, Edit2, Trash2, Download, Upload, Calendar } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { api } from '../lib/api';
+import { DataReadinessBadge } from '../components/DataReadinessBadge';
+import { useFieldConfiguration } from '../hooks/useFieldConfiguration';
 
 interface CommercialFunnelDailyRecord {
   id?: number;
@@ -40,6 +42,16 @@ type ViewPeriod = 'daily' | 'weekly' | 'monthly' | 'custom';
 
 export default function CommercialFunnel() {
   const { selectedSite } = useSite();
+  const siteId = selectedSite?.id || 0;
+  const {
+    fields,
+    completeness,
+    loading: configLoading,
+    filterField,
+    isFieldRequired,
+    getGuidanceMessage,
+  } = useFieldConfiguration(siteId, 'commercial-funnel');
+
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('daily');
   const [data, setData] = useState<CommercialFunnelDailyRecord[]>([]);
   const [aggregatedData, setAggregatedData] = useState<AggregatedRecord[]>([]);
@@ -233,6 +245,26 @@ export default function CommercialFunnel() {
           <p className="text-gray-400">Rastreamento diário de Leads → MQLs → SQLs → Oportunidades → Receita</p>
         </div>
 
+        {/* Data Readiness Badge */}
+        {!configLoading && (
+          <div className="mb-6">
+            <DataReadinessBadge
+              completeness={completeness.completeness}
+              totalRequired={completeness.totalRequired}
+              filledRequired={completeness.filledRequired}
+              showDetails={true}
+              size="md"
+            />
+          </div>
+        )}
+
+        {/* Guidance Message */}
+        {getGuidanceMessage() && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6 text-sm text-yellow-800">
+            {getGuidanceMessage()}
+          </div>
+        )}
+
         {/* Period Selector + Action Buttons */}
         <div className="flex flex-col gap-4 mb-6">
           {/* Period Tabs */}
@@ -308,8 +340,11 @@ export default function CommercialFunnel() {
             <h2 className="text-lg font-semibold text-white mb-4">Adicionar Registro Diário</h2>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+              {/* Data (always shown) */}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Data *</label>
+                <label className="block text-sm text-gray-400 mb-1">
+                  Data {isFieldRequired('date') && <span className="text-red-400">*</span>}
+                </label>
                 <input
                   type="date"
                   value={formData.date || ''}
@@ -317,109 +352,152 @@ export default function CommercialFunnel() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Leads</label>
-                <input
-                  type="number"
-                  value={formData.leads ?? ''}
-                  onChange={e =>
-                    setFormData({ ...formData, leads: e.target.value ? Number(e.target.value) : null })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">MQLs</label>
-                <input
-                  type="number"
-                  value={formData.mql ?? ''}
-                  onChange={e =>
-                    setFormData({ ...formData, mql: e.target.value ? Number(e.target.value) : null })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">SQLs</label>
-                <input
-                  type="number"
-                  value={formData.sql ?? ''}
-                  onChange={e =>
-                    setFormData({ ...formData, sql: e.target.value ? Number(e.target.value) : null })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Reuniões</label>
-                <input
-                  type="number"
-                  value={formData.meetings ?? ''}
-                  onChange={e =>
-                    setFormData({ ...formData, meetings: e.target.value ? Number(e.target.value) : null })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
+
+              {/* Leads - conditional */}
+              {filterField('leads') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Leads {isFieldRequired('leads') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.leads ?? ''}
+                    onChange={e =>
+                      setFormData({ ...formData, leads: e.target.value ? Number(e.target.value) : null })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* MQLs - conditional */}
+              {filterField('mql') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    MQLs {isFieldRequired('mql') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.mql ?? ''}
+                    onChange={e =>
+                      setFormData({ ...formData, mql: e.target.value ? Number(e.target.value) : null })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* SQLs - conditional */}
+              {filterField('sql') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    SQLs {isFieldRequired('sql') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.sql ?? ''}
+                    onChange={e =>
+                      setFormData({ ...formData, sql: e.target.value ? Number(e.target.value) : null })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Meetings - conditional */}
+              {filterField('meetings') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Reuniões {isFieldRequired('meetings') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.meetings ?? ''}
+                    onChange={e =>
+                      setFormData({ ...formData, meetings: e.target.value ? Number(e.target.value) : null })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Oportunidades</label>
-                <input
-                  type="number"
-                  value={formData.opportunities ?? ''}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      opportunities: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Pipeline Criado (R$)</label>
-                <input
-                  type="number"
-                  value={formData.pipelineCreated ?? ''}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      pipelineCreated: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Receita Fechada (R$)</label>
-                <input
-                  type="number"
-                  value={formData.revenueClosed ?? ''}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      revenueClosed: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-                />
-              </div>
+              {/* Opportunities - conditional */}
+              {filterField('opportunities') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Oportunidades {isFieldRequired('opportunities') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.opportunities ?? ''}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        opportunities: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Pipeline - conditional */}
+              {filterField('pipelineCreated') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Pipeline Criado (R$) {isFieldRequired('pipelineCreated') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.pipelineCreated ?? ''}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        pipelineCreated: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Revenue - conditional */}
+              {filterField('revenueClosed') && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Receita Fechada (R$) {isFieldRequired('revenueClosed') && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.revenueClosed ?? ''}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        revenueClosed: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Notes - always shown */}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Observações</label>
                 <input
@@ -476,16 +554,48 @@ export default function CommercialFunnel() {
                   <th className="px-4 py-3 text-left text-gray-400 font-medium">
                     {viewPeriod === 'daily' ? 'Data' : 'Período'}
                   </th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">Leads</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">MQLs</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">% L→M</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">SQLs</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">% M→S</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">Reuniões</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">% S→R</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">Oportunidades</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">Pipeline</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium">Receita</th>
+                  {filterField('leads') && (
+                    <th className="px-4 py-3 text-right text-gray-400 font-medium">
+                      Leads {isFieldRequired('leads') && <span className="text-red-400">*</span>}
+                    </th>
+                  )}
+                  {filterField('mql') && (
+                    <>
+                      <th className="px-4 py-3 text-right text-gray-400 font-medium">
+                        MQLs {isFieldRequired('mql') && <span className="text-red-400">*</span>}
+                      </th>
+                      <th className="px-4 py-3 text-right text-gray-400 font-medium">% L→M</th>
+                    </>
+                  )}
+                  {filterField('sql') && (
+                    <>
+                      <th className="px-4 py-3 text-right text-gray-400 font-medium">
+                        SQLs {isFieldRequired('sql') && <span className="text-red-400">*</span>}
+                      </th>
+                      {filterField('mql') && (
+                        <th className="px-4 py-3 text-right text-gray-400 font-medium">% M→S</th>
+                      )}
+                    </>
+                  )}
+                  {filterField('meetings') && (
+                    <>
+                      <th className="px-4 py-3 text-right text-gray-400 font-medium">
+                        Reuniões {isFieldRequired('meetings') && <span className="text-red-400">*</span>}
+                      </th>
+                      <th className="px-4 py-3 text-right text-gray-400 font-medium">% S→R</th>
+                    </>
+                  )}
+                  {filterField('opportunities') && (
+                    <th className="px-4 py-3 text-right text-gray-400 font-medium">
+                      Oportunidades {isFieldRequired('opportunities') && <span className="text-red-400">*</span>}
+                    </th>
+                  )}
+                  {filterField('pipelineCreated') && (
+                    <th className="px-4 py-3 text-right text-gray-400 font-medium">Pipeline</th>
+                  )}
+                  {filterField('revenueClosed') && (
+                    <th className="px-4 py-3 text-right text-gray-400 font-medium">Receita</th>
+                  )}
                   {viewPeriod === 'daily' && <th className="px-4 py-3 text-right text-gray-400 font-medium">Ações</th>}
                 </tr>
               </thead>
@@ -495,22 +605,44 @@ export default function CommercialFunnel() {
                     <td className="px-4 py-3 text-gray-300 font-medium">
                       {viewPeriod === 'daily' ? formatDate(row.date) : row.period}
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-300">{row.leads ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-300">{row.mql ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-400">
-                      {formatPercent((row as AggregatedRecord).leadToMqlRate)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-300">{row.sql ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-400">
-                      {formatPercent((row as AggregatedRecord).mqlToSqlRate)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-300">{row.meetings ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-400">
-                      {formatPercent((row as AggregatedRecord).sqlToMeetingRate)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-300">{row.opportunities ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-300">{formatCurrency(row.pipelineCreated)}</td>
-                    <td className="px-4 py-3 text-right text-gray-300">{formatCurrency(row.revenueClosed)}</td>
+                    {filterField('leads') && (
+                      <td className="px-4 py-3 text-right text-gray-300">{row.leads ?? '—'}</td>
+                    )}
+                    {filterField('mql') && (
+                      <>
+                        <td className="px-4 py-3 text-right text-gray-300">{row.mql ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">
+                          {formatPercent((row as AggregatedRecord).leadToMqlRate)}
+                        </td>
+                      </>
+                    )}
+                    {filterField('sql') && (
+                      <>
+                        <td className="px-4 py-3 text-right text-gray-300">{row.sql ?? '—'}</td>
+                        {filterField('mql') && (
+                          <td className="px-4 py-3 text-right text-gray-400">
+                            {formatPercent((row as AggregatedRecord).mqlToSqlRate)}
+                          </td>
+                        )}
+                      </>
+                    )}
+                    {filterField('meetings') && (
+                      <>
+                        <td className="px-4 py-3 text-right text-gray-300">{row.meetings ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">
+                          {formatPercent((row as AggregatedRecord).sqlToMeetingRate)}
+                        </td>
+                      </>
+                    )}
+                    {filterField('opportunities') && (
+                      <td className="px-4 py-3 text-right text-gray-300">{row.opportunities ?? '—'}</td>
+                    )}
+                    {filterField('pipelineCreated') && (
+                      <td className="px-4 py-3 text-right text-gray-300">{formatCurrency(row.pipelineCreated)}</td>
+                    )}
+                    {filterField('revenueClosed') && (
+                      <td className="px-4 py-3 text-right text-gray-300">{formatCurrency(row.revenueClosed)}</td>
+                    )}
                     {viewPeriod === 'daily' && (
                       <td className="px-4 py-3 text-right flex gap-2 justify-end">
                         <button

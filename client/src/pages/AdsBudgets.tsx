@@ -6,6 +6,9 @@ import { AnnotatedChart } from '../components/AnnotatedChart';
 import { MonthlyBudgetAllocationEditor } from '../components/MonthlyBudgetAllocationEditor';
 import { BudgetControlCard, BudgetControlTotalCard } from '../components/BudgetControlCard';
 import { api } from '../lib/api';
+import { DataReadinessBadge } from '../components/DataReadinessBadge';
+import { useFieldConfiguration } from '../hooks/useFieldConfiguration';
+import { useSite } from '../context/SiteContext';
 import {
   calculateBudgetControlSummary,
   getMostRecentMonthWithData,
@@ -69,6 +72,17 @@ function condStyle(val: number | null, min: number, max: number): React.CSSPrope
 
 // --- Main ---
 export function AdsBudgets() {
+  const { selectedSite } = useSite();
+  const effectiveSiteId = selectedSite?.id || 0;
+
+  const {
+    completeness,
+    loading: configLoading,
+    filterField,
+    isFieldRequired,
+    getGuidanceMessage,
+  } = useFieldConfiguration(effectiveSiteId, 'ads-budgets');
+
   const [data, setData] = useState<AdsBudgetRow[]>([]);
   const [allocations, setAllocations] = useState<MonthlyAllocationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +92,17 @@ export function AdsBudgets() {
   const { dateRange, filterProps } = useTimeFilter('all');
   const [siteId, setSiteId] = useState<number | null>(null);
 
-  // Get siteId from localStorage on mount
+  // Get siteId from localStorage on mount (backward compat) or from context
   useEffect(() => {
-    const siteIdStr = localStorage.getItem('mkt_selected_site_id');
-    if (siteIdStr) {
-      setSiteId(Number(siteIdStr));
+    if (effectiveSiteId) {
+      setSiteId(effectiveSiteId);
+    } else {
+      const siteIdStr = localStorage.getItem('mkt_selected_site_id');
+      if (siteIdStr) {
+        setSiteId(Number(siteIdStr));
+      }
     }
-  }, []);
+  }, [effectiveSiteId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -264,6 +282,26 @@ export function AdsBudgets() {
         }
       />
 
+      {/* Data Readiness Badge */}
+      {!configLoading && (
+        <div className="mb-6 p-3 bg-white rounded-lg border border-gray-200">
+          <DataReadinessBadge
+            completeness={completeness.completeness}
+            totalRequired={completeness.totalRequired}
+            filledRequired={completeness.filledRequired}
+            showDetails={true}
+            size="md"
+          />
+        </div>
+      )}
+
+      {/* Guidance Message */}
+      {getGuidanceMessage() && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6 text-sm text-yellow-800">
+          {getGuidanceMessage()}
+        </div>
+      )}
+
       {/* Period Filter */}
       <div className="flex items-center gap-2 mb-6 p-3 bg-white rounded-lg border border-gray-200">
         <TimeFilter {...filterProps} />
@@ -275,57 +313,87 @@ export function AdsBudgets() {
         <>
           {/* KPI Tiles — First line: Google, Meta, LinkedIn (daily + monthly) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
-            {/* Google */}
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Diária Google</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyGoogle ?? null)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Mensal Google</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyGoogle ?? null)}</p>
-            </Card>
+            {/* Google - conditional */}
+            {filterField('dailyGoogle') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Diária Google {isFieldRequired('dailyGoogle') && <span className="text-red-400">*</span>}
+                </p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyGoogle ?? null)}</p>
+              </Card>
+            )}
+            {filterField('monthlyGoogle') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Mensal Google {isFieldRequired('monthlyGoogle') && <span className="text-red-400">*</span>}
+                </p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyGoogle ?? null)}</p>
+              </Card>
+            )}
 
-            {/* Meta */}
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Diária Meta</p>
-              <p className={`text-lg font-semibold mt-1 ${currentLimit?.dailyMeta ? 'text-gray-900' : 'text-gray-300'}`}>
-                {fmtMoney(currentLimit?.dailyMeta ?? 0)}
-              </p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Mensal Meta</p>
-              <p className={`text-lg font-semibold mt-1 ${currentLimit?.monthlyMeta ? 'text-gray-900' : 'text-gray-300'}`}>
-                {fmtMoney(currentLimit?.monthlyMeta ?? 0)}
-              </p>
-            </Card>
+            {/* Meta - conditional */}
+            {filterField('dailyMeta') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Diária Meta {isFieldRequired('dailyMeta') && <span className="text-red-400">*</span>}
+                </p>
+                <p className={`text-lg font-semibold mt-1 ${currentLimit?.dailyMeta ? 'text-gray-900' : 'text-gray-300'}`}>
+                  {fmtMoney(currentLimit?.dailyMeta ?? 0)}
+                </p>
+              </Card>
+            )}
+            {filterField('monthlyMeta') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Mensal Meta {isFieldRequired('monthlyMeta') && <span className="text-red-400">*</span>}
+                </p>
+                <p className={`text-lg font-semibold mt-1 ${currentLimit?.monthlyMeta ? 'text-gray-900' : 'text-gray-300'}`}>
+                  {fmtMoney(currentLimit?.monthlyMeta ?? 0)}
+                </p>
+              </Card>
+            )}
 
-            {/* LinkedIn */}
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Diária LinkedIn</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyLinkedin ?? null)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Mensal LinkedIn</p>
-              <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyLinkedin ?? null)}</p>
-            </Card>
+            {/* LinkedIn - conditional */}
+            {filterField('dailyLinkedin') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Diária LinkedIn {isFieldRequired('dailyLinkedin') && <span className="text-red-400">*</span>}
+                </p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.dailyLinkedin ?? null)}</p>
+              </Card>
+            )}
+            {filterField('monthlyLinkedin') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">
+                  Mensal LinkedIn {isFieldRequired('monthlyLinkedin') && <span className="text-red-400">*</span>}
+                </p>
+                <p className="text-lg font-semibold text-gray-900 mt-1">{fmtMoney(currentLimit?.monthlyLinkedin ?? null)}</p>
+              </Card>
+            )}
           </div>
 
           {/* Second line: Aggregated totals */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Google</p>
-              <p className="text-lg font-semibold text-green-600 mt-1">{fmtMoney(totalGoogle)}</p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Meta</p>
-              <p className={`text-lg font-semibold mt-1 ${totalMeta > 0 ? 'text-blue-400' : 'text-gray-300'}`}>
-                {fmtMoney(totalMeta)}
-              </p>
-            </Card>
-            <Card className="min-w-0">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total LinkedIn</p>
-              <p className="text-lg font-semibold text-blue-600 mt-1">{fmtMoney(totalLinkedin)}</p>
-            </Card>
+            {filterField('monthlyGoogle') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">Total Google</p>
+                <p className="text-lg font-semibold text-green-600 mt-1">{fmtMoney(totalGoogle)}</p>
+              </Card>
+            )}
+            {filterField('monthlyMeta') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">Total Meta</p>
+                <p className={`text-lg font-semibold mt-1 ${totalMeta > 0 ? 'text-blue-400' : 'text-gray-300'}`}>
+                  {fmtMoney(totalMeta)}
+                </p>
+              </Card>
+            )}
+            {filterField('monthlyLinkedin') && (
+              <Card className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 uppercase">Total LinkedIn</p>
+                <p className="text-lg font-semibold text-blue-600 mt-1">{fmtMoney(totalLinkedin)}</p>
+              </Card>
+            )}
           </div>
 
           {/* Charts */}

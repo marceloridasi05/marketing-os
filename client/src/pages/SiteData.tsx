@@ -9,6 +9,9 @@ import { TimeFilter, useTimeFilter } from '../components/TimeFilter';
 import { DataStatusCard } from '../components/DataStatusCard';
 import { MetricsChecklist } from '../components/MetricsChecklist';
 import { ManualInputTable } from '../components/ManualInputTable';
+import { DataReadinessBadge } from '../components/DataReadinessBadge';
+import { useFieldConfiguration } from '../hooks/useFieldConfiguration';
+import { useSite } from '../context/SiteContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -128,6 +131,18 @@ interface SiteMonthlyRow {
 }
 
 export function SiteData() {
+  const { selectedSite } = useSite();
+  const siteId = selectedSite?.id || 0;
+
+  const {
+    fields,
+    completeness,
+    loading: configLoading,
+    filterField,
+    isFieldRequired,
+    getGuidanceMessage,
+  } = useFieldConfiguration(siteId, 'site-data');
+
   const [rawData, setRawData] = useState<SiteRow[]>([]);
   const [monthlyRaw, setMonthlyRaw] = useState<SiteMonthlyRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -410,6 +425,24 @@ export function SiteData() {
             </button>
           </div>
 
+          {/* Data Readiness Badge & Guidance */}
+          <div className="mb-6 space-y-3">
+            {completeness.totalRequired > 0 && (
+              <DataReadinessBadge
+                completeness={completeness.completeness}
+                totalRequired={completeness.totalRequired}
+                filledRequired={completeness.filledRequired}
+                showDetails={true}
+                size="md"
+              />
+            )}
+            {getGuidanceMessage() && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">{getGuidanceMessage()}</p>
+              </div>
+            )}
+          </div>
+
           {/* Charts Row 1 - All traffic + Leads */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <AnnotatedChart title="Sessões por Semana — Todas as fontes de tráfego" data={chartData} xKey="week"
@@ -444,17 +477,63 @@ export function SiteData() {
                   <tr className="border-b border-gray-200">
                     <mainSort.SortHeader k="week" label="Semana" />
                     <mainSort.SortHeader k="weekStart" label="Início" />
-                    <mainSort.SortHeader k="sessions" label="Sessões" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <mainSort.SortHeader k="totalUsers" label="Usuários" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <mainSort.SortHeader k="newUsers" label="Novos Usr." align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <mainSort.SortHeader k="newUsersPct" label="% Novos" align="right" />
-                    <mainSort.SortHeader k="leadsGenerated" label="Leads" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <mainSort.SortHeader k="weeklyGains" label="Ganhos" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                    {filterField('sessions') && (
+                      <>
+                        <mainSort.SortHeader
+                          k="sessions"
+                          label={`Sessões${isFieldRequired('sessions') ? ' *' : ''}`}
+                          align="right"
+                        />
+                        <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      </>
+                    )}
+                    {filterField('totalUsers') && (
+                      <>
+                        <mainSort.SortHeader
+                          k="totalUsers"
+                          label={`Usuários${isFieldRequired('totalUsers') ? ' *' : ''}`}
+                          align="right"
+                        />
+                        <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      </>
+                    )}
+                    {filterField('newUsers') && (
+                      <>
+                        <mainSort.SortHeader
+                          k="newUsers"
+                          label={`Novos Usr.${isFieldRequired('newUsers') ? ' *' : ''}`}
+                          align="right"
+                        />
+                        <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      </>
+                    )}
+                    {filterField('newUsersPct') && (
+                      <mainSort.SortHeader
+                        k="newUsersPct"
+                        label={`% Novos${isFieldRequired('newUsersPct') ? ' *' : ''}`}
+                        align="right"
+                      />
+                    )}
+                    {filterField('leadsGenerated') && (
+                      <>
+                        <mainSort.SortHeader
+                          k="leadsGenerated"
+                          label={`Leads${isFieldRequired('leadsGenerated') ? ' *' : ''}`}
+                          align="right"
+                        />
+                        <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      </>
+                    )}
+                    {filterField('weeklyGains') && (
+                      <>
+                        <mainSort.SortHeader
+                          k="weeklyGains"
+                          label={`Ganhos${isFieldRequired('weeklyGains') ? ' *' : ''}`}
+                          align="right"
+                        />
+                        <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -464,17 +543,39 @@ export function SiteData() {
                     <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
                       <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <HeatTd value={r.sessions} min={rSessions.min} max={rSessions.max} />
-                      <PctCell current={r.sessions} previous={prev?.sessions ?? null} />
-                      <HeatTd value={r.totalUsers} min={rTotalUsers.min} max={rTotalUsers.max} />
-                      <PctCell current={r.totalUsers} previous={prev?.totalUsers ?? null} />
-                      <HeatTd value={r.newUsers} min={rNewUsers.min} max={rNewUsers.max} />
-                      <PctCell current={r.newUsers} previous={prev?.newUsers ?? null} />
-                      <HeatPctTd value={r.newUsersPct} min={pctNovosRange.min} max={pctNovosRange.max} />
-                      <td className="py-2 px-2 text-center text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
-                      <PctCell current={r.leadsGenerated} previous={prev?.leadsGenerated ?? null} />
-                      <td className="py-2 px-2 text-center text-gray-600">{fmtNum(r.weeklyGains)}</td>
-                      <PctCell current={r.weeklyGains} previous={prev?.weeklyGains ?? null} />
+                      {filterField('sessions') && (
+                        <>
+                          <HeatTd value={r.sessions} min={rSessions.min} max={rSessions.max} />
+                          <PctCell current={r.sessions} previous={prev?.sessions ?? null} />
+                        </>
+                      )}
+                      {filterField('totalUsers') && (
+                        <>
+                          <HeatTd value={r.totalUsers} min={rTotalUsers.min} max={rTotalUsers.max} />
+                          <PctCell current={r.totalUsers} previous={prev?.totalUsers ?? null} />
+                        </>
+                      )}
+                      {filterField('newUsers') && (
+                        <>
+                          <HeatTd value={r.newUsers} min={rNewUsers.min} max={rNewUsers.max} />
+                          <PctCell current={r.newUsers} previous={prev?.newUsers ?? null} />
+                        </>
+                      )}
+                      {filterField('newUsersPct') && (
+                        <HeatPctTd value={r.newUsersPct} min={pctNovosRange.min} max={pctNovosRange.max} />
+                      )}
+                      {filterField('leadsGenerated') && (
+                        <>
+                          <td className="py-2 px-2 text-center text-green-600 font-medium">{fmtNum(r.leadsGenerated)}</td>
+                          <PctCell current={r.leadsGenerated} previous={prev?.leadsGenerated ?? null} />
+                        </>
+                      )}
+                      {filterField('weeklyGains') && (
+                        <>
+                          <td className="py-2 px-2 text-center text-gray-600">{fmtNum(r.weeklyGains)}</td>
+                          <PctCell current={r.weeklyGains} previous={prev?.weeklyGains ?? null} />
+                        </>
+                      )}
                     </tr>
                     );
                   })}
@@ -484,43 +585,89 @@ export function SiteData() {
           </CollapsibleCard>
 
           {/* Blog table */}
-          <CollapsibleCard title="Blog" className="mb-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <blogSort.SortHeader k="week" label="Semana" />
-                    <blogSort.SortHeader k="weekStart" label="Início" />
-                    <blogSort.SortHeader k="blogSessions" label="Sessões" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <blogSort.SortHeader k="blogTotalUsers" label="Usuários" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <blogSort.SortHeader k="blogNewUsers" label="Novos Usr." align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <blogSort.SortHeader k="blogNewUsersPct" label="% Novos" align="right" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {blogSort.sorted.map((r, idx) => {
-                    const prev = idx > 0 ? blogSort.sorted[idx - 1] : null;
-                    return (
-                    <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
-                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <HeatTd value={r.blogSessions} min={rBlogSessions.min} max={rBlogSessions.max} />
-                      <PctCell current={r.blogSessions} previous={prev?.blogSessions ?? null} />
-                      <HeatTd value={r.blogTotalUsers} min={rBlogUsers.min} max={rBlogUsers.max} />
-                      <PctCell current={r.blogTotalUsers} previous={prev?.blogTotalUsers ?? null} />
-                      <HeatTd value={r.blogNewUsers} min={rBlogNewUsers.min} max={rBlogNewUsers.max} />
-                      <PctCell current={r.blogNewUsers} previous={prev?.blogNewUsers ?? null} />
-                      <HeatPctTd value={r.blogNewUsersPct} min={blogPctNovosRange.min} max={blogPctNovosRange.max} />
+          {(filterField('blogSessions') || filterField('blogTotalUsers') || filterField('blogNewUsers') || filterField('blogNewUsersPct')) && (
+            <CollapsibleCard title="Blog" className="mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <blogSort.SortHeader k="week" label="Semana" />
+                      <blogSort.SortHeader k="weekStart" label="Início" />
+                      {filterField('blogSessions') && (
+                        <>
+                          <blogSort.SortHeader
+                            k="blogSessions"
+                            label={`Sessões${isFieldRequired('blogSessions') ? ' *' : ''}`}
+                            align="right"
+                          />
+                          <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('blogTotalUsers') && (
+                        <>
+                          <blogSort.SortHeader
+                            k="blogTotalUsers"
+                            label={`Usuários${isFieldRequired('blogTotalUsers') ? ' *' : ''}`}
+                            align="right"
+                          />
+                          <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('blogNewUsers') && (
+                        <>
+                          <blogSort.SortHeader
+                            k="blogNewUsers"
+                            label={`Novos Usr.${isFieldRequired('blogNewUsers') ? ' *' : ''}`}
+                            align="right"
+                          />
+                          <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('blogNewUsersPct') && (
+                        <blogSort.SortHeader
+                          k="blogNewUsersPct"
+                          label={`% Novos${isFieldRequired('blogNewUsersPct') ? ' *' : ''}`}
+                          align="right"
+                        />
+                      )}
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleCard>
+                  </thead>
+                  <tbody>
+                    {blogSort.sorted.map((r, idx) => {
+                      const prev = idx > 0 ? blogSort.sorted[idx - 1] : null;
+                      return (
+                      <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                        <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
+                        {filterField('blogSessions') && (
+                          <>
+                            <HeatTd value={r.blogSessions} min={rBlogSessions.min} max={rBlogSessions.max} />
+                            <PctCell current={r.blogSessions} previous={prev?.blogSessions ?? null} />
+                          </>
+                        )}
+                        {filterField('blogTotalUsers') && (
+                          <>
+                            <HeatTd value={r.blogTotalUsers} min={rBlogUsers.min} max={rBlogUsers.max} />
+                            <PctCell current={r.blogTotalUsers} previous={prev?.blogTotalUsers ?? null} />
+                          </>
+                        )}
+                        {filterField('blogNewUsers') && (
+                          <>
+                            <HeatTd value={r.blogNewUsers} min={rBlogNewUsers.min} max={rBlogNewUsers.max} />
+                            <PctCell current={r.blogNewUsers} previous={prev?.blogNewUsers ?? null} />
+                          </>
+                        )}
+                        {filterField('blogNewUsersPct') && (
+                          <HeatPctTd value={r.blogNewUsersPct} min={blogPctNovosRange.min} max={blogPctNovosRange.max} />
+                        )}
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleCard>
+          )}
 
           {/* Monthly Chart */}
           {monthlyData.length > 1 && (
@@ -556,18 +703,42 @@ export function SiteData() {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-2 px-2 font-medium text-gray-500">Mês</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Site</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Usuários Site</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Novos Usr.</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Leads</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Blog</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                      <th className="text-center py-2 px-2 font-medium text-gray-500">Usr. Blog</th>
-                      <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                      {filterField('sessions') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Site</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('totalUsers') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Usuários Site</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('newUsers') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Novos Usr.</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('leadsGenerated') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Leads</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('blogSessions') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Sessões Blog</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('blogTotalUsers') && (
+                        <>
+                          <th className="text-center py-2 px-2 font-medium text-gray-500">Usr. Blog</th>
+                          <th className="text-center py-2 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -586,18 +757,42 @@ export function SiteData() {
                         return (
                           <tr key={m.key} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-2.5 px-2 font-medium text-gray-700 whitespace-nowrap">{label}</td>
-                            <HeatTd value={m.sessions} min={mR.sessions.min} max={mR.sessions.max} className="text-center" />
-                            <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
-                            <HeatTd value={m.totalUsers} min={mR.totalUsers.min} max={mR.totalUsers.max} className="text-center" />
-                            <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
-                            <HeatTd value={m.newUsers} min={mR.newUsers.min} max={mR.newUsers.max} className="text-center" />
-                            <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
-                            <HeatTd value={m.leads} min={mR.leads.min} max={mR.leads.max} className="text-center font-medium" />
-                            <PctCell current={m.leads} previous={prev?.leads ?? null} />
-                            <HeatTd value={m.blogSessions} min={mR.blogSessions.min} max={mR.blogSessions.max} className="text-center" />
-                            <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
-                            <HeatTd value={m.blogUsers} min={mR.blogUsers.min} max={mR.blogUsers.max} className="text-center" />
-                            <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
+                            {filterField('sessions') && (
+                              <>
+                                <HeatTd value={m.sessions} min={mR.sessions.min} max={mR.sessions.max} className="text-center" />
+                                <PctCell current={m.sessions} previous={prev?.sessions ?? null} />
+                              </>
+                            )}
+                            {filterField('totalUsers') && (
+                              <>
+                                <HeatTd value={m.totalUsers} min={mR.totalUsers.min} max={mR.totalUsers.max} className="text-center" />
+                                <PctCell current={m.totalUsers} previous={prev?.totalUsers ?? null} />
+                              </>
+                            )}
+                            {filterField('newUsers') && (
+                              <>
+                                <HeatTd value={m.newUsers} min={mR.newUsers.min} max={mR.newUsers.max} className="text-center" />
+                                <PctCell current={m.newUsers} previous={prev?.newUsers ?? null} />
+                              </>
+                            )}
+                            {filterField('leadsGenerated') && (
+                              <>
+                                <HeatTd value={m.leads} min={mR.leads.min} max={mR.leads.max} className="text-center font-medium" />
+                                <PctCell current={m.leads} previous={prev?.leads ?? null} />
+                              </>
+                            )}
+                            {filterField('blogSessions') && (
+                              <>
+                                <HeatTd value={m.blogSessions} min={mR.blogSessions.min} max={mR.blogSessions.max} className="text-center" />
+                                <PctCell current={m.blogSessions} previous={prev?.blogSessions ?? null} />
+                              </>
+                            )}
+                            {filterField('blogTotalUsers') && (
+                              <>
+                                <HeatTd value={m.blogUsers} min={mR.blogUsers.min} max={mR.blogUsers.max} className="text-center" />
+                                <PctCell current={m.blogUsers} previous={prev?.blogUsers ?? null} />
+                              </>
+                            )}
                           </tr>
                         );
                       });
@@ -612,12 +807,24 @@ export function SiteData() {
                       return (
                         <tr className="bg-gray-50 font-medium">
                           <td className="py-2.5 px-2 text-gray-700">Total</td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.sessions)}</td><td></td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.totalUsers)}</td><td></td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.newUsers)}</td><td></td>
-                          <td className="py-2.5 px-2 text-center text-green-600">{fmtNum(t.leads)}</td><td></td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogSessions)}</td><td></td>
-                          <td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogUsers)}</td><td></td>
+                          {filterField('sessions') && (
+                            <><td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.sessions)}</td><td></td></>
+                          )}
+                          {filterField('totalUsers') && (
+                            <><td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.totalUsers)}</td><td></td></>
+                          )}
+                          {filterField('newUsers') && (
+                            <><td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.newUsers)}</td><td></td></>
+                          )}
+                          {filterField('leadsGenerated') && (
+                            <><td className="py-2.5 px-2 text-center text-green-600">{fmtNum(t.leads)}</td><td></td></>
+                          )}
+                          {filterField('blogSessions') && (
+                            <><td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogSessions)}</td><td></td></>
+                          )}
+                          {filterField('blogTotalUsers') && (
+                            <><td className="py-2.5 px-2 text-center text-gray-900">{fmtNum(t.blogUsers)}</td><td></td></>
+                          )}
                         </tr>
                       );
                     })()}
@@ -628,37 +835,63 @@ export function SiteData() {
           )}
 
           {/* Origem IA - collapsible, closed by default, last */}
-          <CollapsibleCard title="Origem IA" subtitle={`${data.filter(r => (r.aiSessions ?? 0) > 0).length} semanas com dados`} defaultOpen={false} className="mt-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <aiSort.SortHeader k="week" label="Semana" />
-                    <aiSort.SortHeader k="weekStart" label="Início" />
-                    <aiSort.SortHeader k="aiSessions" label="Sessões" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                    <aiSort.SortHeader k="aiTotalUsers" label="Usuários" align="right" />
-                    <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {aiSort.sorted.map((r, idx) => {
-                    const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
-                    return (
-                    <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
-                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
-                      <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
-                      <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
-                      <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
-                      <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
+          {(filterField('aiSessions') || filterField('aiTotalUsers')) && (
+            <CollapsibleCard title="Origem IA" subtitle={`${data.filter(r => (r.aiSessions ?? 0) > 0).length} semanas com dados`} defaultOpen={false} className="mt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <aiSort.SortHeader k="week" label="Semana" />
+                      <aiSort.SortHeader k="weekStart" label="Início" />
+                      {filterField('aiSessions') && (
+                        <>
+                          <aiSort.SortHeader
+                            k="aiSessions"
+                            label={`Sessões${isFieldRequired('aiSessions') ? ' *' : ''}`}
+                            align="right"
+                          />
+                          <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
+                      {filterField('aiTotalUsers') && (
+                        <>
+                          <aiSort.SortHeader
+                            k="aiTotalUsers"
+                            label={`Usuários${isFieldRequired('aiTotalUsers') ? ' *' : ''}`}
+                            align="right"
+                          />
+                          <th className="text-center py-2.5 px-1 font-medium text-gray-400 text-[11px]">Δ%</th>
+                        </>
+                      )}
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleCard>
+                  </thead>
+                  <tbody>
+                    {aiSort.sorted.map((r, idx) => {
+                      const prev = idx > 0 ? aiSort.sorted[idx - 1] : null;
+                      return (
+                      <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-2 px-2 font-medium text-gray-700 whitespace-nowrap">{r.week}</td>
+                        <td className="py-2 px-2 text-gray-600 whitespace-nowrap">{fmtDate(r.weekStart)}</td>
+                        {filterField('aiSessions') && (
+                          <>
+                            <HeatTd value={r.aiSessions} min={rAiSessions.min} max={rAiSessions.max} />
+                            <PctCell current={r.aiSessions} previous={prev?.aiSessions ?? null} />
+                          </>
+                        )}
+                        {filterField('aiTotalUsers') && (
+                          <>
+                            <HeatTd value={r.aiTotalUsers} min={rAiUsers.min} max={rAiUsers.max} />
+                            <PctCell current={r.aiTotalUsers} previous={prev?.aiTotalUsers ?? null} />
+                          </>
+                        )}
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleCard>
+          )}
         </>
       )}
     </div>
