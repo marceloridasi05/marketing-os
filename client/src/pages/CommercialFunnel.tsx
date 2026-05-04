@@ -564,7 +564,9 @@ export default function CommercialFunnel() {
                       <th className="px-4 py-3 text-right text-gray-400 font-medium">
                         MQLs {isFieldRequired('mql') && <span className="text-red-400">*</span>}
                       </th>
-                      <th className="px-4 py-3 text-right text-gray-400 font-medium">% L→M</th>
+                      {viewPeriod !== 'daily' && (
+                        <th className="px-4 py-3 text-right text-gray-400 font-medium">% L→M</th>
+                      )}
                     </>
                   )}
                   {filterField('sql') && (
@@ -572,7 +574,7 @@ export default function CommercialFunnel() {
                       <th className="px-4 py-3 text-right text-gray-400 font-medium">
                         SQLs {isFieldRequired('sql') && <span className="text-red-400">*</span>}
                       </th>
-                      {filterField('mql') && (
+                      {filterField('mql') && viewPeriod !== 'daily' && (
                         <th className="px-4 py-3 text-right text-gray-400 font-medium">% M→S</th>
                       )}
                     </>
@@ -582,7 +584,9 @@ export default function CommercialFunnel() {
                       <th className="px-4 py-3 text-right text-gray-400 font-medium">
                         Reuniões {isFieldRequired('meetings') && <span className="text-red-400">*</span>}
                       </th>
-                      <th className="px-4 py-3 text-right text-gray-400 font-medium">% S→R</th>
+                      {viewPeriod !== 'daily' && (
+                        <th className="px-4 py-3 text-right text-gray-400 font-medium">% S→R</th>
+                      )}
                     </>
                   )}
                   {filterField('opportunities') && (
@@ -611,15 +615,17 @@ export default function CommercialFunnel() {
                     {filterField('mql') && (
                       <>
                         <td className="px-4 py-3 text-right text-gray-300">{row.mql ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">
-                          {formatPercent((row as AggregatedRecord).leadToMqlRate)}
-                        </td>
+                        {viewPeriod !== 'daily' && (
+                          <td className="px-4 py-3 text-right text-gray-400">
+                            {formatPercent((row as AggregatedRecord).leadToMqlRate)}
+                          </td>
+                        )}
                       </>
                     )}
                     {filterField('sql') && (
                       <>
                         <td className="px-4 py-3 text-right text-gray-300">{row.sql ?? '—'}</td>
-                        {filterField('mql') && (
+                        {filterField('mql') && viewPeriod !== 'daily' && (
                           <td className="px-4 py-3 text-right text-gray-400">
                             {formatPercent((row as AggregatedRecord).mqlToSqlRate)}
                           </td>
@@ -629,9 +635,11 @@ export default function CommercialFunnel() {
                     {filterField('meetings') && (
                       <>
                         <td className="px-4 py-3 text-right text-gray-300">{row.meetings ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">
-                          {formatPercent((row as AggregatedRecord).sqlToMeetingRate)}
-                        </td>
+                        {viewPeriod !== 'daily' && (
+                          <td className="px-4 py-3 text-right text-gray-400">
+                            {formatPercent((row as AggregatedRecord).sqlToMeetingRate)}
+                          </td>
+                        )}
                       </>
                     )}
                     {filterField('opportunities') && (
